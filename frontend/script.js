@@ -13,8 +13,8 @@ function initMap() {
     geocoder = new google.maps.Geocoder();
     map = new google.maps.Map(document.getElementById("map"), {
         center: CAMPUS_CENTER,
-        zoom: 15,
-        minZoom: 14,
+        zoom: 1,
+        minZoom: 1,
         mapId: "75ccfb1714f1ad1ed6ac3269",
         restriction: {
             latLngBounds: UCSC_BOUNDS,
@@ -33,27 +33,24 @@ function clearMarkers() {
 
 async function searchCourse() {
     const code = document.getElementById('courseInput').value.trim().toUpperCase();
-    if (!code) return;
-
     clearMarkers();
-
+    if (!code) {
+        return;
+    }
     try {
         const response = await fetch(`/api/course/${code}`);
         const offerings = await response.json();
-
         if (offerings.length === 0) {
             alert("No courses found for " + code);
             return;
         }
-
-        // --- NEW LOGIC: Group by Location ---
         // This map will store: "Location Name" -> [Array of Meetings]
         const locationGroups = {};
-
         offerings.forEach(offering => {
             offering.meetings.forEach(meet => {
-                if (meet.location === "TBA") return;
-
+                if (meet.location === "TBA") {
+                    return;
+                }
                 if (!locationGroups[meet.location]) {
                     locationGroups[meet.location] = [];
                 }
@@ -63,12 +60,10 @@ async function searchCourse() {
                 });
             });
         });
-
         // Now, create one marker per unique location
         for (const loc in locationGroups) {
             const meetingsAtLoc = locationGroups[loc];
             const address = `${loc}, UC Santa Cruz, CA`;
-
             geocoder.geocode({ address: address, bounds: UCSC_BOUNDS }, (results, status) => {
                 if (status === "OK") {
                     createMarkerAtLocation(results[0].geometry.location, loc, meetingsAtLoc);
@@ -86,14 +81,12 @@ function createMarkerAtLocation(position, locationName, meetings) {
     const iconUrl = hasLecture
         ? 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png'
         : 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png';
-
     const marker = new google.maps.Marker({
         position: position,
         map: map,
         animation: google.maps.Animation.DROP,
         icon: iconUrl
     });
-
     // Generate HTML for ALL meetings in this room
     let meetingsHtml = "";
     meetings.forEach(m => {
@@ -107,7 +100,6 @@ function createMarkerAtLocation(position, locationName, meetings) {
             </div>
         `;
     });
-
     const infoWindow = new google.maps.InfoWindow({
         content: `
             <div class="info-box max-w-[200px]">
@@ -121,10 +113,8 @@ function createMarkerAtLocation(position, locationName, meetings) {
             </div>
         `
     });
-
     marker.addListener("click", () => {
         infoWindow.open(map, marker);
     });
-
     markers.push(marker);
 }
