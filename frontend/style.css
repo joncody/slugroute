@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+#map {
+    height: calc(100vh - 70px);
+    width: 100%;
+}
+
+.navbar {
+    height: 70px;
+    background-color: #003C6C; /* UCSC Blue */
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 100;
+}
+
+.nav-container {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo-text {
+    color: #F1B82D; /* UCSC Gold */
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.05em;
+}
+
+.search-container {
+    display: flex;
+    gap: 8px;
+    background: rgba(255,255,255,0.1);
+    padding: 6px;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 450px;
+}
+
+.search-container input {
+    flex-grow: 1;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.search-container button {
+    background-color: #F1B82D;
+    color: #003C6C;
+    font-weight: bold;
+    padding: 8px 20px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.search-container button:hover {
+    background-color: #ffd261;
+    transform: translateY(-1px);
+}
+
+/* InfoWindow Customization */
+.info-box {
+    padding: 8px;
+    color: #333;
+    line-height: 1.4;
+}

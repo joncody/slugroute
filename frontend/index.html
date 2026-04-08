@@ -1,67 +1,28 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SlugRoute Sprint 1</title>
-    <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
-    <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
-    <style>
-        body { margin: 0; display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; }
-        #map { flex-grow: 1; }
-        .ui { padding: 20px; background: #003C6C; color: white; display: flex; gap: 10px; }
-        input { padding: 8px; border-radius: 4px; border: none; width: 250px; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SlugRoute | UCSC Map</title>
+    <!-- Tailwind for rapid layout, custom CSS for branding -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-
-<div class="ui">
-    <strong>SlugRoute</strong>
-    <input type="text" id="course" placeholder="Enter Course (e.g. CSE 115A)">
-    <button onclick="search()">Search</button>
-</div>
-<div id="map"></div>
-
-<script>
-    mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN';
-    
-    // Sprint 2 Preview: Building to Coord Mapping
-    const buildingMap = {
-        "Baskin Engr": [-122.0640, 36.9991],
-        "Classroom Unit": [-122.0623, 36.9975],
-        "Soc Sci 1": [-122.0583, 36.9990],
-        "Earth & Marine": [-122.0620, 36.9998],
-        "Oakes Acad": [-122.0669, 36.9891]
-    };
-
-    const map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [-122.0608, 36.9914],
-        zoom: 14
-    });
-
-    let markers = [];
-
-    async function search() {
-        const code = document.getElementById('course').value.toUpperCase();
-        const resp = await fetch(`http://localhost:8080/api/course/${code}`);
-        const data = await resp.json();
-
-        // Clear old pins
-        markers.forEach(m => m.remove());
-        
-        data.forEach(meet => {
-            // Find which building key is in the location string (e.g. "Baskin Engr 101")
-            const buildingKey = Object.keys(buildingMap).find(k => meet.location.includes(k));
-            const coords = buildingKey ? buildingMap[buildingKey] : [-122.0608, 36.9914];
-
-            const marker = new mapboxgl.Marker({ color: meet.type === 'LEC' ? '#ffcc00' : '#00aaff' })
-                .setLngLat(coords)
-                .setPopup(new mapboxgl.Popup().setHTML(`<b>${meet.type}</b><br>${meet.location}<br>${meet.time}`))
-                .addTo(map);
-            
-            markers.push(marker);
-        });
-    }
-</script>
+<body class="bg-slate-50 overflow-hidden">
+    <nav class="navbar shadow-lg">
+        <div class="nav-container px-6">
+            <div class="brand flex items-center gap-2">
+                <span class="text-2xl">🐌</span>
+                <span class="logo-text">SlugRoute</span>
+            </div>
+            <div class="search-container">
+                <input type="text" id="courseInput" placeholder="Enter Course (e.g. CSE 115A)">
+                <button onclick="searchCourse()" id="searchBtn">Find Classes</button>
+            </div>
+        </div>
+    </nav>
+    <div id="map"></div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7Lf0XOfjaOrXdD8cXAhCZPIhtPOBh41o&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>
+    <script src="script.js"></script>
 </body>
 </html>
