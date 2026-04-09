@@ -13,8 +13,8 @@ function initMap() {
     geocoder = new google.maps.Geocoder();
     map = new google.maps.Map(document.getElementById("map"), {
         center: CAMPUS_CENTER,
-        zoom: 1,
-        minZoom: 1,
+        zoom: 11,
+        minZoom: 10,
         mapId: "75ccfb1714f1ad1ed6ac3269",
         restriction: {
             latLngBounds: UCSC_BOUNDS,
