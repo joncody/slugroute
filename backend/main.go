@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -9,19 +10,133 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// --- Models ---
+
 type Meeting struct {
-	Type       string `json:"type"`
-	Location   string `json:"location"`
-	Time       string `json:"time"`
-	Instructor string `json:"instructor"`
+	Type       string  `json:"type"`
+	Building   string  `json:"building"`
+	RoomNumber string  `json:"room_number"`
+	Time       string  `json:"time"`
+	Instructor string  `json:"instructor"`
+	Lat        float64 `json:"lat"`
+	Lng        float64 `json:"lng"`
 }
 
 type Offering struct {
-	ClassNum   int       `json:"class_number"`
+	ClassNum   string    `json:"class_number"`
 	CourseCode string    `json:"course_code"`
+	Title      string    `json:"title"`
 	Instructor string    `json:"instructor"`
 	Meetings   []Meeting `json:"meetings"`
 }
+
+// --- Database Logic ---
+
+// fetchOfferings retrieves the main lectures and initializes the map
+func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error) {
+	query := `
+		SELECT c.class_number, c.course_code, c.title, l.instructor, l.days, l.times, l.building, l.room_number, 
+		       IFNULL(b.lat, 0), IFNULL(b.lng, 0)
+		FROM courses c
+		JOIN lectures l ON c.class_number = l.class_number AND c.term = l.term
+		LEFT JOIN buildings b ON UPPER(TRIM(l.building)) = UPPER(TRIM(b.name))
+		WHERE c.course_code = ? AND c.term = ?`
+	rows, err := db.Query(query, code, term)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	offeringsMap := make(map[string]*Offering)
+	for rows.Next() {
+		var cn, cc, title, inst, days, times, bld, rm string
+		var lat, lng float64
+		if err := rows.Scan(&cn, &cc, &title, &inst, &days, &times, &bld, &rm, &lat, &lng); err != nil {
+			return nil, err
+		}
+		if _, ok := offeringsMap[cn]; !ok {
+			offeringsMap[cn] = &Offering{
+				ClassNum:   cn,
+				CourseCode: cc,
+				Title:      title,
+				Instructor: inst,
+				Meetings:   []Meeting{},
+			}
+		}
+		offeringsMap[cn].Meetings = append(offeringsMap[cn].Meetings, Meeting{
+			Type:       "LEC",
+			Building:   bld,
+			RoomNumber: rm,
+			Time:       fmt.Sprintf("%s %s", days, times),
+			Instructor: inst,
+			Lat:        lat,
+			Lng:        lng,
+		})
+	}
+	return offeringsMap, nil
+}
+
+// attachSections fetches sections for each offering and appends them to the Meetings slice
+func attachSections(db *sql.DB, term string, offerings map[string]*Offering) error {
+	query := `
+		SELECT s.section_type, s.instructor, s.days, s.times, s.building, s.room_number,
+		       IFNULL(b.lat, 0), IFNULL(b.lng, 0)
+		FROM sections s
+		LEFT JOIN buildings b ON UPPER(TRIM(s.building)) = UPPER(TRIM(b.name))
+		WHERE s.parent_class_number = ? AND s.term = ?`
+	for cn, offering := range offerings {
+		secRows, err := db.Query(query, cn, term)
+		if err != nil {
+			return err
+		}
+		for secRows.Next() {
+			var st, si, sd, stm, bld, rm string
+			var lat, lng float64
+			if err := secRows.Scan(&st, &si, &sd, &stm, &bld, &rm, &lat, &lng); err != nil {
+				secRows.Close()
+				return err
+			}
+			offering.Meetings = append(offering.Meetings, Meeting{
+				Type:       st,
+				Building:   bld,
+				RoomNumber: rm,
+				Time:       fmt.Sprintf("%s %s", sd, stm),
+				Instructor: si,
+				Lat:        lat,
+				Lng:        lng,
+			})
+		}
+		secRows.Close()
+	}
+	return nil
+}
+
+// --- Handlers ---
+
+func getCourseHandler(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		term := c.Param("term")
+		code := c.Param("code")
+		// 1. Fetch lectures
+		offeringsMap, err := fetchOfferings(db, term, code)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch lectures"})
+			return
+		}
+		// 2. Fetch and attach sections
+		if err := attachSections(db, term, offeringsMap); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch sections"})
+			return
+		}
+		// 3. Convert map to slice for JSON response
+		result := make([]Offering, 0, len(offeringsMap))
+		for _, v := range offeringsMap {
+			result = append(result, *v)
+		}
+		c.JSON(http.StatusOK, result)
+	}
+}
+
+// --- Main ---
 
 func main() {
 	db, err := sql.Open("sqlite3", "../database/slugroute.db")
@@ -30,39 +145,9 @@ func main() {
 	}
 	defer db.Close()
 	r := gin.Default()
-	// Define API Routes FIRST
-	// These take priority over the static files
-	r.GET("/api/course/:code", func(c *gin.Context) {
-		code := c.Param("code")
-		rows, err := db.Query("SELECT class_num, course_code, type, location, time, instructor FROM meetings WHERE course_code = ?", code)
-		if err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
-			return
-		}
-		defer rows.Close()
-		offeringsMap := make(map[int]*Offering)
-		for rows.Next() {
-			var cn int
-			var cc, t, l, ti, inst string
-			rows.Scan(&cn, &cc, &t, &l, &ti, &inst)
-			if _, ok := offeringsMap[cn]; !ok {
-				offeringsMap[cn] = &Offering{
-					ClassNum:   cn,
-					CourseCode: cc,
-					Instructor: inst,
-					Meetings:   []Meeting{},
-				}
-			}
-			offeringsMap[cn].Meetings = append(offeringsMap[cn].Meetings, Meeting{t, l, ti, inst})
-		}
-		var result []Offering
-		for _, v := range offeringsMap {
-			result = append(result, *v)
-		}
-		c.JSON(200, result)
-	})
-	// This will only run if the request doesn't match an API route.
-	// It serves index.html, style.css, and script.js from the frontend folder.
+	// API Routes
+	r.GET("/api/course/:term/:code", getCourseHandler(db))
+	// Static Files
 	r.NoRoute(gin.WrapH(http.FileServer(http.Dir("../frontend"))))
 	log.Println("SlugRoute live at http://localhost:8080")
 	r.Run(":8080")

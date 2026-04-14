@@ -65,9 +65,100 @@ body {
     transform: translateY(-1px);
 }
 
-/* InfoWindow Customization */
-.info-box {
+/* --- InfoWindow Customization --- */
+
+/* The main wrapper that fights Google's default padding */
+.iw-container {
+    min-width: 270px;
+    max-width: 320px;
+}
+
+.iw-header {
+    background: #f8fafc;
+    padding: 15px 15px 10px 15px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.iw-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 800;
+    color: #1e40af;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.iw-content {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Grouping by Professor/Offering */
+.offering-group {
+    padding-left: 12px;
+}
+
+.course-code {
+    font-weight: 800;
+    font-size: 15px;
+    color: #0f172a;
+    margin-bottom: 2px;
+    line-height: 1.2;
+}
+
+.prof-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Individual Meeting Cards (Lectures/Labs) */
+.meeting-card {
+    background: #f1f5f9;
     padding: 8px;
-    color: #333;
-    line-height: 1.4;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 8px;
+}
+
+.meeting-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.type-badge {
+    font-size: 9px;
+    padding: 2px 5px;
+    background: #3b82f6;
+    color: white;
+    border-radius: 4px;
+    font-weight: 900;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.instructor-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.meeting-meta {
+    font-size: 11px;
+    color: #475569;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }

@@ -1,120 +1,188 @@
-let map, geocoder, markers = [];
-
-// UCSC Map Configuration
-const CAMPUS_CENTER = { lat: 36.9914, lng: -122.0608 };
-const UCSC_BOUNDS = {
-    north: 37.007,
-    south: 36.975,
-    west: -122.075,
-    east: -122.045,
+/**
+ * SlugRoute | UCSC Map Configuration
+ */
+const CONFIG = {
+    DEFAULT_TERM: "2262",
+    CAMPUS_CENTER: { lat: 36.9914, lng: -122.0608 },
+    UCSC_BOUNDS: { north: 37.007, south: 36.975, west: -122.075, east: -122.045 },
+    TYPE_COLORS: {
+        'LEC': 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+        'LAB': 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
+        'LBS': 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
+        'DIS': 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
+        'SEM': 'http://maps.google.com/mapfiles/ms/icons/purple-dot.png',
+        'DEFAULT': 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+    },
+    PROF_COLORS: ['#003c6c', '#c2410c', '#15803d', '#7e22ce', '#be185d'],
 };
 
+let map, markers = [], activeInfoWindow = null;
+
+const utils = {
+    formatCourseCode: (input) => {
+        return input.trim().toUpperCase().replace(/([A-Z]+)(\d+)/, '$1 $2');
+    }
+};
+
+function clearMarkers() {
+    markers.forEach((m) => {
+        m.setMap(null);
+    });
+    markers = [];
+}
+
+/**
+ * Grouping: Location -> Offering -> Individual Meetings
+ */
+function groupDataByLocation(offerings) {
+    const locationMap = {};
+    offerings.forEach((offering, index) => {
+        const profColor = CONFIG.PROF_COLORS[index % CONFIG.PROF_COLORS.length];
+        offering.meetings.forEach((meet) => {
+            if (!meet.lat || meet.lat === 0) {
+                return;
+            }
+            const locKey = `${meet.lat},${meet.lng}`;
+            if (!locationMap[locKey]) {
+                locationMap[locKey] = {
+                    lat: meet.lat, lng: meet.lng,
+                    building: meet.building,
+                    offerings: {},
+                    highestPriorityType: 'DEFAULT'
+                };
+            }
+            const offKey = offering.class_number;
+            if (!locationMap[locKey].offerings[offKey]) {
+                locationMap[locKey].offerings[offKey] = {
+                    professor: offering.instructor,
+                    courseCode: offering.course_code,
+                    title: offering.title,
+                    color: profColor,
+                    meetings: []
+                };
+            }
+            // Determine Marker Color Priority
+            const type = meet.type.toUpperCase();
+            if (type === 'LEC') {
+                locationMap[locKey].highestPriorityType = 'LEC';
+            } else if (['LAB', 'LBS'].includes(type) && locationMap[locKey].highestPriorityType !== 'LEC') {
+                locationMap[locKey].highestPriorityType = 'LAB';
+            } else if (type === 'DIS' && !['LEC', 'LAB', 'LBS'].includes(locationMap[locKey].highestPriorityType)) {
+                locationMap[locKey].highestPriorityType = 'DIS';
+            }
+            locationMap[locKey].offerings[offKey].meetings.push(meet);
+        });
+    });
+    return locationMap;
+}
+
+function buildInfoWindowHtml(locationGroup) {
+    let html = `
+        <div class="iw-container">
+            <div class="iw-header">
+                <h3><span>📍</span> ${locationGroup.building}</h3>
+            </div>
+            <div class="iw-content">
+    `;
+    Object.values(locationGroup.offerings).forEach((off) => {
+        html += `
+            <div class="offering-group" style="border-left: 4px solid ${off.color};">
+                <div class="course-code">${off.courseCode}</div>
+                <div class="prof-label">Main Prof: ${off.professor}</div>
+                <div class="meetings-list">
+        `;
+        off.meetings.forEach((m) => {
+            // Priority: Specific Instructor -> fallback to Main Professor
+            const displayInstructor = (m.instructor && m.instructor !== "" && m.instructor !== "Staff")
+                ? m.instructor
+                : (m.instructor === "Staff" ? "Staff" : off.professor);
+            html += `
+                <div class="meeting-card">
+                    <div class="meeting-header">
+                        <span class="type-badge">${m.type}</span>
+                        <span class="instructor-name">${displayInstructor}</span>
+                    </div>
+                    <div class="meeting-meta">
+                        <span style="opacity: 0.6;">🕒</span>
+                        ${m.room_number ? m.room_number + ' | ' : ''}${m.time}
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div></div>`;
+    });
+    html += `</div></div>`;
+    return html;
+}
+
+async function searchCourse() {
+    const input = document.getElementById('courseInput');
+    const courseCode = utils.formatCourseCode(input.value);
+    clearMarkers();
+    if (!courseCode) {
+        return;
+    }
+    try {
+        const url = `/api/course/${CONFIG.DEFAULT_TERM}/${encodeURIComponent(courseCode)}`;
+        const response = await fetch(url);
+        const offerings = await response.json();
+        if (!offerings || offerings.length === 0) {
+            alert(`No results found for "${courseCode}" in Spring 2026`);
+            return;
+        }
+        const locationGroups = groupDataByLocation(offerings);
+        for (const key in locationGroups) {
+            const group = locationGroups[key];
+            const marker = new google.maps.Marker({
+                position: { lat: group.lat, lng: group.lng },
+                map,
+                icon: CONFIG.TYPE_COLORS[group.highestPriorityType] || CONFIG.TYPE_COLORS['DEFAULT'],
+                animation: google.maps.Animation.DROP
+            });
+            const infoWindow = new google.maps.InfoWindow({
+                content: buildInfoWindowHtml(group)
+            });
+            marker.addListener("click", () => {
+                if (activeInfoWindow) {
+                    activeInfoWindow.close();
+                }
+                infoWindow.open(map, marker);
+                activeInfoWindow = infoWindow;
+            });
+            markers.push(marker);
+        }
+        if (markers.length > 0) {
+            const bounds = new google.maps.LatLngBounds();
+            markers.forEach((m) => {
+                bounds.extend(m.getPosition());
+            });
+            map.fitBounds(bounds);
+            const listener = google.maps.event.addListener(map, "idle", () => {
+                if (map.getZoom() > 17) {
+                    map.setZoom(17);
+                }
+                google.maps.event.removeListener(listener);
+            });
+        }
+    } catch (err) {
+        console.error("Search failed:", err);
+    }
+}
+
 function initMap() {
-    geocoder = new google.maps.Geocoder();
     map = new google.maps.Map(document.getElementById("map"), {
-        center: CAMPUS_CENTER,
-        zoom: 11,
-        minZoom: 10,
+        center: CONFIG.CAMPUS_CENTER,
+        zoom: 15,
+        minZoom: 13,
         mapId: "75ccfb1714f1ad1ed6ac3269",
-        restriction: {
-            latLngBounds: UCSC_BOUNDS,
-            strictBounds: true,
-        },
+        restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false },
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false
     });
-}
-
-function clearMarkers() {
-    markers.forEach(m => m.setMap(null));
-    markers = [];
-}
-
-async function searchCourse() {
-    const code = document.getElementById('courseInput').value.trim().toUpperCase();
-    clearMarkers();
-    if (!code) {
-        return;
-    }
-    try {
-        const response = await fetch(`/api/course/${code}`);
-        const offerings = await response.json();
-        if (offerings.length === 0) {
-            alert("No courses found for " + code);
-            return;
+    document.getElementById('courseInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            searchCourse();
         }
-        // This map will store: "Location Name" -> [Array of Meetings]
-        const locationGroups = {};
-        offerings.forEach(offering => {
-            offering.meetings.forEach(meet => {
-                if (meet.location === "TBA") {
-                    return;
-                }
-                if (!locationGroups[meet.location]) {
-                    locationGroups[meet.location] = [];
-                }
-                locationGroups[meet.location].push({
-                    ...meet,
-                    courseCode: offering.course_code // Keep track of code for the popup
-                });
-            });
-        });
-        // Now, create one marker per unique location
-        for (const loc in locationGroups) {
-            const meetingsAtLoc = locationGroups[loc];
-            const address = `${loc}, UC Santa Cruz, CA`;
-            geocoder.geocode({ address: address, bounds: UCSC_BOUNDS }, (results, status) => {
-                if (status === "OK") {
-                    createMarkerAtLocation(results[0].geometry.location, loc, meetingsAtLoc);
-                }
-            });
-        }
-    } catch (err) {
-        console.error("Search error:", err);
-    }
-}
-
-function createMarkerAtLocation(position, locationName, meetings) {
-    // Determine the icon: If there is a Lecture here, use Gold. Otherwise, Blue.
-    const hasLecture = meetings.some(m => m.type === 'LEC');
-    const iconUrl = hasLecture
-        ? 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png'
-        : 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png';
-    const marker = new google.maps.Marker({
-        position: position,
-        map: map,
-        animation: google.maps.Animation.DROP,
-        icon: iconUrl
     });
-    // Generate HTML for ALL meetings in this room
-    let meetingsHtml = "";
-    meetings.forEach(m => {
-        meetingsHtml += `
-            <div class="mb-2 border-b border-gray-100 pb-1 last:border-0">
-                <span class="text-xs font-bold px-1 uppercase rounded ${m.type === 'LEC' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}">
-                    ${m.type}
-                </span>
-                <div class="text-sm text-gray-700 mt-1">⏰ ${m.time}</div>
-                <div class="text-[10px] text-gray-400 italic">${m.instructor}</div>
-            </div>
-        `;
-    });
-    const infoWindow = new google.maps.InfoWindow({
-        content: `
-            <div class="info-box max-w-[200px]">
-                <h3 class="font-bold text-lg mb-1">${meetings[0].courseCode}</h3>
-                <p class="text-xs text-gray-500 mb-3 flex items-center gap-1">
-                    📍 ${locationName}
-                </p>
-                <div class="max-h-[200px] overflow-y-auto pr-2">
-                    ${meetingsHtml}
-                </div>
-            </div>
-        `
-    });
-    marker.addListener("click", () => {
-        infoWindow.open(map, marker);
-    });
-    markers.push(marker);
 }
