@@ -1,21 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+/* --- Variables & Reset --- */
+:root {
+    --ucsc-blue: #003C6C;
+    --ucsc-gold: #F1B82D;
+    --bg-light: #f8fafc;
+    --text-dark: #1e293b;
+    --nav-height: 70px;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
 
 body {
     font-family: 'Inter', sans-serif;
+    background-color: var(--bg-light);
+    overflow: hidden;
 }
 
-#map {
-    height: calc(100vh - 70px);
-    width: 100%;
-}
-
+/* --- Navigation --- */
 .navbar {
-    height: 70px;
-    background-color: #003C6C; /* UCSC Blue */
+    height: var(--nav-height);
+    background-color: var(--ucsc-blue);
     display: flex;
     align-items: center;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     position: relative;
     z-index: 100;
+    padding: 0 1.5rem;
 }
 
 .nav-container {
@@ -23,19 +38,28 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .logo-text {
-    color: #F1B82D; /* UCSC Gold */
+    color: var(--ucsc-gold);
     font-weight: 800;
     font-size: 1.5rem;
-    letter-spacing: -0.05em;
+    letter-spacing: -0.05em; /* Restored */
 }
 
+/* --- Search --- */
 .search-container {
     display: flex;
     gap: 8px;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     padding: 6px;
     border-radius: 8px;
     width: 100%;
@@ -52,11 +76,13 @@ body {
 }
 
 .search-container button {
-    background-color: #F1B82D;
-    color: #003C6C;
+    background-color: var(--ucsc-gold);
+    color: var(--ucsc-blue);
     font-weight: bold;
     padding: 8px 20px;
+    border: none;
     border-radius: 4px;
+    cursor: pointer;
     transition: all 0.2s;
 }
 
@@ -65,9 +91,13 @@ body {
     transform: translateY(-1px);
 }
 
-/* --- InfoWindow Customization --- */
+/* --- Map --- */
+#map {
+    height: calc(100vh - var(--nav-height));
+    width: 100%;
+}
 
-/* The main wrapper that fights Google's default padding */
+/* --- InfoWindow (Restored full detail) --- */
 .iw-container {
     min-width: 270px;
     max-width: 320px;
@@ -95,13 +125,13 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    max-height: 400px;
+    max-height: 400px; /* Restored: prevents huge popups */
     overflow-y: auto;
 }
 
-/* Grouping by Professor/Offering */
 .offering-group {
     padding-left: 12px;
+    /* Border-left color is handled by JS inline styles */
 }
 
 .course-code {
@@ -121,7 +151,6 @@ body {
     letter-spacing: 0.05em;
 }
 
-/* Individual Meeting Cards (Lectures/Labs) */
 .meeting-card {
     background: #f1f5f9;
     padding: 8px;
