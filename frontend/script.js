@@ -1,3 +1,6 @@
+/**
+ * SlugRoute | UCSC Map Configuration
+ */
 const CONFIG = {
     DEFAULT_TERM: "2262",
     CAMPUS_CENTER: { lat: 36.9914, lng: -122.0608 },
@@ -21,6 +24,7 @@ const utils = {
     }
 };
 
+
 function clearMarkers() {
     markers.forEach((m) => {
         m.setMap(null);
@@ -28,6 +32,9 @@ function clearMarkers() {
     markers = [];
 }
 
+/**
+ * Grouping: Location -> Offering -> Individual Meetings
+ */
 
 function groupDataByLocation(offerings, showDis) {
     const locationMap = {};
@@ -37,8 +44,8 @@ function groupDataByLocation(offerings, showDis) {
             if (!meet.lat || meet.lat === 0) {
                 return;
             }
-            if (meet.type.toUpperCase() === 'DIS' && !showDis) { 
-            //if meeting type is Discussions and box is not checked, dont add it offerings
+            //if meeting type is DIS and the box is not checked, dont add it
+            if (meet.type.toUpperCase() === 'DIS' && !showDis) {
                 return;
             }
             const locKey = `${meet.lat},${meet.lng}`;
@@ -60,6 +67,7 @@ function groupDataByLocation(offerings, showDis) {
                     meetings: []
                 };
             }
+            // Determine Marker Color Priority
             const type = meet.type.toUpperCase();
             if (type === 'LEC') {
                 locationMap[locKey].highestPriorityType = 'LEC';
@@ -90,6 +98,7 @@ function buildInfoWindowHtml(locationGroup) {
                 <div class="meetings-list">
         `;
         off.meetings.forEach((m) => {
+            // Priority: Specific Instructor -> fallback to Main Professor
             const displayInstructor = (m.instructor && m.instructor !== "" && m.instructor !== "Staff")
                 ? m.instructor
                 : (m.instructor === "Staff" ? "Staff" : off.professor);
@@ -128,6 +137,7 @@ async function searchCourse() {
             alert(`No results found for "${courseCode}" in Spring 2026`);
             return;
         }
+
         const locationGroups = groupDataByLocation(offerings, showDis);
         for (const key in locationGroups) {
             const group = locationGroups[key];
