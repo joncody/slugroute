@@ -1,6 +1,3 @@
-/**
- * SlugRoute | UCSC Map Configuration
- */
 const CONFIG = {
     DEFAULT_TERM: "2262",
     CAMPUS_CENTER: { lat: 36.9914, lng: -122.0608 },
@@ -31,15 +28,17 @@ function clearMarkers() {
     markers = [];
 }
 
-/**
- * Grouping: Location -> Offering -> Individual Meetings
- */
-function groupDataByLocation(offerings) {
+
+function groupDataByLocation(offerings, showDis) {
     const locationMap = {};
     offerings.forEach((offering, index) => {
         const profColor = CONFIG.PROF_COLORS[index % CONFIG.PROF_COLORS.length];
         offering.meetings.forEach((meet) => {
             if (!meet.lat || meet.lat === 0) {
+                return;
+            }
+            if (meet.type.toUpperCase() === 'DIS' && !showDis) { 
+            //if meeting type is Discussions and box is not checked, dont add it offerings
                 return;
             }
             const locKey = `${meet.lat},${meet.lng}`;
@@ -61,7 +60,6 @@ function groupDataByLocation(offerings) {
                     meetings: []
                 };
             }
-            // Determine Marker Color Priority
             const type = meet.type.toUpperCase();
             if (type === 'LEC') {
                 locationMap[locKey].highestPriorityType = 'LEC';
@@ -92,7 +90,6 @@ function buildInfoWindowHtml(locationGroup) {
                 <div class="meetings-list">
         `;
         off.meetings.forEach((m) => {
-            // Priority: Specific Instructor -> fallback to Main Professor
             const displayInstructor = (m.instructor && m.instructor !== "" && m.instructor !== "Staff")
                 ? m.instructor
                 : (m.instructor === "Staff" ? "Staff" : off.professor);
@@ -118,6 +115,7 @@ function buildInfoWindowHtml(locationGroup) {
 async function searchCourse() {
     const input = document.getElementById('courseInput');
     const courseCode = utils.formatCourseCode(input.value);
+    const showDis = document.getElementById('showDIS').checked;
     clearMarkers();
     if (!courseCode) {
         return;
@@ -130,7 +128,7 @@ async function searchCourse() {
             alert(`No results found for "${courseCode}" in Spring 2026`);
             return;
         }
-        const locationGroups = groupDataByLocation(offerings);
+        const locationGroups = groupDataByLocation(offerings, showDis);
         for (const key in locationGroups) {
             const group = locationGroups[key];
             const marker = new google.maps.Marker({
