@@ -109,5 +109,5 @@ The Go server provides the API and serves the static frontend files.
 
 ## 6. Technical Notes
 *   **Database:** Uses SQLite for zero-config deployment.
-*   **Frontend:** Uses Tailwind CSS for styling and the Google Maps JS SDK for visualization.
+*   **Frontend:** Uses vanilla CSS for styling and the Google Maps JS SDK for visualization.
 *   **Backend:** Uses the Gin Gonic framework in Go for high-performance JSON routing.
