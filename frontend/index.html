@@ -3,25 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlugRoute | UCSC Map</title>
+    <title>SlugRoute | UCSC Course Map</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-slate-50 overflow-hidden">
-    <nav class="navbar shadow-lg">
-        <div class="nav-container px-6">
-            <div class="brand flex items-center gap-2">
-                <span class="text-2xl">🐌</span>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="brand">
+                <button id="sidebarToggle" class="menu-btn" title="Toggle Sidebar">☰</button>
+                <span class="emoji">🐌</span>
                 <span class="logo-text">SlugRoute</span>
             </div>
             <div class="search-container">
-                <input type="text" id="courseInput" placeholder="Enter Course (e.g. CSE 115A)">
-                <button onclick="searchCourse()" id="searchBtn">Find Classes</button>
-                <label style="color: white;">
-                <input type="checkbox" id="showDIS"> Show Discussion
-                </label>
+                <input type="text" id="courseInput" placeholder="Search Course (e.g. CSE 115A)">
+                <button onclick="searchCourse()" id="searchBtn">Search</button>
+            </div>
         </div>
     </nav>
-    <div id="map"></div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-section">
+                <h3>View Filters</h3>
+                <div class="filter-group">
+                    <label class="filter-item">
+                        <input type="checkbox" class="filter-type" value="LEC" checked>
+                        <span class="dot blue"></span> Lectures
+                    </label>
+                    <label class="filter-item">
+                        <input type="checkbox" class="filter-type" value="LAB" checked>
+                        <span class="dot yellow"></span> Labs
+                    </label>
+                    <label class="filter-item">
+                        <input type="checkbox" class="filter-type" value="DIS" checked>
+                        <span class="dot green"></span> Discussions
+                    </label>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Current Results</h3>
+                <div id="searchResults" class="course-list">
+                    <p class="empty-msg">Search for a course to see sections here.</p>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Saved for Later</h3>
+                <div id="savedClasses" class="course-list">
+                    <!-- Saved items populated by JS -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Map Container -->
+        <main id="map-container">
+            <div id="map"></div>
+        </main>
+    </div>
+
+    <!-- Replace YOUR_API_KEY_HERE with your real Google Maps API Key -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7Lf0XOfjaOrXdD8cXAhCZPIhtPOBh41o&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>
     <script src="script.js"></script>
 </body>

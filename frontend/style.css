@@ -1,13 +1,21 @@
-/* --- Variables & Reset --- */
+/**
+ * SlugRoute | UCSC Map Styles
+ */
+
+/* --- Variables --- */
 :root {
     --ucsc-blue: #003C6C;
     --ucsc-gold: #F1B82D;
     --bg-light: #f8fafc;
-    --text-dark: #1e293b;
+    --border-color: #e2e8f0;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
     --nav-height: 70px;
+    --sidebar-width: 350px;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+/* --- Global Reset --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 * {
     box-sizing: border-box;
@@ -18,6 +26,7 @@
 body {
     font-family: 'Inter', sans-serif;
     background-color: var(--bg-light);
+    color: var(--text-main);
     overflow: hidden;
 }
 
@@ -27,10 +36,10 @@ body {
     background-color: var(--ucsc-blue);
     display: flex;
     align-items: center;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     position: relative;
-    z-index: 100;
+    z-index: 1000;
     padding: 0 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .nav-container {
@@ -38,39 +47,52 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    max-width: 1400px;
+    max-width: 1600px;
     margin: 0 auto;
 }
 
 .brand {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 10px;
+}
+
+.menu-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.menu-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .logo-text {
     color: var(--ucsc-gold);
     font-weight: 800;
     font-size: 1.5rem;
-    letter-spacing: -0.05em; /* Restored */
+    letter-spacing: -0.02em;
 }
 
-/* --- Search --- */
 .search-container {
     display: flex;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.15);
     padding: 6px;
-    border-radius: 8px;
+    border-radius: 10px;
     width: 100%;
-    max-width: 450px;
+    max-width: 400px;
 }
 
 .search-container input {
     flex-grow: 1;
     border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
+    padding: 8px 15px;
+    border-radius: 6px;
     font-size: 0.95rem;
     outline: none;
 }
@@ -78,115 +100,260 @@ body {
 .search-container button {
     background-color: var(--ucsc-gold);
     color: var(--ucsc-blue);
-    font-weight: bold;
+    font-weight: 700;
     padding: 8px 20px;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s;
 }
 
-.search-container button:hover {
-    background-color: #ffd261;
-    transform: translateY(-1px);
-}
-
-/* --- Map --- */
-#map {
+/* --- Main Layout --- */
+.app-container {
+    display: flex;
     height: calc(100vh - var(--nav-height));
+    width: 100vw;
+}
+
+.sidebar {
+    width: var(--sidebar-width);
+    height: 100%;
+    background: white;
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.3s;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    flex-shrink: 0;
+    z-index: 500;
+}
+
+.sidebar.closed {
+    transform: translateX(-100%);
+    margin-left: calc(-1 * var(--sidebar-width));
+}
+
+#map-container {
+    flex-grow: 1;
+    height: 100%;
+    position: relative;
+    background: #e5e7eb;
+}
+
+#map {
+    height: 100%;
     width: 100%;
 }
 
-/* --- InfoWindow (Restored full detail) --- */
-.iw-container {
-    min-width: 270px;
-    max-width: 320px;
+/* --- Sidebar Section UI --- */
+.sidebar-section {
+    margin-bottom: 32px;
 }
 
-.iw-header {
-    background: #f8fafc;
-    padding: 15px 15px 10px 15px;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.iw-header h3 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 800;
-    color: #1e40af;
+.sidebar-section h3 {
+    font-size: 11px;
     text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 16px;
+    font-weight: 700;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot.blue {
+    background-color: #3b82f6;
+}
+
+.dot.yellow {
+    background-color: #eab308;
+}
+
+.dot.green {
+    background-color: #22c55e;
+}
+
+/* --- Course Card Styling --- */
+.course-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.course-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+.course-card:hover {
+    background-color: #f1f5f9;
+    border-color: var(--ucsc-blue);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.course-header-row {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.iw-content {
-    padding: 15px;
+.course-card h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ucsc-blue);
+}
+
+.course-id-tag {
+    font-size: 10px;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.course-instructor {
+    font-size: 12px;
+    color: var(--text-main);
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.course-title-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.save-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    position: relative;
+    z-index: 10;
+}
+
+.save-btn:hover {
+    background-color: #f1f5f9;
+}
+
+.empty-msg {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 30px 10px;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+}
+
+/* --- InfoWindow Customization --- */
+.iw-container {
+    padding: 5px;
+    max-width: 300px;
+    font-family: 'Inter', sans-serif;
+}
+
+.iw-header h3 {
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--ucsc-blue);
     display: flex;
-    flex-direction: column;
-    gap: 20px;
-    max-height: 400px; /* Restored: prevents huge popups */
-    overflow-y: auto;
+    align-items: center;
+    gap: 6px;
 }
 
 .offering-group {
-    padding-left: 12px;
-    /* Border-left color is handled by JS inline styles */
-}
-
-.course-code {
-    font-weight: 800;
-    font-size: 15px;
-    color: #0f172a;
-    margin-bottom: 2px;
-    line-height: 1.2;
+    margin-bottom: 15px;
+    padding-left: 10px;
 }
 
 .prof-label {
     font-size: 10px;
-    font-weight: 600;
-    color: #64748b;
-    margin-bottom: 10px;
+    color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    font-weight: 700;
 }
 
 .meeting-card {
-    background: #f1f5f9;
-    padding: 8px;
+    background-color: #f8fafc;
     border-radius: 6px;
-    border: 1px solid #e2e8f0;
-    margin-bottom: 8px;
+    padding: 8px;
+    margin-top: 5px;
+    border: 1px solid #f1f5f9;
 }
 
 .meeting-header {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 4px;
 }
 
 .type-badge {
     font-size: 9px;
-    padding: 2px 5px;
-    background: #3b82f6;
+    padding: 2px 6px;
     color: white;
     border-radius: 4px;
-    font-weight: 900;
+    font-weight: 800;
     text-transform: uppercase;
-    line-height: 1;
+}
+
+.type-badge.lec {
+    background-color: #3b82f6;
+}
+
+.type-badge.lab {
+    background-color: #eab308;
+}
+
+.type-badge.dis {
+    background-color: #22c55e;
+}
+
+.type-badge.default {
+    background-color: #64748b;
 }
 
 .instructor-name {
     font-size: 12px;
-    font-weight: 700;
-    color: #1e293b;
+    font-weight: 600;
+    color: var(--text-main);
 }
 
 .meeting-meta {
     font-size: 11px;
-    color: #475569;
-    font-weight: 500;
+    margin-top: 4px;
+    color: var(--text-muted);
     display: flex;
     align-items: center;
     gap: 4px;
