@@ -91,7 +91,7 @@ The Go server provides the API and serves the static frontend files.
 3.  **Visual Indicators:**
     *   **Stars**: Primary Lectures (LEC).
     *   **Squares**: Labs (LAB/LBS).
-    *   **Discussions**: Discussions (DIS).
+    *   **Circles**: Discussions (DIS).
 4.  Click any pin to see detailed meeting times, room numbers, and specific instructors.
 
 ---
