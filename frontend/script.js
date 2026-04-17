@@ -1,6 +1,5 @@
 /**
- * SlugRoute | UCSC Map Configuration
- * Finalized Production Script
+ * SlugRoute | UCSC Map Logic
  */
 
 const CONFIG = {
@@ -9,103 +8,181 @@ const CONFIG = {
         lat: 36.9914,
         lng: -122.0608
     },
-    // Expanded to include Coastal Science Campus and Silicon Valley Center
     UCSC_BOUNDS: {
-        north: 37.45,
-        south: 36.90,
-        west: -122.20,
-        east: -121.80
+        north: 37.60,
+        south: 36.50,
+        west: -122.40,
+        east: -121.70
     },
-    TYPE_COLORS: {
-        "LEC": "#3b82f6",
-        "LAB": "#eab308",
-        "DIS": "#22c55e",
-        "DEFAULT": "#64748b"
-    },
-    PROF_COLORS: [
-        "#003c6c",
-        "#c2410c",
-        "#15803d",
-        "#7e22ce",
-        "#be185d"
-    ],
     ZOOM: {
         CAMPUS: 15,
         BUILDING: 17
-    }
+    },
+    COLOR_POOL: [
+        "#FFB300", "#803E75", "#FF6800", "#A6BDD7", "#C10020",
+        "#CEA262", "#817066", "#007D34", "#F6768E", "#00538A",
+        "#FF7A5C", "#53377A", "#FF8E00", "#B32851", "#F4C800",
+        "#7F180D", "#93AA00", "#593315", "#F13A13", "#232323"
+    ]
 };
 
+// Global State
 let map;
 let markers = [];
 let activeInfoWindow = null;
 let currentOfferings = [];
 let savedCourses = JSON.parse(localStorage.getItem("slugroute_saved")) || [];
-
 let AdvancedMarkerElement;
-let PinElement;
 
-const utils = {
-    formatCourseCode: (input) => {
-        return input.trim().toUpperCase().replace(/([A-Z]+)(\d+)/, "$1 $2");
-    },
-    getFilterCategory: (type) => {
-        const t = type.toUpperCase();
-        if (t === "LBS" || t === "LAB") {
-            return "LAB";
+/**
+ * ColorManager assigns unique colors to each class number
+ */
+const ColorManager = {
+    assignments: {},
+
+    getColor: function (classNumber) {
+        if (ColorManager.assignments[classNumber]) {
+            return ColorManager.assignments[classNumber];
         }
-        return t;
+
+        const usedColors = Object.values(ColorManager.assignments);
+        const nextColor = CONFIG.COLOR_POOL.find(function (c) {
+            return !usedColors.includes(c);
+        }) || CONFIG.COLOR_POOL[0];
+
+        ColorManager.assignments[classNumber] = nextColor;
+        return nextColor;
+    },
+
+    releaseColor: function (classNumber) {
+        delete ColorManager.assignments[classNumber];
     }
 };
 
 /**
- * UI Rendering for Sidebar
+ * utils provides formatting and logic helpers
+ */
+const utils = {
+    formatCourseCode: function (input) {
+        // Formats "cse115a" to "CSE 115A"
+        return input.trim().toUpperCase().replace(/([A-Z]+)(\d+)/, "$1 $2");
+    },
+
+    getFilterCategory: function (type) {
+        const t = type.toUpperCase();
+        if (t === "LBS" || t === "LAB") {
+            return "LAB";
+        }
+        if (t === "DIS") {
+            return "DIS";
+        }
+        return "LEC";
+    }
+};
+
+/**
+ * createMarkerElement builds the SVG icon for map pins
+ */
+function createMarkerElement(type, color) {
+    const category = utils.getFilterCategory(type);
+    const div = document.createElement('div');
+    let path = "";
+
+    // Choose SVG path based on meeting type
+    if (category === "LEC") {
+        path = "M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z";
+    } else if (category === "LAB") {
+        path = "M3 3h18v18H3z";
+    } else {
+        path = "M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2z";
+    }
+
+    div.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="34" height="34" class="marker-svg">
+            <path d="${path}" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+        </svg>
+    `;
+    return div;
+}
+
+/**
+ * highlightSidebarCard visually highlights a card when hovering map items
+ */
+function highlightSidebarCard(classNumber, active) {
+    const el = document.getElementById(`card-${classNumber}`);
+    if (el) {
+        if (active) {
+            el.classList.add('highlight');
+        } else {
+            el.classList.remove('highlight');
+        }
+    }
+}
+
+/**
+ * renderSearchList updates the "Current Results" sidebar section
  */
 function renderSearchList() {
     const container = document.getElementById("searchResults");
+
     if (currentOfferings.length === 0) {
-        container.innerHTML = "<p class=\"empty-msg\">No results.</p>";
+        container.innerHTML = "<p class=\"empty-msg\">Search for a course to see sections here.</p>";
         return;
     }
-    container.innerHTML = currentOfferings.map((course) => {
-        const isSaved = savedCourses.some((s) => {
+
+    container.innerHTML = currentOfferings.map(function (course) {
+        const isSaved = savedCourses.some(function (s) {
             return s.class_number === course.class_number;
         });
+        const color = ColorManager.getColor(course.class_number);
+        const hasLec = course.meetings.some(function (m) {
+            return utils.getFilterCategory(m.type) === "LEC";
+        });
+        const shapeSymbol = hasLec ? "★" : "●";
+
         return `
-            <div class="course-card" onclick="focusClass('${course.class_number}')">
+            <div class="course-card" id="card-${course.class_number}" onclick="focusClass('${course.class_number}')" style="border-left: 10px solid ${color}">
                 <div class="card-header">
                     <div>
                         <div class="course-header-row">
+                            <span style="color: ${color}; font-weight: bold; font-size: 14px;">${shapeSymbol}</span>
                             <h4>${course.course_code}</h4>
                             <span class="course-id-tag">#${course.class_number}</span>
                         </div>
                         <div class="course-instructor">${course.instructor}</div>
-                        <div class="course-title-sub">${course.title}</div>
                     </div>
-                    <button class="save-btn" onclick="event.stopPropagation(); toggleSaveCourse('${course.class_number}')">
-                        ${isSaved ? "❤️" : "🤍"}
-                    </button>
+                    <div class="card-actions">
+                        <button class="save-btn" onclick="event.stopPropagation(); toggleSaveCourse('${course.class_number}')">
+                            ${isSaved ? "❤️" : "🤍"}
+                        </button>
+                        <button class="remove-btn" onclick="event.stopPropagation(); removeResult('${course.class_number}')">✕</button>
+                    </div>
                 </div>
             </div>
         `;
     }).join("");
 }
 
+/**
+ * renderSavedList updates the "Saved for Later" sidebar section
+ */
 function renderSavedList() {
     const container = document.getElementById("savedClasses");
+
     if (savedCourses.length === 0) {
         container.innerHTML = "<p class=\"empty-msg\">No saved classes.</p>";
         return;
     }
-    container.innerHTML = savedCourses.map((course) => {
+
+    container.innerHTML = savedCourses.map(function (course) {
         return `
-            <div class="course-card">
+            <div class="course-card" onclick="addSavedToResults('${course.class_number}')">
                 <div class="card-header">
                     <div>
                         <h4>${course.course_code}</h4>
                         <div class="course-instructor">${course.instructor}</div>
-                        <div class="course-title-sub">${course.title}</div>
                     </div>
-                    <button class="save-btn" onclick="toggleSaveCourse('${course.class_number}')">❤️</button>
+                    <button class="save-btn" onclick="event.stopPropagation(); toggleSaveCourse('${course.class_number}')">❤️</button>
                 </div>
             </div>
         `;
@@ -113,298 +190,375 @@ function renderSavedList() {
 }
 
 /**
- * Coordinate Helpers
- */
-function getMarkerLat(marker) {
-    const pos = marker.position;
-    if (typeof pos.lat === "function") {
-        return pos.lat();
-    }
-    return pos.lat;
-}
-
-function getMarkerLng(marker) {
-    const pos = marker.position;
-    if (typeof pos.lng === "function") {
-        return pos.lng();
-    }
-    return pos.lng;
-}
-
-/**
- * Map Data Processing
+ * groupDataByLocation clusters meeting data if they happen at the same building
  */
 function groupDataByLocation(offerings) {
     const locationMap = {};
-    offerings.forEach((offering, index) => {
-        const profColor = CONFIG.PROF_COLORS[index % CONFIG.PROF_COLORS.length];
-        offering.meetings.forEach((meet) => {
-            if (!meet.lat || meet.lat === 0) {
+
+    offerings.forEach(function (offering) {
+        const classColor = ColorManager.getColor(offering.class_number);
+        offering.meetings.forEach(function (meet) {
+            if (!meet.lat || meet.lat === 0 || isNaN(meet.lat)) {
                 return;
             }
+
             const locKey = `${meet.lat},${meet.lng}`;
+
             if (!locationMap[locKey]) {
                 locationMap[locKey] = {
                     lat: meet.lat,
                     lng: meet.lng,
                     building: meet.building,
                     offerings: {},
-                    highestPriorityType: "DEFAULT",
+                    highestPriorityType: "DIS",
                     filterCategories: []
                 };
             }
+
             const cat = utils.getFilterCategory(meet.type);
+
             if (!locationMap[locKey].filterCategories.includes(cat)) {
                 locationMap[locKey].filterCategories.push(cat);
             }
-            const offKey = offering.class_number;
-            if (!locationMap[locKey].offerings[offKey]) {
-                locationMap[locKey].offerings[offKey] = {
-                    professor: offering.instructor,
+
+            // Determine if the pin should be a Star, Square, or Circle based on importance
+            if (cat === "LEC") {
+                locationMap[locKey].highestPriorityType = "LEC";
+            } else if (cat === "LAB" && locationMap[locKey].highestPriorityType !== "LEC") {
+                locationMap[locKey].highestPriorityType = "LAB";
+            }
+
+            if (!locationMap[locKey].offerings[offering.class_number]) {
+                locationMap[locKey].offerings[offering.class_number] = {
                     courseCode: offering.course_code,
-                    title: offering.title,
-                    color: profColor,
+                    color: classColor,
                     meetings: []
                 };
             }
-            const type = meet.type.toUpperCase();
-            if (type === "LEC") {
-                locationMap[locKey].highestPriorityType = "LEC";
-            } else if ((type === "LAB" || type === "LBS") && locationMap[locKey].highestPriorityType !== "LEC") {
-                locationMap[locKey].highestPriorityType = "LAB";
-            } else if (type === "DIS" && !["LEC", "LAB", "LBS"].includes(locationMap[locKey].highestPriorityType)) {
-                locationMap[locKey].highestPriorityType = "DIS";
-            }
-            locationMap[locKey].offerings[offKey].meetings.push(meet);
+            locationMap[locKey].offerings[offering.class_number].meetings.push(meet);
         });
     });
     return locationMap;
 }
 
 /**
- * InfoWindow Builder (Filtered)
+ * buildInfoWindowHtml creates the HTML string for a Google Maps InfoWindow
  */
 function buildInfoWindowHtml(locationGroup, activeFilters) {
-    let html = `<div class="iw-container">
-        <div class="iw-header"><h3>📍 ${locationGroup.building}</h3></div>
-        <div class="iw-content">`;
+    let offeringsHtml = "";
+    let visibleCount = 0;
 
-    Object.values(locationGroup.offerings).forEach((off) => {
-        const visibleMeetings = off.meetings.filter((m) => {
+    Object.entries(locationGroup.offerings).forEach(function ([classNum, off]) {
+        const visibleMeetings = off.meetings.filter(function (m) {
             return activeFilters.includes(utils.getFilterCategory(m.type));
         });
 
         if (visibleMeetings.length > 0) {
-            html += `<div class="offering-group" style="border-left: 4px solid ${off.color};">
-                <div class="course-code">${off.courseCode}</div>
-                <div class="prof-label">Course Lead: ${off.professor}</div>
+            visibleCount++;
+            offeringsHtml += `<div class="offering-group" style="border-left: 5px solid ${off.color}; padding-left: 8px;"
+                        onmouseenter="highlightSidebarCard('${classNum}', true)"
+                        onmouseleave="highlightSidebarCard('${classNum}', false)">
+                <div class="course-code" style="font-weight:800; color:#003c6c; margin-bottom:4px;">${off.courseCode}</div>
                 <div class="meetings-list">`;
 
-            visibleMeetings.forEach((m) => {
+            visibleMeetings.forEach(function (m) {
                 const type = m.type.toUpperCase();
                 const badgeClass = type === "LEC" ? "lec" : (type === "DIS" ? "dis" : "lab");
-                const displayInstructor = (m.instructor && m.instructor.trim() !== "") ? m.instructor : "Staff";
-                html += `<div class="meeting-card">
+                offeringsHtml += `<div class="meeting-card">
                     <div class="meeting-header">
                         <span class="type-badge ${badgeClass}">${type}</span>
-                        <span class="instructor-name">${displayInstructor}</span>
+                        <span class="instructor-name">${m.instructor || "Staff"}</span>
                     </div>
                     <div class="meeting-meta">🕒 ${m.room_number ? m.room_number + " | " : ""}${m.time}</div>
                 </div>`;
             });
-            html += `</div></div>`;
+            offeringsHtml += `</div></div>`;
         }
     });
 
-    html += `</div></div>`;
-    return html;
+    if (visibleCount === 0) {
+        return "";
+    }
+
+    return `<div class="iw-container">
+        <div class="iw-header"><h3>📍 ${locationGroup.building}</h3></div>
+        ${offeringsHtml}
+    </div>`;
 }
 
 /**
- * Search and Fit Logic
+ * searchCourse fetches results from the Go API
  */
 async function searchCourse() {
     const input = document.getElementById("courseInput");
     const courseCode = utils.formatCourseCode(input.value);
+
     if (!courseCode) {
         return;
     }
 
     try {
         const response = await fetch(`/api/course/${CONFIG.DEFAULT_TERM}/${encodeURIComponent(courseCode)}`);
-        currentOfferings = await response.json();
+        const newResults = await response.json();
 
-        markers.forEach((m) => {
-            m.map = null;
-        });
-        markers = [];
-        renderSearchList();
-
-        if (!currentOfferings || currentOfferings.length === 0) {
-            alert(`No results for "${courseCode}"`);
+        if (!newResults || newResults.length === 0) {
+            alert("No results found.");
             return;
         }
 
-        const locationGroups = groupDataByLocation(currentOfferings);
-        const bounds = new google.maps.LatLngBounds();
-
-        for (const key in locationGroups) {
-            const group = locationGroups[key];
-            const pin = new PinElement({
-                background: CONFIG.TYPE_COLORS[group.highestPriorityType] || CONFIG.TYPE_COLORS["DEFAULT"],
-                borderColor: "#ffffff",
-                glyphColor: "#ffffff"
+        let firstNewClassNum = null;
+        newResults.forEach(function (item) {
+            const exists = currentOfferings.find(function (c) {
+                return c.class_number === item.class_number;
             });
 
-            const marker = new AdvancedMarkerElement({
-                map: map,
-                position: {
-                    lat: group.lat,
-                    lng: group.lng
-                },
-                content: pin.element
-            });
-
-            marker.categories = group.filterCategories;
-            marker._locationKey = key;
-
-            marker.addListener("click", () => {
-                if (activeInfoWindow) {
-                    activeInfoWindow.close();
+            if (!exists) {
+                currentOfferings.push(item);
+                if (!firstNewClassNum) {
+                    firstNewClassNum = item.class_number;
                 }
-                const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map((cb) => {
-                    return cb.value;
-                });
-                const infoWindow = new google.maps.InfoWindow({
-                    content: buildInfoWindowHtml(group, activeFilters)
-                });
-                infoWindow.open({
-                    map: map,
-                    anchor: marker
-                });
-                activeInfoWindow = infoWindow;
-            });
+            }
+        });
 
-            markers.push(marker);
-            bounds.extend(marker.position);
+        refreshMapAndUI();
+
+        if (firstNewClassNum) {
+            focusClass(firstNewClassNum);
         }
-
-        // Adjust view to show all results across campuses
-        if (!bounds.isEmpty()) {
-            map.fitBounds(bounds);
-            const listener = google.maps.event.addListener(map, "idle", () => {
-                if (map.getZoom() > CONFIG.ZOOM.BUILDING) {
-                    map.setZoom(CONFIG.ZOOM.BUILDING);
-                }
-                google.maps.event.removeListener(listener);
-            });
-        }
-
-        updateMarkers();
     } catch (err) {
         console.error("Search failed:", err);
     }
 }
 
 /**
- * Sidebar Navigation & Focus
+ * focusClass pans the map to a specific class location
  */
 function focusClass(classNumber) {
-    const offering = currentOfferings.find((o) => {
+    const offering = currentOfferings.find(function (o) {
         return o.class_number === classNumber;
     });
-    if (!offering || !offering.meetings) {
+
+    if (!offering) {
         return;
     }
 
-    const meeting = offering.meetings.find((m) => {
+    const meeting = offering.meetings.find(function (m) {
         return m.lat && m.lat !== 0;
     });
+
     if (!meeting) {
         return;
     }
 
-    const targetLat = meeting.lat;
-    const targetLng = meeting.lng;
+    setTimeout(function () {
+        map.setZoom(CONFIG.ZOOM.BUILDING);
+        map.panTo({
+            lat: meeting.lat,
+            lng: meeting.lng
+        });
 
-    // Pan with offset to prevent InfoWindow clipping under the navbar
-    map.setZoom(CONFIG.ZOOM.BUILDING);
-    map.panTo({
-        lat: targetLat,
-        lng: targetLng
-    });
+        // Find associated marker and trigger popup
+        const marker = markers.find(function (m) {
+            const mPos = m.position;
+            const mLat = typeof mPos.lat === "function" ? mPos.lat() : mPos.lat;
+            const mLng = typeof mPos.lng === "function" ? mPos.lng() : mPos.lng;
+            return Math.abs(mLat - meeting.lat) < 0.0001 && Math.abs(mLng - meeting.lng) < 0.0001;
+        });
 
-    // Provide headroom for the InfoWindow
-    const isSidebarOpen = !document.getElementById("sidebar").classList.contains("closed");
-    const xOffset = isSidebarOpen ? -175 : 0;
-    const yOffset = -200; // Push map down to move marker lower on screen
-    map.panBy(xOffset, yOffset);
-
-    const marker = markers.find((m) => {
-        const mLat = getMarkerLat(m);
-        const mLng = getMarkerLng(m);
-        return Math.abs(mLat - targetLat) < 0.0001 && Math.abs(mLng - targetLng) < 0.0001;
-    });
-
-    if (marker) {
-        if (activeInfoWindow) {
-            activeInfoWindow.close();
+        if (marker && marker.map) {
+            google.maps.event.trigger(marker, 'click');
         }
-        const locationGroups = groupDataByLocation(currentOfferings);
-        const group = locationGroups[marker._locationKey];
-        const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map((cb) => {
-            return cb.value;
-        });
-        const infoWindow = new google.maps.InfoWindow({
-            content: buildInfoWindowHtml(group, activeFilters)
-        });
-        infoWindow.open({
-            map: map,
-            anchor: marker
-        });
-        activeInfoWindow = infoWindow;
-    }
+    }, 50);
 }
 
+/**
+ * updateMarkers toggles visibility of markers based on checkbox filters
+ */
 function updateMarkers() {
-    const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map((cb) => {
+    const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function (cb) {
         return cb.value;
     });
-    markers.forEach((m) => {
-        const isVisible = m.categories.some((cat) => {
+
+    markers.forEach(function (m) {
+        const isVisible = m.categories.some(function (cat) {
             return activeFilters.includes(cat);
         });
+
         m.map = isVisible ? map : null;
+
+        if (!isVisible && activeInfoWindow && activeInfoWindow.getAnchor() === m) {
+            activeInfoWindow.close();
+        }
     });
 }
 
+/**
+ * refreshMapAndUI fully clears and redraws all map elements
+ */
+function refreshMapAndUI() {
+    markers.forEach(function (m) {
+        m.map = null;
+    });
+    markers = [];
+
+    if (activeInfoWindow) {
+        activeInfoWindow.close();
+    }
+
+    renderSearchList();
+    renderSavedList();
+
+    if (currentOfferings.length === 0) {
+        return;
+    }
+
+    const locationGroups = groupDataByLocation(currentOfferings);
+    const bounds = new google.maps.LatLngBounds();
+
+    for (const key in locationGroups) {
+        const group = locationGroups[key];
+        const color = group.offerings[Object.keys(group.offerings)[0]].color;
+
+        const marker = new AdvancedMarkerElement({
+            map: map,
+            position: {
+                lat: group.lat,
+                lng: group.lng
+            },
+            content: createMarkerElement(group.highestPriorityType, color)
+        });
+
+        marker.categories = group.filterCategories;
+        marker._locationKey = key;
+
+        marker.addListener("click", function () {
+            const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function (cb) {
+                return cb.value;
+            });
+
+            const content = buildInfoWindowHtml(group, activeFilters);
+
+            if (!content) {
+                return;
+            }
+
+            if (activeInfoWindow) {
+                activeInfoWindow.close();
+            }
+
+            activeInfoWindow = new google.maps.InfoWindow({
+                content: content
+            });
+            activeInfoWindow.open({
+                map: map,
+                anchor: marker
+            });
+        });
+
+        markers.push(marker);
+        bounds.extend(marker.position);
+    }
+
+    if (!bounds.isEmpty()) {
+        map.fitBounds(bounds, {
+            padding: 80
+        });
+    }
+    updateMarkers();
+}
+
+/**
+ * clearResults empties the current view
+ */
+function clearResults() {
+    currentOfferings.forEach(function (c) {
+        ColorManager.releaseColor(c.class_number);
+    });
+    currentOfferings = [];
+    refreshMapAndUI();
+}
+
+/**
+ * removeResult removes a single card from the results
+ */
+function removeResult(classNum) {
+    ColorManager.releaseColor(classNum);
+    currentOfferings = currentOfferings.filter(function (c) {
+        return c.class_number !== classNum;
+    });
+    refreshMapAndUI();
+}
+
+/**
+ * toggleSaveCourse adds/removes course from localStorage
+ */
 function toggleSaveCourse(classNum) {
-    const offering = currentOfferings.find((o) => {
+    const offering = currentOfferings.find(function (o) {
         return o.class_number === classNum;
-    }) || savedCourses.find((o) => {
-        return o.class_number === classNum;
-    });
-    const index = savedCourses.findIndex((o) => {
+    }) || savedCourses.find(function (o) {
         return o.class_number === classNum;
     });
+
+    const index = savedCourses.findIndex(function (o) {
+        return o.class_number === classNum;
+    });
+
     if (index > -1) {
         savedCourses.splice(index, 1);
     } else if (offering) {
         savedCourses.push(offering);
     }
+
     localStorage.setItem("slugroute_saved", JSON.stringify(savedCourses));
     renderSavedList();
     renderSearchList();
 }
 
 /**
- * Initialize Map
+ * addSavedToResults brings a saved course back into the active map view
+ */
+async function addSavedToResults(classNum) {
+    const course = savedCourses.find(function (c) {
+        return c.class_number === classNum;
+    });
+
+    if (course) {
+        const alreadyIn = currentOfferings.find(function (c) {
+            return c.class_number === classNum;
+        });
+
+        if (!alreadyIn) {
+            currentOfferings.push(course);
+            refreshMapAndUI();
+        }
+    }
+    focusClass(classNum);
+}
+
+/**
+ * initMap starts the Google Maps engine
  */
 async function initMap() {
+    const input = document.getElementById("courseInput");
+    input.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+            searchCourse();
+        }
+    });
+
+    document.getElementById("sidebarToggle").onclick = function () {
+        document.getElementById("sidebar").classList.toggle("closed");
+    };
+
+    document.querySelectorAll(".filter-type").forEach(function (cb) {
+        cb.onchange = function () {
+            updateMarkers();
+        };
+    });
+
     const { Map } = await google.maps.importLibrary("maps");
     const markerLib = await google.maps.importLibrary("marker");
     AdvancedMarkerElement = markerLib.AdvancedMarkerElement;
-    PinElement = markerLib.PinElement;
 
     map = new Map(document.getElementById("map"), {
         center: CONFIG.CAMPUS_CENTER,
@@ -414,26 +568,12 @@ async function initMap() {
             latLngBounds: CONFIG.UCSC_BOUNDS,
             strictBounds: false
         },
+        disableDefaultUI: true,
+        zoomControl: true,
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false
     });
 
-    document.getElementById("sidebarToggle").addEventListener("click", () => {
-        document.getElementById("sidebar").classList.toggle("closed");
-    });
-
-    document.querySelectorAll(".filter-type").forEach((cb) => {
-        cb.addEventListener("change", () => {
-            updateMarkers();
-        });
-    });
-
-    document.getElementById("courseInput").addEventListener("keypress", (e) => {
-        if (e.key === "Enter") {
-            searchCourse();
-        }
-    });
-
-    renderSavedList();
+    refreshMapAndUI();
 }

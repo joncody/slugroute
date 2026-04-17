@@ -29,21 +29,23 @@
                 <div class="filter-group">
                     <label class="filter-item">
                         <input type="checkbox" class="filter-type" value="LEC" checked>
-                        <span class="dot blue"></span> Lectures
+                        <span class="legend-symbol" style="font-size: 25px;">★</span> Lectures
                     </label>
                     <label class="filter-item">
                         <input type="checkbox" class="filter-type" value="LAB" checked>
-                        <span class="dot yellow"></span> Labs
+                        <span class="legend-symbol">■</span> Labs
                     </label>
                     <label class="filter-item">
                         <input type="checkbox" class="filter-type" value="DIS" checked>
-                        <span class="dot green"></span> Discussions
+                        <span class="legend-symbol" style="font-size: 21px;">●</span> Discussions
                     </label>
                 </div>
             </div>
-
             <div class="sidebar-section">
-                <h3>Current Results</h3>
+                <div class="section-header">
+                    <h3>Current Results</h3>
+                    <button id="clearResultsBtn" onclick="clearResults()" class="text-btn-red">Clear All</button>
+                </div>
                 <div id="searchResults" class="course-list">
                     <p class="empty-msg">Search for a course to see sections here.</p>
                 </div>
@@ -63,7 +65,6 @@
         </main>
     </div>
 
-    <!-- Replace YOUR_API_KEY_HERE with your real Google Maps API Key -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7Lf0XOfjaOrXdD8cXAhCZPIhtPOBh41o&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>
     <script src="script.js"></script>
 </body>

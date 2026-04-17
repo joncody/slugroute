@@ -150,13 +150,29 @@ body {
     margin-bottom: 32px;
 }
 
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
 .sidebar-section h3 {
     font-size: 11px;
     text-transform: uppercase;
     color: var(--text-muted);
     letter-spacing: 0.1em;
-    margin-bottom: 16px;
     font-weight: 700;
+}
+
+.text-btn-red {
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+    text-transform: uppercase;
 }
 
 .filter-group {
@@ -174,23 +190,14 @@ body {
     cursor: pointer;
 }
 
-.dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+.legend-symbol {
+    font-size: 18px;
+    color: #334155;
+    width: 20px;
     display: inline-block;
-}
-
-.dot.blue {
-    background-color: #3b82f6;
-}
-
-.dot.yellow {
-    background-color: #eab308;
-}
-
-.dot.green {
-    background-color: #22c55e;
+    text-align: center;
+    margin-right: 4px;
+    line-height: 1;
 }
 
 /* --- Course Card Styling --- */
@@ -207,17 +214,44 @@ body {
     padding: 16px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     cursor: pointer;
-    transition: background-color 0.2s, border-color 0.2s;
+    transition: background-color 0.2s, border-color 0.2s, transform 0.2s;
 }
+
 .course-card:hover {
     background-color: #f1f5f9;
     border-color: var(--ucsc-blue);
+}
+
+.course-card.highlight {
+    background-color: #fef9c3 !important;
+    border-color: #facc15 !important;
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.remove-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.4;
+    padding: 4px;
+}
+
+.remove-btn:hover {
+    opacity: 1;
 }
 
 .course-header-row {
@@ -245,12 +279,6 @@ body {
     margin-top: 2px;
 }
 
-.course-title-sub {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 1px;
-}
-
 .save-btn {
     background: none;
     border: none;
@@ -275,6 +303,18 @@ body {
     border-radius: 12px;
 }
 
+/* --- Map Shapes --- */
+.marker-svg {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.marker-svg:hover {
+    transform: scale(1.25);
+    z-index: 1000 !important;
+}
+
 /* --- InfoWindow Customization --- */
 .iw-container {
     padding: 5px;
@@ -295,14 +335,12 @@ body {
 .offering-group {
     margin-bottom: 15px;
     padding-left: 10px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
 }
 
-.prof-label {
-    font-size: 10px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    font-weight: 700;
+.offering-group:hover {
+    background-color: #f8fafc;
 }
 
 .meeting-card {
@@ -323,25 +361,10 @@ body {
     font-size: 9px;
     padding: 2px 6px;
     color: white;
+    background-color: #475569;
     border-radius: 4px;
     font-weight: 800;
     text-transform: uppercase;
-}
-
-.type-badge.lec {
-    background-color: #3b82f6;
-}
-
-.type-badge.lab {
-    background-color: #eab308;
-}
-
-.type-badge.dis {
-    background-color: #22c55e;
-}
-
-.type-badge.default {
-    background-color: #64748b;
 }
 
 .instructor-name {

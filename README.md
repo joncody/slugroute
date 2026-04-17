@@ -89,9 +89,9 @@ The Go server provides the API and serves the static frontend files.
 1.  Open your browser to `http://localhost:8080`.
 2.  Search for a course code (e.g., `CSE 115A`, `MATH 19B`, `ART 10G`).
 3.  **Visual Indicators:**
-    *   🔵 **Blue Pins**: Primary Lectures (LEC).
-    *   🟡 **Yellow Pins**: Labs (LAB/LBS).
-    *   🟢 **Green Pins**: Discussions (DIS).
+    *   **Stars**: Primary Lectures (LEC).
+    *   **Squares**: Labs (LAB/LBS).
+    *   **Discussions**: Discussions (DIS).
 4.  Click any pin to see detailed meeting times, room numbers, and specific instructors.
 
 ---
