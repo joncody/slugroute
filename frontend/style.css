@@ -10,8 +10,8 @@
     --border-color: #e2e8f0;
     --text-main: #1e293b;
     --text-muted: #64748b;
-    --nav-height: 70px;
-    --sidebar-width: 350px;
+    --nav-height: 60px;
+    --sidebar-width: 100%;
 }
 
 /* --- Global Reset --- */
@@ -37,8 +37,8 @@ body {
     display: flex;
     align-items: center;
     position: relative;
-    z-index: 1000;
-    padding: 0 1.5rem;
+    z-index: 1100;
+    padding: 0 1rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
@@ -67,10 +67,6 @@ body {
     border-radius: 4px;
 }
 
-.menu-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
 .logo-text {
     color: var(--ucsc-gold);
     font-weight: 800;
@@ -78,14 +74,21 @@ body {
     letter-spacing: -0.02em;
 }
 
+@media (max-width: 480px) {
+    .logo-text {
+        display: none;
+    }
+}
+
 .search-container {
     display: flex;
+    position: relative;
     gap: 8px;
     background: rgba(255, 255, 255, 0.15);
     padding: 6px;
     border-radius: 10px;
     width: 100%;
-    max-width: 400px;
+    max-width: 450px;
 }
 
 .search-container input {
@@ -95,6 +98,7 @@ body {
     border-radius: 6px;
     font-size: 0.95rem;
     outline: none;
+    width: 50px;
 }
 
 .search-container button {
@@ -107,42 +111,167 @@ body {
     cursor: pointer;
 }
 
-/* --- Main Layout --- */
-.app-container {
+/* --- Search Preview Dropdown --- */
+.search-preview-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    max-height: 450px;
+    overflow-y: auto;
+    z-index: 2000;
+}
+
+.preview-offering {
+    padding: 16px;
+    border-bottom: 1px solid var(--bg-light);
+}
+
+.preview-header {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.preview-header-info h4 {
+    color: var(--ucsc-blue);
+    font-size: 14px;
+}
+
+.preview-sub-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.preview-add-all {
+    background: var(--ucsc-blue) !important;
+    color: white !important;
+    font-size: 11px !important;
+    padding: 5px 12px !important;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.preview-sections-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.preview-section-item {
+    background: var(--bg-light);
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.preview-section-item.selected {
+    background-color: #fef9c3 !important;
+    border-color: var(--ucsc-gold);
+}
+
+.preview-section-item span {
+    font-size: 11px;
+}
+
+.preview-section-item .add-tag {
+    font-weight: 700;
+    color: var(--ucsc-blue);
+    font-size: 10px;
+}
+
+.preview-lecture-only-btn {
+    background: #f1f5f9 !important;
+    color: var(--ucsc-blue) !important;
+    border: 1px solid var(--border-color) !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    padding: 5px 15px !important;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* --- Layout --- */
+.app-container {
+    display: block;
+    position: relative;
     height: calc(100vh - var(--nav-height));
     width: 100vw;
+    overflow: hidden;
 }
 
 .sidebar {
-    width: var(--sidebar-width);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
     height: 100%;
     background: white;
-    border-right: 1px solid var(--border-color);
     overflow-y: auto;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.3s;
+    z-index: 1000;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
-    padding: 24px;
-    flex-shrink: 0;
-    z-index: 500;
+    padding: 20px;
 }
 
 .sidebar.closed {
     transform: translateX(-100%);
-    margin-left: calc(-1 * var(--sidebar-width));
 }
 
 #map-container {
-    flex-grow: 1;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
     height: 100%;
-    position: relative;
     background: #e5e7eb;
 }
 
 #map {
     height: 100%;
     width: 100%;
+}
+
+/* Desktop Override (Push Layout) */
+@media (min-width: 768px) {
+    :root {
+        --nav-height: 70px;
+        --sidebar-width: 350px;
+    }
+
+    .app-container {
+        display: flex;
+    }
+
+    .sidebar {
+        position: relative;
+        width: var(--sidebar-width);
+        transform: none !important;
+        transition: margin-left 0.3s ease;
+        border-right: 1px solid var(--border-color);
+        padding: 24px;
+    }
+
+    .sidebar.closed {
+        margin-left: calc(-1 * var(--sidebar-width));
+        transform: none;
+    }
+
+    #map-container {
+        position: relative;
+        flex-grow: 1;
+    }
 }
 
 /* --- Sidebar Section UI --- */
@@ -194,7 +323,6 @@ body {
     font-size: 18px;
     color: #334155;
     width: 20px;
-    display: inline-block;
     text-align: center;
     margin-right: 4px;
     line-height: 1;
@@ -214,7 +342,7 @@ body {
     padding: 16px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     cursor: pointer;
-    transition: background-color 0.2s, border-color 0.2s, transform 0.2s;
+    transition: all 0.2s;
 }
 
 .course-card:hover {
@@ -226,7 +354,6 @@ body {
     background-color: #fef9c3 !important;
     border-color: #facc15 !important;
     transform: scale(1.02);
-    box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
 }
 
 .card-header {
@@ -266,17 +393,54 @@ body {
     color: var(--ucsc-blue);
 }
 
-.course-id-tag {
-    font-size: 10px;
-    color: #94a3b8;
-    font-weight: 500;
-}
-
 .course-instructor {
     font-size: 12px;
-    color: var(--text-main);
     font-weight: 600;
     margin-top: 2px;
+}
+
+.course-card-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* --- Sidebar Meeting Tags --- */
+.sidebar-tags-container {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sidebar-meeting-tag {
+    font-size: 11px;
+    background: var(--bg-light);
+    border-radius: 4px;
+    padding: 3px 8px;
+    color: var(--text-main);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--border-color);
+}
+
+.tag-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 3px;
+    opacity: 0.5;
+    transition: all 0.2s;
+}
+
+.tag-remove-btn:hover {
+    opacity: 1;
+    background: #fee2e2;
+    color: #ef4444;
 }
 
 .save-btn {
@@ -286,8 +450,6 @@ body {
     cursor: pointer;
     padding: 4px;
     border-radius: 50%;
-    position: relative;
-    z-index: 10;
 }
 
 .save-btn:hover {
@@ -303,7 +465,7 @@ body {
     border-radius: 12px;
 }
 
-/* --- Map Shapes --- */
+/* --- Map / InfoWindow UI --- */
 .marker-svg {
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
     cursor: pointer;
@@ -315,10 +477,9 @@ body {
     z-index: 1000 !important;
 }
 
-/* --- InfoWindow Customization --- */
 .iw-container {
     padding: 5px;
-    max-width: 300px;
+    width: 280px;
     font-family: 'Inter', sans-serif;
 }
 
@@ -327,20 +488,6 @@ body {
     font-size: 14px;
     font-weight: 800;
     color: var(--ucsc-blue);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.offering-group {
-    margin-bottom: 15px;
-    padding-left: 10px;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
-.offering-group:hover {
-    background-color: #f8fafc;
 }
 
 .meeting-card {
@@ -351,12 +498,6 @@ body {
     border: 1px solid #f1f5f9;
 }
 
-.meeting-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
 .type-badge {
     font-size: 9px;
     padding: 2px 6px;
@@ -365,19 +506,12 @@ body {
     border-radius: 4px;
     font-weight: 800;
     text-transform: uppercase;
-}
-
-.instructor-name {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-main);
+    display: flex;
+    align-items: center;
 }
 
 .meeting-meta {
     font-size: 11px;
     margin-top: 4px;
     color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    gap: 4px;
 }

@@ -15,8 +15,11 @@
                 <span class="logo-text">SlugRoute</span>
             </div>
             <div class="search-container">
-                <input type="text" id="courseInput" placeholder="Search Course (e.g. CSE 115A)">
-                <button onclick="searchCourse()" id="searchBtn">Search</button>
+                <form id="searchForm" onsubmit="event.preventDefault(); searchCourse();" style="display: flex; width: 100%; gap: 8px;">
+                    <input type="text" id="courseInput" placeholder="Search Course (e.g. CSE 115A)" autocomplete="off">
+                    <button type="submit" id="searchBtn">Search</button>
+                </form>
+                <div id="searchPreview" class="search-preview-dropdown"></div>
             </div>
         </div>
     </nav>
@@ -37,7 +40,7 @@
                     </label>
                     <label class="filter-item">
                         <input type="checkbox" class="filter-type" value="DIS" checked>
-                        <span class="legend-symbol" style="font-size: 21px;">●</span> Discussions
+                        <span class="legend-symbol" style="font-size: 21px;">▲</span> Discussions
                     </label>
                 </div>
             </div>
@@ -65,7 +68,7 @@
         </main>
     </div>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=API_KEY&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwp-UoWjYJ4mz-5IJFqAwZsiTffVRPmKg&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>
     <script src="script.js"></script>
 </body>
 </html>
