@@ -1,5 +1,7 @@
 # 🐌 SlugRoute Setup Guide
 
+(Note: This only needs to happen on an initial set up, or when changes are made to the datbase)
+
 SlugRoute is a full-stack application that scrapes UCSC's Schedule of Classes (PISA), stores the data in a SQLite database, and visualizes class locations using the Google Maps API.
 
 ---
