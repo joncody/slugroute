@@ -19,10 +19,10 @@ const CONFIG = {
         BUILDING: 18
     },
     COLOR_POOL: [
-        "#FFB300", "#803E75", "#FF6800", "#A6BDD7", "#C10020",
-        "#CEA262", "#817066", "#007D34", "#F6768E", "#00538A",
-        "#FF7A5C", "#53377A", "#FF8E00", "#B32851", "#F4C800",
-        "#7F180D", "#93AA00", "#593315", "#F13A13", "#232323"
+        "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231",
+        "#911eb4", "#42d4f4", "#f032e6", "#bfef45", "#fabed4",
+        "#469990", "#dcbeff", "#9A6324", "#fffac8", "#800000",
+        "#aaffc3", "#808000", "#ffd8b1", "#000075", "#a9a9a9"
     ]
 };
 
@@ -356,16 +356,24 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
 async function searchCourse() {
     const input = document.getElementById("courseInput");
     const preview = document.getElementById("searchPreview");
+    const resultsContainer = document.getElementById("searchResults");
     const courseCode = utils.formatCourseCode(input.value);
 
     if (!courseCode) return;
+
+    // Show loading skeleton
+    resultsContainer.innerHTML = `
+        <div class="loading-skeleton"></div>
+        <div class="loading-skeleton"></div>
+        <div class="loading-skeleton"></div>
+    `;
 
     try {
         const response = await fetch(`/api/course/${CONFIG.DEFAULT_TERM}/${encodeURIComponent(courseCode)}`);
         const results = await response.json();
 
         if (!results || results.length === 0) {
-            alert("No results found.");
+            resultsContainer.innerHTML = "<p class=\"empty-msg\">No results found.</p>";
             return;
         }
 
@@ -386,6 +394,7 @@ async function searchCourse() {
 
     } catch (err) {
         console.error("Search failed:", err);
+        resultsContainer.innerHTML = "<p class=\"empty-msg\">Error fetching results.</p>";
     }
 }
 
@@ -495,12 +504,15 @@ function commitSelection(classNum) {
 window.onclick = function(e) {
     if (!e.target.closest('.search-container')) {
         const preview = document.getElementById("searchPreview");
-        if (preview) preview.style.display = "none";
+        if (preview) {
+            preview.style.display = "none";
+            renderSearchList();
+        }
     }
 };
 
 /**
- * smartFitBounds handles responsive camera movement
+ * smartFitBounds: Centers the map while accounting for the fixed sidebar
  */
 function smartFitBounds(bounds) {
     if (bounds.isEmpty()) return;
@@ -510,18 +522,25 @@ function smartFitBounds(bounds) {
         activeInfoWindow = null;
     }
 
-    const center = bounds.getCenter();
-    let targetLat = center.lat();
-    let targetLng = center.lng();
+    const isSidebarOpen = !document.getElementById("sidebar").classList.contains("closed");
+    const isMobile = window.innerWidth < 768;
 
-    const ne = bounds.getNorthEast();
-    const sw = bounds.getSouthWest();
-    const latDelta = Math.abs(ne.lat() - sw.lat());
+    // Define the "Off-limits" areas for the Map Camera
+    const padding = {
+        top: 50,    // Space for top UI
+        right: 50,
+        bottom: 50,
+        // If sidebar is open, shift the "center" of the map to the right
+        left: (isSidebarOpen && !isMobile) ? 400 : 50
+    };
 
-    if (latDelta > 0.02) map.setZoom(14);
-    else map.setZoom(16);
+    map.fitBounds(bounds, padding);
 
-    map.panTo({ lat: targetLat, lng: targetLng });
+    // Optional: Limit max zoom so it doesn't zoom in too tight on a single building
+    const listener = google.maps.event.addListener(map, 'idle', function() {
+        if (map.getZoom() > 18) map.setZoom(18);
+        google.maps.event.removeListener(listener);
+    });
 }
 
 /**
@@ -680,8 +699,13 @@ async function initMap() {
         const sidebar = document.getElementById("sidebar");
         sidebar.classList.toggle("closed");
         setTimeout(() => {
+            if (currentOfferings.length > 0) {
+                const bounds = new google.maps.LatLngBounds();
+                markers.forEach(m => bounds.extend(m.position));
+                smartFitBounds(bounds);
+            }
             google.maps.event.trigger(map, 'resize');
-        }, 300);
+        }, 350);
     };
 
     document.querySelectorAll(".filter-type").forEach(cb => cb.onchange = () => updateMarkers());
