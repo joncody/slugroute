@@ -356,24 +356,29 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
 async function searchCourse() {
     const input = document.getElementById("courseInput");
     const preview = document.getElementById("searchPreview");
-    const resultsContainer = document.getElementById("searchResults");
     const courseCode = utils.formatCourseCode(input.value);
 
     if (!courseCode) return;
 
-    // Show loading skeleton
-    resultsContainer.innerHTML = `
-        <div class="loading-skeleton"></div>
-        <div class="loading-skeleton"></div>
-        <div class="loading-skeleton"></div>
+    // 1. Immediately show the dropdown and the loading skeletons
+    preview.innerHTML = `
+        <div class="loading-skeleton" style="margin: 16px; height: 80px; width: calc(100% - 32px);"></div>
+        <div class="loading-skeleton" style="margin: 16px; height: 80px; width: calc(100% - 32px);"></div>
     `;
+    preview.style.display = "block";
 
     try {
-        const response = await fetch(`/api/course/${CONFIG.DEFAULT_TERM}/${encodeURIComponent(courseCode)}`);
+        // 2. Perform the fetch and a 400ms delay in parallel
+        // This prevents the UI from flickering if the database is "too fast"
+        const [response] = await Promise.all([
+            fetch(`/api/course/${CONFIG.DEFAULT_TERM}/${encodeURIComponent(courseCode)}`),
+            new Promise(resolve => setTimeout(resolve, 400))
+        ]);
+
         const results = await response.json();
 
         if (!results || results.length === 0) {
-            resultsContainer.innerHTML = "<p class=\"empty-msg\">No results found.</p>";
+            preview.innerHTML = `<p class="empty-msg" style="border:none; padding: 20px;">No results found for "${courseCode}"</p>`;
             return;
         }
 
@@ -390,11 +395,9 @@ async function searchCourse() {
         });
 
         renderSearchPreview();
-        preview.style.display = "block";
-
     } catch (err) {
         console.error("Search failed:", err);
-        resultsContainer.innerHTML = "<p class=\"empty-msg\">Error fetching results.</p>";
+        preview.innerHTML = "<p class=\"empty-msg\" style=\"border:none;\">Error fetching results.</p>";
     }
 }
 

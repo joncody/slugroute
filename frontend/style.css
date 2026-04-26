@@ -72,11 +72,20 @@ body {
     justify-content: center;
 }
 
+.logo-slug {
+    height: 40px;
+    width: auto;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    user-select: none;
+    pointer-events: none;
+}
+
 .logo-text {
     color: var(--ucsc-gold);
     font-weight: 800;
     font-size: 1.5rem;
     letter-spacing: -0.02em;
+    padding-right: 16px;
 }
 
 @media (max-width: 480px) {
