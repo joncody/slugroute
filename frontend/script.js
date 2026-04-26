@@ -86,6 +86,16 @@ const utils = {
         if (category === "LEC") return "M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z";
         if (category === "LAB") return "M3 3h18v18H3z";
         return "M12 2L2 21H22L12 2Z"; // Triangle
+    },
+
+    getHeartSvg: function (isSaved) {
+        const fill = isSaved ? "#ef4444" : "none";
+        const stroke = isSaved ? "#ef4444" : "#64748b";
+        return `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="${fill}" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: all 0.2s ease;">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+        `;
     }
 };
 
@@ -188,7 +198,7 @@ function renderSearchList() {
                     </div>
                     <div class="card-actions">
                         <button class="save-btn" onclick="event.stopPropagation(); toggleSaveCourse('${course.class_number}')">
-                            ${isSaved ? "❤️" : "🤍"}
+                            ${utils.getHeartSvg(isSaved)}
                         </button>
                         <button class="remove-btn" onclick="event.stopPropagation(); removeResult('${course.class_number}')">✕</button>
                     </div>
@@ -241,7 +251,7 @@ function renderSavedList() {
                         <div class="course-instructor">${course.instructor}</div>
                         <div class="course-card-time">🕒 ${timeStr}</div>
                     </div>
-                    <button class="save-btn" onclick="event.stopPropagation(); toggleSaveCourse('${course.class_number}')">❤️</button>
+                    <button class="save-btn" onclick="event.stopPropagation(); toggleSaveCourse('${course.class_number}')">${utils.getHeartSvg(true)}</button>
                 </div>
             </div>
         `;
