@@ -54,7 +54,8 @@ body {
 .brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 16px;
+    padding-right: 16px;
 }
 
 .menu-btn {
@@ -85,7 +86,6 @@ body {
     font-weight: 800;
     font-size: 1.5rem;
     letter-spacing: -0.02em;
-    padding-right: 16px;
 }
 
 @media (max-width: 480px) {
@@ -146,21 +146,38 @@ body {
     z-index: 2000;
 }
 
+@media (max-width: 768px) {
+    .search-preview-dropdown {
+        left: auto;
+        right: 0;
+        width: 85vw;
+        max-width: 360px;
+    }
+}
+
 .preview-offering {
-    padding: 16px;
+    padding: 12px;
     border-bottom: 1px solid var(--bg-light);
 }
 
 .preview-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.preview-header-info {
+    flex: 1;
+    min-width: 0;
 }
 
 .preview-header-info h4 {
     color: var(--ucsc-blue);
-    font-size: 14px;
+    font-size: 13px;
+    line-height: 1.2;
+    margin-bottom: 4px;
 }
 
 .preview-sub-meta {
@@ -171,14 +188,13 @@ body {
 .preview-add-all {
     background: var(--ucsc-blue) !important;
     color: white !important;
-    font-size: 11px !important;
-    padding: 5px 12px !important;
+    font-size: 10px !important;
+    padding: 0 12px !important;
     border-radius: 6px;
     cursor: pointer;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    height: 34px !important;
+    min-height: 34px !important;
+    white-space: nowrap;
 }
 
 .preview-sections-list {
@@ -218,15 +234,14 @@ body {
     background: #f1f5f9 !important;
     color: var(--ucsc-blue) !important;
     border: 1px solid var(--border-color) !important;
-    font-size: 11px !important;
+    font-size: 10px !important;
     font-weight: 800 !important;
-    padding: 5px 15px !important;
+    padding: 0 12px !important;
     border-radius: 6px;
     cursor: pointer;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    height: 34px !important;
+    min-height: 34px !important;
+    white-space: nowrap;
 }
 
 /* --- Layout --- */
