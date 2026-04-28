@@ -278,6 +278,7 @@ function groupDataByLocation(offerings) {
                     lat: meet.lat,
                     lng: meet.lng,
                     building: meet.building,
+                    imageUrl: meet.image_url || '',
                     offerings: {},
                     totalMeetings: 0,
                     highestPriorityType: "DIS",
@@ -356,6 +357,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
 
     return `<div class="iw-container">
         <div class="iw-header"><h3>📍 ${locationGroup.building}</h3></div>
+        ${locationGroup.imageUrl ? `<img src="${locationGroup.imageUrl}" style="width:100%; height:120px; object-fit:cover;">` : ''}
         ${offeringsHtml}
     </div>`;
 }
