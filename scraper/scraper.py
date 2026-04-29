@@ -15,7 +15,7 @@ from urllib3.util.retry import Retry
 # Global Configuration
 DB_NAME = "../database/slugroute.db"
 BASE_URL = "https://pisa.ucsc.edu/class_search/index.php"
-TARGET_TERMS = ["2260", "2262"] # Winter 2026, Spring 2026
+TARGET_TERMS = ["2260", "2262", "2264"] # Winter 2026, Spring 2026, Summer 2026
 TIMEOUT = 30
 REQUEST_DELAY = 0.2
 
