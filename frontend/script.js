@@ -278,7 +278,6 @@ function groupDataByLocation(offerings) {
                     lat: meet.lat,
                     lng: meet.lng,
                     building: meet.building,
-                    imageUrl: meet.image_url || '',
                     offerings: {},
                     totalMeetings: 0,
                     highestPriorityType: "DIS",
@@ -357,7 +356,6 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
 
     return `<div class="iw-container">
         <div class="iw-header"><h3>📍 ${locationGroup.building}</h3></div>
-        ${locationGroup.imageUrl ? `<img src="${locationGroup.imageUrl}" style="width:100%; height:120px; object-fit:cover;">` : ''}
         ${offeringsHtml}
     </div>`;
 }
@@ -368,6 +366,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
 async function searchCourse() {
     const input = document.getElementById("courseInput");
     const preview = document.getElementById("searchPreview");
+    const term = document.getElementById("termSelect").value;
     const courseCode = utils.formatCourseCode(input.value);
 
     if (!courseCode) return;
@@ -383,7 +382,7 @@ async function searchCourse() {
         // 2. Perform the fetch and a 400ms delay in parallel
         // This prevents the UI from flickering if the database is "too fast"
         const [response] = await Promise.all([
-            fetch(`/api/course/${CONFIG.DEFAULT_TERM}/${encodeURIComponent(courseCode)}`),
+            fetch(`/api/course/${term}/${encodeURIComponent(courseCode)}`),
             new Promise(resolve => setTimeout(resolve, 400))
         ]);
 

@@ -410,6 +410,47 @@ body {
     transform: scale(1.1);
 }
 
+/* Term Selector Styling */
+.term-selector-container {
+    margin-top: 12px;
+}
+
+.term-dropdown {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background-color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ucsc-blue);
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 44px;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+}
+
+.term-dropdown option {
+    padding: 14px;
+    min-height: 44px;
+}
+
+.term-dropdown:hover {
+    border-color: var(--ucsc-blue);
+    background-color: var(--bg-light);
+}
+
+.term-dropdown:focus {
+    border-color: var(--ucsc-blue);
+    box-shadow: 0 0 0 3px rgba(0, 60, 108, 0.1);
+}
+
 /* --- Course Card Styling --- */
 .course-list {
     display: flex;
