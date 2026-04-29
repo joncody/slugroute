@@ -26,6 +26,7 @@ type Meeting struct {
 type Offering struct {
 	ClassNum   string    `json:"class_number"`
 	CourseCode string    `json:"course_code"`
+	Term       string    `json:"term"`
 	Title      string    `json:"title"`
 	Instructor string    `json:"instructor"`
 	Meetings   []Meeting `json:"meetings"`
@@ -36,7 +37,7 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 	// SQL query joins courses with lectures and builds to get lat/lng
 	// Sprint update: Added UPPER/TRIM normalization and fuzzy code matching for robust building/course lookups
 	query := `
-        SELECT c.class_number, c.course_code, c.title, l.instructor, l.days, l.times, l.building, l.room_number, 
+        SELECT c.class_number, c.course_code, c.term, c.title, l.instructor, l.days, l.times, l.building, l.room_number, 
                IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
         FROM courses c
         JOIN lectures l ON c.class_number = l.class_number AND c.term = l.term
@@ -53,14 +54,14 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 	offeringsMap := make(map[string]*Offering)
 
 	for rows.Next() {
-		var cn, cc, title, inst, days, times, bld, rm string
+		var cn, cc, cterm, title, inst, days, times, bld, rm string
 		var lat, lng float64
 		//image
 		var imageUrl string
 		//image
 
 		// Scan DB columns into temporary variables
-		if err := rows.Scan(&cn, &cc, &title, &inst, &days, &times, &bld, &rm, &lat, &lng, &imageUrl); err != nil {
+		if err := rows.Scan(&cn, &cc, &cterm, &title, &inst, &days, &times, &bld, &rm, &lat, &lng, &imageUrl); err != nil {
 			return nil, err
 		}
 
@@ -69,6 +70,7 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 			offeringsMap[cn] = &Offering{
 				ClassNum:   cn,
 				CourseCode: cc,
+				Term:       cterm,
 				Title:      title,
 				Instructor: inst,
 				Meetings:   []Meeting{},
@@ -94,7 +96,7 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 func attachSections(db *sql.DB, term string, offerings map[string]*Offering) error {
 	query := `
         SELECT s.section_type, s.instructor, s.days, s.times, s.building, s.room_number,
-               IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url,'')
+               IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
         FROM sections s
         LEFT JOIN buildings b ON UPPER(TRIM(s.building)) = UPPER(TRIM(b.name))
         WHERE s.parent_class_number = ? AND s.term = ?`
@@ -124,7 +126,7 @@ func attachSections(db *sql.DB, term string, offerings map[string]*Offering) err
 				Instructor: si,
 				Lat:        lat,
 				Lng:        lng,
-				ImageUrl:    imageUrl,
+				ImageUrl:   imageUrl,
 			})
 		}
 		secRows.Close()

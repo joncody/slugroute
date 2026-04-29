@@ -70,6 +70,15 @@ const utils = {
         return input.trim().toUpperCase().replace(/([A-Z]+)(\d+)/, "$1 $2");
     },
 
+    getTermName: function (term) {
+        const terms = {
+            "2260": "Winter 2026",
+            "2262": "Spring 2026",
+            "2264": "Summer 2026"
+        };
+        return terms[term] || term;
+    },
+
     getFilterCategory: function (type) {
         const t = type.toUpperCase();
         if (t === "LBS" || t === "LAB") {
@@ -172,11 +181,24 @@ function renderSearchList() {
             const symbol = cat === 'LEC' ? '★' : (cat === 'LAB' ? '■' : '▲');
             const displayTime = m.time && m.time.trim() !== "" ? m.time : "TBA";
 
+            // Online status check (handles Remote, Online, or empty building)
+            const bldRaw = m.building || "";
+            const isOnline = bldRaw.toLowerCase().includes("online") ||
+                             bldRaw.toLowerCase().includes("remote") ||
+                             bldRaw.trim() === "";
+
+            const locationDisplay = isOnline ? `<span class="online-tag">Online Instruction</span>` : m.building;
+
             return `
                 <div class="sidebar-meeting-tag">
                     <div class="tag-info">
-                        <span style="color: ${color}">${symbol}</span>
-                        <strong>${m.type}:</strong> ${displayTime}
+                        <div class="tag-row">
+                            <span style="color: ${color}">${symbol}</span>
+                            <strong>${m.type}:</strong> ${displayTime}
+                        </div>
+                        <div class="tag-row location-row">
+                            ${locationDisplay}
+                        </div>
                     </div>
                     <button class="tag-remove-btn" onclick="event.stopPropagation(); removeMeeting('${course.class_number}', ${index})">✕</button>
                 </div>
@@ -186,21 +208,22 @@ function renderSearchList() {
         return `
             <div class="course-card" id="card-${course.class_number}" onclick="focusClass('${course.class_number}')" style="border-left: 10px solid ${color}">
                 <div class="card-header">
-                    <div style="width: 100%;">
-                        <div class="course-header-row">
-                            <h4>${course.course_code}</h4>
-                            <span class="course-id-tag">#${course.class_number}</span>
-                        </div>
-                        <div class="course-instructor">${course.instructor}</div>
-                        <div class="sidebar-tags-container">
-                            ${meetingTagsHtml}
-                        </div>
+                    <div class="course-header-row">
+                        <h4>${course.course_code}</h4>
+                        <span class="course-id-tag">#${course.class_number}</span>
                     </div>
                     <div class="card-actions">
                         <button class="save-btn" onclick="event.stopPropagation(); toggleSaveCourse('${course.class_number}')">
                             ${utils.getHeartSvg(isSaved)}
                         </button>
                         <button class="remove-btn" onclick="event.stopPropagation(); removeResult('${course.class_number}')">✕</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="course-instructor">${course.instructor}</div>
+                    <div class="course-term-tag">${utils.getTermName(course.term)}</div>
+                    <div class="sidebar-tags-container">
+                        ${meetingTagsHtml}
                     </div>
                 </div>
             </div>
@@ -249,6 +272,7 @@ function renderSavedList() {
                     <div>
                         <h4>${course.course_code}</h4>
                         <div class="course-instructor">${course.instructor}</div>
+                        <div class="course-term-tag" style="margin-top: 2px;">${utils.getTermName(course.term)}</div>
                         <div class="course-card-time">🕒 ${timeStr}</div>
                     </div>
                     <button class="save-btn" onclick="event.stopPropagation(); toggleSaveCourse('${course.class_number}')">${utils.getHeartSvg(true)}</button>
@@ -302,6 +326,7 @@ function groupDataByLocation(offerings) {
             if (!locationMap[locKey].offerings[offering.class_number]) {
                 locationMap[locKey].offerings[offering.class_number] = {
                     courseCode: offering.course_code,
+                    term: offering.term,
                     color: classColor,
                     meetings: []
                 };
@@ -329,7 +354,9 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
             offeringsHtml += `<div class="offering-group" style="border-left: 5px solid ${off.color}; padding-left: 8px;"
                         onmouseenter="highlightSidebarCard('${classNum}', true)"
                         onmouseleave="highlightSidebarCard('${classNum}', false)">
-                <div class="course-code" style="font-weight:800; color:#003c6c; margin-bottom:4px;">${off.courseCode}</div>
+                <div class="course-code" style="font-weight:800; color:#003c6c; margin-bottom:4px;">
+                    ${off.courseCode} <i style="font-weight: 400; font-size: 0.9em; color: #64748b;">(${utils.getTermName(off.term)})</i>
+                </div>
                 <div class="meetings-list">`;
 
             visibleMeetings.forEach(function (m) {
@@ -357,7 +384,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
 
     return `<div class="iw-container">
         <div class="iw-header"><h3>📍 ${locationGroup.building}</h3></div>
-        ${locationGroup.imageUrl ? `<img src="${locationGroup.imageUrl}" style="width:100%; height:120px; object-fit:cover;">` : ''}
+        ${locationGroup.imageUrl ? `<img src="${locationGroup.imageUrl}" style="width:100%; height:120px; object-fit:cover; border-radius: 8px; margin-bottom: 8px;">` : ''}
         ${offeringsHtml}
     </div>`;
 }
@@ -382,7 +409,6 @@ async function searchCourse() {
 
     try {
         // 2. Perform the fetch and a 400ms delay in parallel
-        // This prevents the UI from flickering if the database is "too fast"
         const [response] = await Promise.all([
             fetch(`/api/course/${term}/${encodeURIComponent(courseCode)}`),
             new Promise(resolve => setTimeout(resolve, 400))
@@ -705,6 +731,19 @@ async function addSavedToResults(classNum) {
         }
     }
     focusClass(classNum);
+}
+
+/**
+ * addAllSavedToResults brings every saved course into active view
+ */
+function addAllSavedToResults() {
+    savedCourses.forEach(course => {
+        const alreadyIn = currentOfferings.find(c => c.class_number === course.class_number);
+        if (!alreadyIn) {
+            currentOfferings.push(course);
+        }
+    });
+    refreshMapAndUI();
 }
 
 /**

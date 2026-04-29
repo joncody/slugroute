@@ -335,6 +335,11 @@ body {
     font-weight: 700;
 }
 
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
 .text-btn-red {
     background: none;
     border: none;
@@ -348,8 +353,35 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0;
+    transition: all 0.2s;
 }
+
+.text-btn-red:hover {
+    background: #fee2e2;
+    border-radius: 6px;
+}
+
+.text-btn-blue {
+    background: none;
+    border: none;
+    color: var(--ucsc-blue);
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+    text-transform: uppercase;
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.text-btn-blue:hover {
+    background: #f1f5f9;
+    border-radius: 6px;
+}
+
 .filter-group {
     display: flex;
     gap: 8px;
@@ -466,6 +498,8 @@ body {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     cursor: pointer;
     transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
 }
 
 .course-card:hover {
@@ -482,13 +516,18 @@ body {
 .card-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
+    width: 100%;
+}
+
+.card-body {
+    width: 100%;
+    margin-top: 2px;
 }
 
 .card-actions {
     display: flex;
     align-items: center;
-    gap: 0px;
 }
 
 .remove-btn {
@@ -503,10 +542,14 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s;
 }
 
 .remove-btn:hover {
     opacity: 1;
+    background: #fee2e2;
+    color: #ef4444;
+    border-radius: 6px;
 }
 
 .course-header-row {
@@ -524,7 +567,14 @@ body {
 .course-instructor {
     font-size: 12px;
     font-weight: 600;
-    margin-top: 2px;
+}
+
+.course-term-tag {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
 }
 
 .course-card-time {
@@ -533,24 +583,54 @@ body {
     margin-top: 4px;
 }
 
+/* Online Badge */
+.online-tag {
+    color: #16a34a;
+    font-weight: 800; /* Extra bold */
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
 /* --- Sidebar Meeting Tags --- */
 .sidebar-tags-container {
     margin-top: 8px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
+    width: 100%;
 }
 
 .sidebar-meeting-tag {
     font-size: 11px;
     background: var(--bg-light);
-    border-radius: 4px;
-    padding: 3px 8px;
+    border-radius: 8px;
+    padding: 8px 12px;
     color: var(--text-main);
     display: flex;
     justify-content: space-between;
     align-items: center;
     border: 1px solid var(--border-color);
+    width: 100%;
+}
+
+.tag-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tag-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.location-row {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    padding-left: 14px; /* Align under the type text */
 }
 
 .tag-remove-btn {
@@ -574,6 +654,7 @@ body {
     opacity: 1;
     background: #fee2e2;
     color: #ef4444;
+    border-radius: 4px;
 }
 
 .save-btn {
