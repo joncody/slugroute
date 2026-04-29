@@ -353,6 +353,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0 6px;
     transition: all 0.2s;
 }
 
@@ -374,6 +375,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0 6px;
     transition: all 0.2s;
 }
 
