@@ -1,0 +1,114 @@
+SLUGROUTE PROJECT ACCOMPLISHMENTS - COMPLETED TASKS
+
+### Phase 1: Python Scraper & Data Engineering
+1. Session Reliability: Implemented a requests session with a 5-retry strategy and backoff.
+2. HTML Parsing: Integrated BeautifulSoup to navigate complex UCSC PISA table structures.
+3. Course Code Extraction: Built a regex to extract codes (e.g. "CSE 115A") from header strings.
+4. Title Sanitization: Created logic to isolate the Course Title from raw metadata strings.
+5. Meeting Day Splitting: Developed a parser to separate "MWF" from time-strings like "10:40AM".
+6. Meeting Time Parsing: Structured logic to convert raw time strings into "Start-End" formats.
+7. Building Name Isolation: Wrote regex to strip room numbers (e.g. "Thimann Lab 001" -> "Thimann Lab").
+8. Room Number Extraction: Created a secondary field specifically for room numbers/codes.
+9. Status Cleaning: Wrote code to remove duplicate "Cancelled" or "Open" status text from cells.
+10. Panel Body Navigation: Built logic to dive into "Associated Discussion" panels within the HTML.
+11. Section ID Regex: Developed regex to capture unique Section IDs (e.g. "02A") and Class Numbers.
+12. Virtual Filter: Implemented logic to flag "Online" or "Remote" instruction types.
+13. Staff Fallback: Created a "Staff" placeholder for courses without assigned instructors.
+14. Multi-Term Scraping: Configured loops to scrape Winter 2026 (2260) and Spring 2026 (2262).
+15. Polling Delay: Implemented a 0.2s delay between requests to remain polite to servers.
+16. Detailed Class Fetching: Engineered a two-step process: search results, then individual details.
+17. Database Initialization: Wrote a script to generate the SQLite file and schema from scratch.
+18. Timestamping: Added a last_updated column to track data freshness per record.
+
+### Phase 2: Database & Geodata Normalization
+19. Relational Schema: Designed a 3-table structure (Courses, Lectures, Sections) for performance.
+20. Coordinate Dataset: Compiled 100+ Latitude/Longitude pairs for UCSC landmarks.
+21. Uppercase Normalization: Wrote import script forcing building names to UPPERCASE to prevent join errors.
+22. Trailing Space Removal: Used .strip() logic on all building names during database migration.
+23. Primary Key Constraints: Set up unique IDs on (class_number, term) to prevent duplication.
+24. Foreign Key Integrity: Established links between the lectures table and the parent courses table.
+25. SQL Spatial Joins: Wrote complex SQL queries in Go that merge schedules with geodata on the fly.
+26. Missing Data Handling: Used IFNULL(lat, 0) in SQL to prevent frontend crashes on unmapped buildings.
+27. Off-Campus Filtering: Created a specific list for "Silicon Valley" and "Harbor" coordinates.
+28. Atomic Commit Logic: Programmed the database to commit changes per course for data durability.
+
+### Phase 3: Go Backend API Development
+29. Gin Router Setup: Initialized the Go Gin framework for high-concurrency routing.
+30. Dynamic API Routing: Built the /api/course/:term/:code endpoint for flexible querying.
+31. Go Struct Mapping: Defined strict Meeting and Offering structs to ensure type-safe JSON.
+32. SQL Row Scanning: Developed logic to map SQLite row results into nested Go objects.
+33. Section Aggregation: Wrote a secondary SQL pass to attach DIS/LAB meetings to their parent LEC.
+34. Static File Serving: Configured http.FileServer to host the frontend assets on the same port.
+35. CGO Integration: Configured the build environment to support the SQLite3 C-driver.
+36. Error Payload Design: Standardized JSON error messages for frontend debugging.
+37. Graceful DB Closing: Implemented defer db.Close() to ensure connection safety.
+38. URL Encoding Support: Enabled the API to handle course codes with spaces (e.g. CSE 12).
+39. Internal Logging: Added log.Println statements to monitor incoming API requests.
+40. Server Health Check: Configured the server to launch on localhost:8080 with a live status message.
+
+### Phase 4: Frontend UI & Layout
+41. UCSC Blue/Gold Theme: Created a CSS :root system using official university hex codes.
+42. Responsive Flexbox Layout: Designed a layout that adapts the map size to the browser window.
+43. Collapsible Sidebar: Built a toggleable menu to hide/show course results and save space.
+44. Fixed Navbar: Implemented a z-indexed navbar that stays at the top during scrolling.
+45. Inter Font Integration: Integrated the Google Inter typeface for a clean, modern look.
+46. Course Card Design: Built a custom Card UI for search results with dynamic border colors.
+47. Brand Identity: Added the "SlugRoute" logo text and slug emoji branding.
+48. Empty State UI: Created a "No results found" visual placeholder for initial entry.
+49. Action Buttons: Designed "Heart" (Save) and "X" (Remove) buttons for result management.
+50. Visual Legend: Built a sidebar legend explaining the Star, Square, and Circle icons.
+51. Card Highlighting: Developed a glow effect for cards when their map pins are hovered.
+52. Sidebar Scroll Management: Added an independent scroll container for the results list.
+
+### Phase 5: Google Maps & Interaction Logic
+53. Advanced Marker Integration: Integrated Google Maps AdvancedMarkerElement for vector support.
+54. Custom SVG Pathing: Wrote JS logic to draw distinct Star, Square, and Circle paths.
+55. Vector Map ID: Configured a specific mapId to enable custom tilt and hybrid styling.
+56. Campus Geofencing: Implemented UCSC_BOUNDS to prevent users from panning off-campus.
+57. Building-Based Clustering: Built a grouping algorithm so one pin holds multiple classes.
+58. Star Priority Logic: Programmed pins to show a Star if any meeting in that building is a Lecture.
+59. Dynamic Color Manager: Built a JS system to assign 20+ unique colors to different courses.
+60. Auto-Pan & Fit: Coded map.fitBounds() to automatically frame all search results.
+61. Rich InfoWindows: Designed HTML popups that show Instructor, Time, and Room data.
+62. Search-on-Enter: Added a key listener so pressing "Enter" triggers the search.
+63. Map Focus Zoom: Programmed a 17x zoom when clicking specific sidebar results.
+64. Marker Recycling: Wrote logic to clear old markers before rendering new search results.
+65. Async Library Loading: Used google.maps.importLibrary for faster initial page loads.
+66. Event Delegation: Attached click listeners to pins to open info popups automatically.
+67. Type-Based Filtering: Built logic to toggle markers based on LEC/LAB/DIS checkboxes.
+68. Color Persistence: Ensured a course keeps the same color throughout its lifecycle on the map.
+69. Marker Stroke Optimization: Added a white stroke to SVG icons for visibility on satellite views.
+70. Shadow Effects: Applied CSS filters to pins to give them a 3D lift off the map.
+
+### Phase 6: UX Features & Persistence
+71. LocalStorage Integration: Built a system to save "Hearted" classes across browser sessions.
+72. Saved Section UI: Created a separate "Saved for Later" section in the sidebar.
+73. Result Removal: Implemented a "Clear All" button to reset the map and sidebar.
+74. One-Click Recall: Added logic to bring a Saved class back into the active map view.
+75. Search Input Auto-Format: Created a utility to capitalize and space inputs (cse12 -> CSE 12).
+76. Hover Synchronization: Coded map-to-sidebar highlighting for instant visual feedback.
+77. Instructor Concatenation: Handled courses with 2+ professors by listing them in the UI.
+78. Badge Labels: Added small color badges (Lec, Lab, Dis) inside the map popups.
+79. Meta-Tag Configuration: Set up mobile-responsive viewport tags for phone usage.
+80. State Management: Developed a global array system to track currentOfferings and markers.
+
+### Phase 7: Troubleshooting & Deployment Ready
+81. Building Coordinate Mapping: Manually verified 100+ locations against Google Satellite view.
+82. API Key Safety: Prepared the HTML file with a placeholder for user API keys.
+83. Detailed README: Wrote a full setup guide for Go, Python, and SQL environments.
+84. Troubleshooting Table: Compiled a list of 5 common errors and their specific fixes.
+85. Directory Tree: Structured the project into backend, frontend, database, and scraper.
+86. Zero-Config DB: Provided pre-compiled SQLite file logic for instant startup.
+87. Coordinate Precision: Standardized coordinates to 14 decimal places for accuracy.
+88. Room Number Logic: Handled room numbers that contain letters (e.g. Room 102A).
+89. Silicon Valley Support: Added support for UCSC satellite campus in Santa Clara.
+90. Meeting Time Formatting: Standardized 10:40 AM vs 10:40AM inconsistencies.
+91. Legend Font Styling: Matched legend symbols to map marker shapes exactly.
+92. Sidebar Scroll-to-View: Linked sidebar focus events to map interaction.
+93. Strict Bounds Checking: Prevented markers from appearing at (0,0) in the ocean.
+94. Course ID Tags: Added #ID tags to cards for administrative clarity.
+95. CSS Transition Smoothing: Applied 0.3s ease-in-out to all sidebar animations.
+96. SVG ViewBox Optimization: Tuned the coordinate system for crisp vector icons.
+97. Quarter Tagging: Linked all data to specific Winter/Spring 2026 quarter codes.
+98. API Error Handling: Prevented app from crashing if the PISA server is down.
+99. Full Stack Integration: Successfully linked Python -> SQLite -> Go -> JS -> Google Maps.

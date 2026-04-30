@@ -9,10 +9,10 @@ const CONFIG = {
         lng: -122.0608
     },
     UCSC_BOUNDS: {
-        north: 37.60,
-        south: 36.50,
-        west: -122.40,
-        east: -121.70
+        north: 38.00, // Loosened north
+        south: 36.00, // Loosened south
+        west: -123.00, // Loosened west
+        east: -121.00  // Loosened east
     },
     ZOOM: {
         CAMPUS: 15,
@@ -569,18 +569,28 @@ function smartFitBounds(bounds) {
 
     // Define the "Off-limits" areas for the Map Camera
     const padding = {
-        top: 50,    // Space for top UI
+        top: 100,    // Space for top UI
         right: 50,
         bottom: 50,
         // If sidebar is open, shift the "center" of the map to the right
         left: (isSidebarOpen && !isMobile) ? 400 : 50
     };
 
+    // TEMPORARILY lift restriction to prevent the camera from "snapping"
+    // to a wrong point if the padded center falls outside UCSC_BOUNDS at low zoom.
+    map.setOptions({ restriction: null });
+
     map.fitBounds(bounds, padding);
 
     // Optional: Limit max zoom so it doesn't zoom in too tight on a single building
     const listener = google.maps.event.addListener(map, 'idle', function() {
         if (map.getZoom() > 18) map.setZoom(18);
+
+        // Restore restriction after movement settles
+        map.setOptions({
+            restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false }
+        });
+
         google.maps.event.removeListener(listener);
     });
 }
@@ -669,10 +679,17 @@ function refreshMapAndUI() {
         });
 
         markers.push(marker);
-        bounds.extend(marker.position);
     }
-    smartFitBounds(bounds);
+
+    // Refresh visibility state before calculating viewport bounds
     updateMarkers();
+
+    // Only include currently visible markers in the zoom/pan target
+    markers.forEach(m => {
+        if (m.map) bounds.extend(m.position);
+    });
+
+    smartFitBounds(bounds);
 }
 
 /**
@@ -756,8 +773,10 @@ async function initMap() {
         setTimeout(() => {
             if (currentOfferings.length > 0) {
                 const bounds = new google.maps.LatLngBounds();
-                markers.forEach(m => bounds.extend(m.position));
-                smartFitBounds(bounds);
+                markers.forEach(m => {
+                    if (m.map) bounds.extend(m.position);
+                });
+                if (!bounds.isEmpty()) smartFitBounds(bounds);
             }
             google.maps.event.trigger(map, 'resize');
         }, 350);
