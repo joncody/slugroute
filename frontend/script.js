@@ -657,7 +657,7 @@ function smartFitBounds(bounds) {
 
     // Define the "Off-limits" areas for the Map Camera
     const padding = {
-        top: 50,    // Space for top UI
+        top: 100,    // Space for top UI
         right: 50,
         bottom: 50,
         // If sidebar is open, shift the "center" of the map to the right
