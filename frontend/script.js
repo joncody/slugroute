@@ -92,8 +92,12 @@ const utils = {
 
     // Helper to get raw SVG paths for reuse in UI badges
     getIconPath: function (category) {
-        if (category === "LEC") return "M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z";
-        if (category === "LAB") return "M3 3h18v18H3z";
+        if (category === "LEC") {
+            return "M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z";
+        }
+        if (category === "LAB") {
+            return "M3 3h18v18H3z";
+        }
         return "M12 2L2 21H22L12 2Z"; // Triangle
     },
 
@@ -180,7 +184,7 @@ function highlightSidebarCard(classNumber, active) {
  * renderSearchList updates the "Current Results" sidebar section
  */
 function renderSearchList() {
-    const container = document.getElementById("searchResults");
+    const container = document.getElementById("search-results");
 
     if (currentOfferings.length === 0) {
         container.innerHTML = "<p class=\"empty-msg\">Search for a course to see sections here.</p>";
@@ -257,7 +261,10 @@ function renderSearchList() {
  * toggleVisibility switches the visible flag and refreshes map
  */
 function toggleVisibility(classNum) {
-    const offering = currentOfferings.find(o => o.class_number === classNum);
+    const offering = currentOfferings.find(function (o) {
+        return o.class_number === classNum;
+    });
+
     if (offering) {
         offering.visible = offering.visible === false ? true : false;
         refreshMapAndUI();
@@ -268,11 +275,17 @@ function toggleVisibility(classNum) {
  * removeMeeting deletes a specific section from the schedule list
  */
 function removeMeeting(classNum, meetingIndex) {
-    const offering = currentOfferings.find(o => o.class_number === classNum);
+    const offering = currentOfferings.find(function (o) {
+        return o.class_number === classNum;
+    });
+
     if (offering && offering.meetings.length > 1) {
         offering.meetings.splice(meetingIndex, 1);
 
-        const savedIdx = savedCourses.findIndex(s => s.class_number === classNum);
+        const savedIdx = savedCourses.findIndex(function (s) {
+            return s.class_number === classNum;
+        });
+
         if (savedIdx > -1) {
             savedCourses[savedIdx] = offering;
             localStorage.setItem("slugroute_saved", JSON.stringify(savedCourses));
@@ -288,7 +301,7 @@ function removeMeeting(classNum, meetingIndex) {
  * renderSavedList updates the "Saved for Later" sidebar section
  */
 function renderSavedList() {
-    const container = document.getElementById("savedClasses");
+    const container = document.getElementById("saved-classes");
 
     if (savedCourses.length === 0) {
         container.innerHTML = "<p class=\"empty-msg\">No saved classes.</p>";
@@ -296,7 +309,9 @@ function renderSavedList() {
     }
 
     container.innerHTML = savedCourses.map(function (course) {
-        const lecMeet = course.meetings.find(m => utils.getFilterCategory(m.type) === "LEC");
+        const lecMeet = course.meetings.find(function (m) {
+            return utils.getFilterCategory(m.type) === "LEC";
+        });
         const timeStr = lecMeet ? lecMeet.time : (course.meetings[0] ? course.meetings[0].time : "Time TBD");
 
         return `
@@ -323,7 +338,9 @@ function groupDataByLocation(offerings) {
 
     offerings.forEach(function (offering) {
         // SKIP hidden offerings
-        if (offering.visible === false) return;
+        if (offering.visible === false) {
+            return;
+        }
 
         const classColor = ColorManager.getColor(offering.class_number);
         offering.meetings.forEach(function (meet) {
@@ -417,7 +434,9 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
         }
     });
 
-    if (visibleCount === 0) return "";
+    if (visibleCount === 0) {
+        return "";
+    }
 
     return `<div class="iw-container">
         <div class="iw-header"><h3>📍 ${locationGroup.building}</h3></div>
@@ -430,12 +449,14 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
  * searchCourse handles API call and initializing dropdown selection state
  */
 async function searchCourse() {
-    const input = document.getElementById("courseInput");
-    const preview = document.getElementById("searchPreview");
-    const term = document.getElementById("termSelect").value;
+    const input = document.getElementById("course-input");
+    const preview = document.getElementById("search-preview");
+    const term = document.getElementById("term-select").value;
     const courseCode = utils.formatCourseCode(input.value);
 
-    if (!courseCode) return;
+    if (!courseCode) {
+        return;
+    }
 
     // 1. Immediately show the dropdown and the loading skeletons
     preview.innerHTML = `
@@ -448,7 +469,9 @@ async function searchCourse() {
         // 2. Perform the fetch and a 400ms delay in parallel
         const [response] = await Promise.all([
             fetch(`/api/course/${term}/${encodeURIComponent(courseCode)}`),
-            new Promise(resolve => setTimeout(resolve, 400))
+            new Promise(function (resolve) {
+                setTimeout(resolve, 400);
+            })
         ]);
 
         const results = await response.json();
@@ -461,9 +484,9 @@ async function searchCourse() {
         lastSearchResults = results;
         pendingSelections = {};
 
-        results.forEach(offering => {
+        results.forEach(function (offering) {
             pendingSelections[offering.class_number] = [];
-            offering.meetings.forEach((m, idx) => {
+            offering.meetings.forEach(function (m, idx) {
                 if (utils.getFilterCategory(m.type) === 'LEC') {
                     pendingSelections[offering.class_number].push(idx);
                 }
@@ -481,18 +504,20 @@ async function searchCourse() {
  * renderSearchPreview populates the dropdown
  */
 function renderSearchPreview() {
-    const container = document.getElementById("searchPreview");
+    const container = document.getElementById("search-preview");
 
     container.innerHTML = lastSearchResults.map(function(offering) {
         const cn = offering.class_number;
         const allMeets = offering.meetings;
-        const validSections = allMeets.filter(m =>
-            utils.getFilterCategory(m.type) !== 'LEC' &&
-            m.lat !== 0 &&
-            m.time && m.time.trim() !== ""
-        );
+        const validSections = allMeets.filter(function (m) {
+            return utils.getFilterCategory(m.type) !== 'LEC' &&
+                   m.lat !== 0 &&
+                   m.time && m.time.trim() !== "";
+        });
 
-        const lecMeet = allMeets.find(m => utils.getFilterCategory(m.type) === 'LEC');
+        const lecMeet = allMeets.find(function (m) {
+            return utils.getFilterCategory(m.type) === 'LEC';
+        });
         const lecTime = lecMeet ? lecMeet.time : "Time TBD";
 
         return `
@@ -509,8 +534,12 @@ function renderSearchPreview() {
                 </div>
                 <div class="preview-sections-list">
                     ${allMeets.map((meet, index) => {
-                        if (utils.getFilterCategory(meet.type) === 'LEC') return '';
-                        if (meet.lat === 0 || !meet.time || meet.time.trim() === "") return '';
+                        if (utils.getFilterCategory(meet.type) === 'LEC') {
+                            return '';
+                        }
+                        if (meet.lat === 0 || !meet.time || meet.time.trim() === "") {
+                            return '';
+                        }
 
                         const isSelected = pendingSelections[cn].includes(index);
                         const rowClass = isSelected ? 'preview-section-item selected' : 'preview-section-item';
@@ -535,8 +564,11 @@ function renderSearchPreview() {
 function togglePendingSection(classNum, index) {
     const list = pendingSelections[classNum];
     const idx = list.indexOf(index);
-    if (idx > -1) list.splice(idx, 1);
-    else list.push(index);
+    if (idx > -1) {
+        list.splice(idx, 1);
+    } else {
+        list.push(index);
+    }
     renderSearchPreview();
 }
 
@@ -544,9 +576,11 @@ function togglePendingSection(classNum, index) {
  * toggleAllSections handles "Add All" shortcut inside dropdown
  */
 function toggleAllSections(classNum) {
-    const offering = lastSearchResults.find(o => o.class_number === classNum);
+    const offering = lastSearchResults.find(function (o) {
+        return o.class_number === classNum;
+    });
     pendingSelections[classNum] = [];
-    offering.meetings.forEach((m, idx) => {
+    offering.meetings.forEach(function (m, idx) {
         if (utils.getFilterCategory(m.type) === 'LEC' || (m.lat !== 0 && m.time && m.time.trim() !== "")) {
             pendingSelections[classNum].push(idx);
         }
@@ -558,21 +592,36 @@ function toggleAllSections(classNum) {
  * commitSelection pushes highlights to the map and sidebar
  */
 function commitSelection(classNum) {
-    const original = lastSearchResults.find(o => o.class_number === classNum);
+    const original = lastSearchResults.find(function (o) {
+        return o.class_number === classNum;
+    });
     const indices = pendingSelections[classNum];
-    const filteredMeetings = original.meetings.filter((m, idx) => indices.includes(idx));
+    const filteredMeetings = original.meetings.filter(function (m, idx) {
+        return indices.includes(idx);
+    });
 
-    let active = currentOfferings.find(o => o.class_number === classNum);
-    if (active) active.meetings = filteredMeetings;
-    else currentOfferings.push({ ...original, meetings: filteredMeetings, visible: true });
+    let active = currentOfferings.find(function (o) {
+        return o.class_number === classNum;
+    });
 
-    const sIdx = savedCourses.findIndex(s => s.class_number === classNum);
+    if (active) {
+        active.meetings = filteredMeetings;
+    } else {
+        currentOfferings.push({ ...original, meetings: filteredMeetings, visible: true });
+    }
+
+    const sIdx = savedCourses.findIndex(function (s) {
+        return s.class_number === classNum;
+    });
+
     if (sIdx > -1) {
-        savedCourses[sIdx] = currentOfferings.find(o => o.class_number === classNum);
+        savedCourses[sIdx] = currentOfferings.find(function (o) {
+            return o.class_number === classNum;
+        });
         localStorage.setItem("slugroute_saved", JSON.stringify(savedCourses));
     }
 
-    document.getElementById("searchPreview").style.display = "none";
+    document.getElementById("search-preview").style.display = "none";
     refreshMapAndUI();
     focusClass(classNum);
 }
@@ -582,7 +631,7 @@ function commitSelection(classNum) {
  */
 window.onclick = function(e) {
     if (!e.target.closest('.search-container')) {
-        const preview = document.getElementById("searchPreview");
+        const preview = document.getElementById("search-preview");
         if (preview) {
             preview.style.display = "none";
             renderSearchList();
@@ -594,7 +643,9 @@ window.onclick = function(e) {
  * smartFitBounds: Centers the map while accounting for the fixed sidebar
  */
 function smartFitBounds(bounds) {
-    if (bounds.isEmpty()) return;
+    if (bounds.isEmpty()) {
+        return;
+    }
 
     if (activeInfoWindow) {
         activeInfoWindow.close();
@@ -613,16 +664,18 @@ function smartFitBounds(bounds) {
         left: (isSidebarOpen && !isMobile) ? 400 : 50
     };
 
-    // Temporarily lift restriction
+    // TEMPORARILY lift restriction to prevent camera snap issues
     map.setOptions({ restriction: null });
 
     map.fitBounds(bounds, padding);
 
     // Optional: Limit max zoom so it doesn't zoom in too tight on a single building
     const listener = google.maps.event.addListener(map, 'idle', function() {
-        if (map.getZoom() > 18) map.setZoom(18);
+        if (map.getZoom() > 18) {
+            map.setZoom(18);
+        }
 
-        // Restore restriction
+        // Restore restriction after movement settles
         map.setOptions({
             restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false }
         });
@@ -635,8 +688,13 @@ function smartFitBounds(bounds) {
  * focusClass treats the course as a whole
  */
 function focusClass(classNumber) {
-    const offering = currentOfferings.find(o => o.class_number === classNumber);
-    if (!offering) return;
+    const offering = currentOfferings.find(function (o) {
+        return o.class_number === classNumber;
+    });
+
+    if (!offering) {
+        return;
+    }
 
     // Ensure it's visible if focusing
     if (offering.visible === false) {
@@ -645,10 +703,18 @@ function focusClass(classNumber) {
     }
 
     const bounds = new google.maps.LatLngBounds();
-    let validMeetings = offering.meetings.filter(m => m.lat && m.lat !== 0);
-    if (validMeetings.length === 0) return;
+    let validMeetings = offering.meetings.filter(function (m) {
+        return m.lat && m.lat !== 0;
+    });
 
-    validMeetings.forEach(m => bounds.extend({ lat: m.lat, lng: m.lng }));
+    if (validMeetings.length === 0) {
+        return;
+    }
+
+    validMeetings.forEach(function (m) {
+        bounds.extend({ lat: m.lat, lng: m.lng });
+    });
+
     smartFitBounds(bounds);
 
     // Ensure the sidebar scrolls to the card and highlights it
@@ -657,7 +723,9 @@ function focusClass(classNumber) {
         sidebarElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         highlightSidebarCard(classNumber, true);
         // Remove highlight after a delay to indicate "arrival"
-        setTimeout(() => highlightSidebarCard(classNumber, false), 2000);
+        setTimeout(function () {
+            highlightSidebarCard(classNumber, false);
+        }, 2000);
     }
 
     // Mobile UX: Auto-close sidebar so user can see the map
@@ -670,10 +738,14 @@ function focusClass(classNumber) {
  * updateMarkers toggles visibility of markers based on checkbox filters
  */
 function updateMarkers() {
-    const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(cb => cb.value);
+    const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function (cb) {
+        return cb.value;
+    });
 
     markers.forEach(function (m) {
-        const isVisible = m.categories.some(cat => activeFilters.includes(cat));
+        const isVisible = m.categories.some(function (cat) {
+            return activeFilters.includes(cat);
+        });
         m.map = isVisible ? map : null;
 
         if (!isVisible && activeInfoWindow && activeInfoWindow.getAnchor() === m) {
@@ -687,7 +759,9 @@ function updateMarkers() {
  * refreshMapAndUI fully clears and redraws map elements
  */
 function refreshMapAndUI() {
-    markers.forEach(m => m.map = null);
+    markers.forEach(function (m) {
+        m.map = null;
+    });
     markers = [];
 
     if (activeInfoWindow) {
@@ -698,7 +772,9 @@ function refreshMapAndUI() {
     renderSearchList();
     renderSavedList();
 
-    if (currentOfferings.length === 0) return;
+    if (currentOfferings.length === 0) {
+        return;
+    }
 
     const locationGroups = groupDataByLocation(currentOfferings);
     const bounds = new google.maps.LatLngBounds();
@@ -716,9 +792,13 @@ function refreshMapAndUI() {
 
         marker.categories = group.filterCategories;
         marker.addListener("click", function () {
-            const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(cb => cb.value);
+            const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function (cb) {
+                return cb.value;
+            });
             const content = buildInfoWindowHtml(group, activeFilters);
-            if (!content) return;
+            if (!content) {
+                return;
+            }
 
             if (activeInfoWindow) {
                 activeInfoWindow.close();
@@ -732,12 +812,14 @@ function refreshMapAndUI() {
         markers.push(marker);
     }
 
-    // Refresh visibility state before calculating viewport bounds
+    // Determine marker visibility BEFORE calculating bounds
     updateMarkers();
 
     // Only include currently visible markers in the zoom/pan target
-    markers.forEach(m => {
-        if (m.map) bounds.extend(m.position);
+    markers.forEach(function (m) {
+        if (m.map) {
+            bounds.extend(m.position);
+        }
     });
 
     if (!bounds.isEmpty()) {
@@ -753,7 +835,9 @@ function clearResults() {
         activeInfoWindow.close();
         activeInfoWindow = null;
     }
-    currentOfferings.forEach(c => ColorManager.releaseColor(c.class_number));
+    currentOfferings.forEach(function (c) {
+        ColorManager.releaseColor(c.class_number);
+    });
     currentOfferings = [];
     refreshMapAndUI();
 }
@@ -767,7 +851,9 @@ function removeResult(classNum) {
         activeInfoWindow = null;
     }
     ColorManager.releaseColor(classNum);
-    currentOfferings = currentOfferings.filter(c => c.class_number !== classNum);
+    currentOfferings = currentOfferings.filter(function (c) {
+        return c.class_number !== classNum;
+    });
     refreshMapAndUI();
 }
 
@@ -775,13 +861,21 @@ function removeResult(classNum) {
  * toggleSaveCourse adds/removes course from localStorage
  */
 function toggleSaveCourse(classNum) {
-    const offering = currentOfferings.find(o => o.class_number === classNum) ||
-                     savedCourses.find(o => o.class_number === classNum);
+    const offering = currentOfferings.find(function (o) {
+        return o.class_number === classNum;
+    }) || savedCourses.find(function (o) {
+        return o.class_number === classNum;
+    });
 
-    const index = savedCourses.findIndex(o => o.class_number === classNum);
+    const index = savedCourses.findIndex(function (o) {
+        return o.class_number === classNum;
+    });
 
-    if (index > -1) savedCourses.splice(index, 1);
-    else if (offering) savedCourses.push(offering);
+    if (index > -1) {
+        savedCourses.splice(index, 1);
+    } else if (offering) {
+        savedCourses.push(offering);
+    }
 
     localStorage.setItem("slugroute_saved", JSON.stringify(savedCourses));
     renderSavedList();
@@ -792,9 +886,15 @@ function toggleSaveCourse(classNum) {
  * addSavedToResults brings a saved course back into the active map view
  */
 async function addSavedToResults(classNum) {
-    const course = savedCourses.find(c => c.class_number === classNum);
+    const course = savedCourses.find(function (c) {
+        return c.class_number === classNum;
+    });
+
     if (course) {
-        const alreadyIn = currentOfferings.find(c => c.class_number === classNum);
+        const alreadyIn = currentOfferings.find(function (c) {
+            return c.class_number === classNum;
+        });
+
         if (!alreadyIn) {
             currentOfferings.push({ ...course, visible: true });
             refreshMapAndUI();
@@ -807,8 +907,10 @@ async function addSavedToResults(classNum) {
  * addAllSavedToResults brings every saved course into active view
  */
 function addAllSavedToResults() {
-    savedCourses.forEach(course => {
-        const alreadyIn = currentOfferings.find(c => c.class_number === course.class_number);
+    savedCourses.forEach(function (course) {
+        const alreadyIn = currentOfferings.find(function (c) {
+            return c.class_number === course.class_number;
+        });
         if (!alreadyIn) {
             currentOfferings.push({ ...course, visible: true });
         }
@@ -820,22 +922,30 @@ function addAllSavedToResults() {
  * initMap starts the Google Maps engine
  */
 async function initMap() {
-    document.getElementById("sidebarToggle").onclick = () => {
+    document.getElementById("sidebar-toggle").onclick = function () {
         const sidebar = document.getElementById("sidebar");
         sidebar.classList.toggle("closed");
-        setTimeout(() => {
+        setTimeout(function () {
             if (currentOfferings.length > 0) {
                 const bounds = new google.maps.LatLngBounds();
-                markers.forEach(m => {
-                    if (m.map) bounds.extend(m.position);
+                markers.forEach(function (m) {
+                    if (m.map) {
+                        bounds.extend(m.position);
+                    }
                 });
-                if (!bounds.isEmpty()) smartFitBounds(bounds);
+                if (!bounds.isEmpty()) {
+                    smartFitBounds(bounds);
+                }
             }
             google.maps.event.trigger(map, 'resize');
         }, 350);
     };
 
-    document.querySelectorAll(".filter-type").forEach(cb => cb.onchange = () => updateMarkers());
+    document.querySelectorAll(".filter-type").forEach(function (cb) {
+        cb.onchange = function () {
+            updateMarkers();
+        };
+    });
 
     const { Map } = await google.maps.importLibrary("maps");
     const markerLib = await google.maps.importLibrary("marker");
@@ -853,7 +963,7 @@ async function initMap() {
         fullscreenControl: false
     });
 
-    map.addListener("click", () => {
+    map.addListener("click", function () {
         if (activeInfoWindow) {
             activeInfoWindow.close();
             activeInfoWindow = null;

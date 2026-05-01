@@ -10,7 +10,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// Meeting represents a single time/location instance for a class
+// Meeting represents a single time/location instance for a class.
 type Meeting struct {
 	Type       string  `json:"type"`
 	Building   string  `json:"building"`
@@ -19,10 +19,10 @@ type Meeting struct {
 	Instructor string  `json:"instructor"`
 	Lat        float64 `json:"lat"`
 	Lng        float64 `json:"lng"`
-	ImageUrl   string  `json:"image_url"`
+	ImageURL   string  `json:"image_url"`
 }
 
-// Offering represents a unique class (lecture) and its associated sections
+// Offering represents a unique class (lecture) and its associated sections.
 type Offering struct {
 	ClassNum   string    `json:"class_number"`
 	CourseCode string    `json:"course_code"`
@@ -32,18 +32,17 @@ type Offering struct {
 	Meetings   []Meeting `json:"meetings"`
 }
 
-// fetchOfferings queries the DB for main lecture data and joins building coordinates
+// fetchOfferings queries the DB for main lecture data.
 func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error) {
-	// SQL query joins courses with lectures and builds to get lat/lng
-	// Sprint update: Added UPPER/TRIM normalization and fuzzy code matching for robust building/course lookups
 	query := `
-        SELECT c.class_number, c.course_code, c.term, c.title, l.instructor, l.days, l.times, l.building, l.room_number, 
-               IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
-        FROM courses c
-        JOIN lectures l ON c.class_number = l.class_number AND c.term = l.term
-        LEFT JOIN buildings b ON UPPER(TRIM(l.building)) = UPPER(TRIM(b.name))
-        WHERE (UPPER(c.course_code) = UPPER(?) OR UPPER(REPLACE(c.course_code, ' ', '')) = UPPER(REPLACE(?, ' ', ''))) 
-        AND c.term = ?`
+		SELECT c.class_number, c.course_code, c.term, c.title, l.instructor, 
+		       l.days, l.times, l.building, l.room_number, 
+		       IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
+		FROM courses c
+		JOIN lectures l ON c.class_number = l.class_number AND c.term = l.term
+		LEFT JOIN buildings b ON UPPER(TRIM(l.building)) = UPPER(TRIM(b.name))
+		WHERE (UPPER(c.course_code) = UPPER(?) OR UPPER(REPLACE(c.course_code, ' ', '')) = UPPER(REPLACE(?, ' ', ''))) 
+		AND c.term = ?`
 
 	rows, err := db.Query(query, code, code, term)
 	if err != nil {
@@ -54,18 +53,14 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 	offeringsMap := make(map[string]*Offering)
 
 	for rows.Next() {
-		var cn, cc, cterm, title, inst, days, times, bld, rm string
+		var cn, cc, cterm, title, inst, days, times, bld, rm, imageURL string
 		var lat, lng float64
-		//image
-		var imageUrl string
-		//image
 
-		// Scan DB columns into temporary variables
-		if err := rows.Scan(&cn, &cc, &cterm, &title, &inst, &days, &times, &bld, &rm, &lat, &lng, &imageUrl); err != nil {
+		err := rows.Scan(&cn, &cc, &cterm, &title, &inst, &days, &times, &bld, &rm, &lat, &lng, &imageURL)
+		if err != nil {
 			return nil, err
 		}
 
-		// If this is a new class number, initialize the offering object
 		if _, ok := offeringsMap[cn]; !ok {
 			offeringsMap[cn] = &Offering{
 				ClassNum:   cn,
@@ -77,7 +72,6 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 			}
 		}
 
-		// Append the lecture as the first meeting type
 		offeringsMap[cn].Meetings = append(offeringsMap[cn].Meetings, Meeting{
 			Type:       "LEC",
 			Building:   bld,
@@ -86,20 +80,20 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 			Instructor: inst,
 			Lat:        lat,
 			Lng:        lng,
-			ImageUrl:   imageUrl,
+			ImageURL:   imageURL,
 		})
 	}
 	return offeringsMap, nil
 }
 
-// attachSections fetches DIS/LAB sections linked to the parent lecture
+// attachSections fetches DIS/LAB sections linked to the parent lecture.
 func attachSections(db *sql.DB, term string, offerings map[string]*Offering) error {
 	query := `
-        SELECT s.section_type, s.instructor, s.days, s.times, s.building, s.room_number,
-               IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
-        FROM sections s
-        LEFT JOIN buildings b ON UPPER(TRIM(s.building)) = UPPER(TRIM(b.name))
-        WHERE s.parent_class_number = ? AND s.term = ?`
+		SELECT s.section_type, s.instructor, s.days, s.times, s.building, s.room_number,
+		       IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
+		FROM sections s
+		LEFT JOIN buildings b ON UPPER(TRIM(s.building)) = UPPER(TRIM(b.name))
+		WHERE s.parent_class_number = ? AND s.term = ?`
 
 	for cn, offering := range offerings {
 		secRows, err := db.Query(query, cn, term)
@@ -108,16 +102,14 @@ func attachSections(db *sql.DB, term string, offerings map[string]*Offering) err
 		}
 
 		for secRows.Next() {
-			var st, si, sd, stm, bld, rm string
+			var st, si, sd, stm, bld, rm, imageURL string
 			var lat, lng float64
-			var imageUrl string
 
-			if err := secRows.Scan(&st, &si, &sd, &stm, &bld, &rm, &lat, &lng, &imageUrl); err != nil {
+			if err := secRows.Scan(&st, &si, &sd, &stm, &bld, &rm, &lat, &lng, &imageURL); err != nil {
 				secRows.Close()
 				return err
 			}
 
-			// Append section meeting to the same offering
 			offering.Meetings = append(offering.Meetings, Meeting{
 				Type:       st,
 				Building:   bld,
@@ -126,7 +118,7 @@ func attachSections(db *sql.DB, term string, offerings map[string]*Offering) err
 				Instructor: si,
 				Lat:        lat,
 				Lng:        lng,
-				ImageUrl:   imageUrl,
+				ImageURL:   imageURL,
 			})
 		}
 		secRows.Close()
@@ -134,30 +126,23 @@ func attachSections(db *sql.DB, term string, offerings map[string]*Offering) err
 	return nil
 }
 
-// getCourseHandler handles the /api/course/:term/:code route
+// getCourseHandler handles the /api/course/:term/:code route.
 func getCourseHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		term := c.Param("term")
 		code := c.Param("code")
 
-		// 1. Fetch main lectures
 		offeringsMap, err := fetchOfferings(db, term, code)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to fetch lectures",
-			})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch lectures"})
 			return
 		}
 
-		// 2. Fetch and link sections
 		if err := attachSections(db, term, offeringsMap); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to fetch sections",
-			})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch sections"})
 			return
 		}
 
-		// 3. Convert map to list for frontend
 		result := make([]Offering, 0, len(offeringsMap))
 		for _, v := range offeringsMap {
 			result = append(result, *v)
@@ -167,20 +152,14 @@ func getCourseHandler(db *sql.DB) gin.HandlerFunc {
 }
 
 func main() {
-	// Open SQLite connection
 	db, err := sql.Open("sqlite3", "../database/slugroute.db")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	// Initialize Gin Router
 	r := gin.Default()
-
-	// Setup Routes
 	r.GET("/api/course/:term/:code", getCourseHandler(db))
-
-	// Static file server (serves frontend folder)
 	r.NoRoute(gin.WrapH(http.FileServer(http.Dir("../frontend"))))
 
 	log.Println("SlugRoute live at http://localhost:8080")

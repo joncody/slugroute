@@ -10,7 +10,7 @@
     <nav class="navbar">
         <div class="nav-container">
             <div class="brand">
-                <button id="sidebarToggle" class="menu-btn" title="Toggle Sidebar">
+                <button id="sidebar-toggle" class="menu-btn" title="Toggle Sidebar">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                         <line x1="3" y1="12" x2="21" y2="12"></line>
                         <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -21,28 +21,26 @@
                 <span class="logo-text">SlugRoute</span>
             </div>
             <div class="search-container">
-                <form id="searchForm" onsubmit="event.preventDefault(); searchCourse();" style="display: flex; width: 100%; gap: 8px;">
-                    <input type="search" id="courseInput" placeholder="Search Course (e.g. CSE 115A)" autocomplete="off">
-                    <button type="submit" id="searchBtn">Search</button>
+                <form id="search-form" onsubmit="event.preventDefault(); searchCourse();" style="display: flex; width: 100%; gap: 8px;">
+                    <input type="search" id="course-input" placeholder="Search Course (e.g. CSE 115A)" autocomplete="off">
+                    <button type="submit" id="search-btn">Search</button>
                 </form>
-                <div id="searchPreview" class="search-preview-dropdown"></div>
+                <div id="search-preview" class="search-preview-dropdown"></div>
             </div>
         </div>
     </nav>
-
     <div class="app-container">
         <!-- Sidebar -->
         <aside id="sidebar" class="sidebar">
             <div class="sidebar-section">
                 <h3>Select Term</h3>
                 <div class="term-selector-container">
-                    <select id="termSelect" class="term-dropdown">
+                    <select id="term-select" class="term-dropdown">
                         <option value="2262" selected>Spring 2026</option>
                         <option value="2264">Summer 2026</option>
                     </select>
                 </div>
             </div>
-
             <div class="sidebar-section">
                 <h3>View Filters</h3>
                 <div class="filter-group">
@@ -63,13 +61,12 @@
             <div class="sidebar-section">
                 <div class="section-header">
                     <h3>Current Results</h3>
-                    <button id="clearResultsBtn" onclick="clearResults()" class="text-btn-red">Clear All</button>
+                    <button id="clear-results-btn" onclick="clearResults()" class="text-btn-red">Clear All</button>
                 </div>
-                <div id="searchResults" class="course-list">
+                <div id="search-results" class="course-list">
                     <p class="empty-msg">Search for a course to see sections here.</p>
                 </div>
             </div>
-
             <div class="sidebar-section">
                 <div class="section-header">
                     <h3>Saved for Later</h3>
@@ -77,18 +74,16 @@
                         <button onclick="addAllSavedToResults()" class="text-btn-blue">Add All</button>
                     </div>
                 </div>
-                <div id="savedClasses" class="course-list">
+                <div id="saved-classes" class="course-list">
                     <!-- Saved items populated by JS -->
                 </div>
             </div>
         </aside>
-
         <!-- Map Container -->
         <main id="map-container">
             <div id="map"></div>
         </main>
     </div>
-
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwp-UoWjYJ4mz-5IJFqAwZsiTffVRPmKg&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>
     <script src="script.js"></script>
 </body>

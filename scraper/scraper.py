@@ -2,11 +2,13 @@
 UCSC PISA Scraper
 Fetches course data from the Schedule of Classes and stores it in SQLite.
 """
+
 import logging
 import re
 import sqlite3
 import time
 from datetime import datetime
+
 import requests
 from bs4 import BeautifulSoup
 from requests.adapters import HTTPAdapter
@@ -15,7 +17,7 @@ from urllib3.util.retry import Retry
 # Global Configuration
 DB_NAME = "../database/slugroute.db"
 BASE_URL = "https://pisa.ucsc.edu/class_search/index.php"
-TARGET_TERMS = ["2260", "2262", "2264"] # Winter 2026, Spring 2026, Summer 2026
+TARGET_TERMS = ["2260", "2262", "2264"]
 TIMEOUT = 30
 REQUEST_DELAY = 0.2
 
@@ -64,7 +66,6 @@ def split_days_times(raw_text):
 
     # Find the first digit to separate day letters from time numbers
     match = re.search(r"\d", cleaned)
-
     if match:
         idx = match.start()
         return cleaned[:idx].strip(), cleaned[idx:].strip()
@@ -86,7 +87,6 @@ def split_location(raw_location):
 
     # Regex looks for space followed by a room number (digits)
     match = re.search(r"^(.*)\s+([A-Z]?\d{2,}.*)$", text)
-
     if match:
         building, room = match.groups()
         return building.strip(), room.strip()
@@ -167,8 +167,9 @@ def save_course_data(cursor, data, term):
 
     for lec in data['lectures']:
         cursor.execute("""
-            INSERT INTO lectures (class_number, term, instructor, days, times, building, room_number)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO lectures (
+                class_number, term, instructor, days, times, building, room_number
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
             data['class_number'],
             term,
@@ -284,9 +285,12 @@ def scrape_term(session, conn, term):
     class_nums = [a.get_text().strip() for a in class_links]
 
     cursor = conn.cursor()
-    for index, class_num in enumerate(class_nums, 1):
-        # Skip if already in DB (Optional performance check)
-        cursor.execute("SELECT 1 FROM courses WHERE class_number = ? AND term = ?", (class_num, term))
+    for class_num in class_nums:
+        # Check if already exists
+        cursor.execute(
+            "SELECT 1 FROM courses WHERE class_number = ? AND term = ?",
+            (class_num, term)
+        )
         if cursor.fetchone():
             continue
 
