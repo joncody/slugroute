@@ -476,7 +476,6 @@ async function searchCourse() {
 
         const results = await response.json();
 
-        console.log(results);
         if (!Array.isArray(results) || results.length === 0) {
             preview.innerHTML = `<p class="empty-msg" style="border:none; padding: 20px;">No results found for "${courseCode}"</p>`;
             return;
