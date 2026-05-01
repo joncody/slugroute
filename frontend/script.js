@@ -9,10 +9,10 @@ const CONFIG = {
         lng: -122.0608
     },
     UCSC_BOUNDS: {
-        north: 38.00, // Loosened north
-        south: 36.00, // Loosened south
-        west: -123.00, // Loosened west
-        east: -121.00  // Loosened east
+        north: 38.00,
+        south: 36.00,
+        west: -123.00,
+        east: -121.00
     },
     ZOOM: {
         CAMPUS: 15,
@@ -105,6 +105,24 @@ const utils = {
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
             </svg>
         `;
+    },
+
+    getEyeSvg: function (isVisible) {
+        const stroke = "#64748b";
+        if (isVisible) {
+            return `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: all 0.2s ease;">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            `;
+        }
+        return `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.35; transition: all 0.2s ease;">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+        `;
     }
 };
 
@@ -174,6 +192,7 @@ function renderSearchList() {
             return s.class_number === course.class_number;
         });
         const color = ColorManager.getColor(course.class_number);
+        const isVisible = course.visible !== false;
 
         // Generate Meeting Tags with individual removal
         const meetingTagsHtml = course.meetings.map(function(m, index) {
@@ -206,13 +225,16 @@ function renderSearchList() {
         }).join("");
 
         return `
-            <div class="course-card" id="card-${course.class_number}" onclick="focusClass('${course.class_number}')" style="border-left: 10px solid ${color}">
+            <div class="course-card ${!isVisible ? 'hidden-offering' : ''}" id="card-${course.class_number}" onclick="focusClass('${course.class_number}')" style="border-left: 10px solid ${isVisible ? color : '#e2e8f0'}">
                 <div class="card-header">
                     <div class="course-header-row">
                         <h4>${course.course_code}</h4>
                         <span class="course-id-tag">#${course.class_number}</span>
                     </div>
                     <div class="card-actions">
+                        <button class="save-btn" title="Toggle Map Visibility" onclick="event.stopPropagation(); toggleVisibility('${course.class_number}')">
+                            ${utils.getEyeSvg(isVisible)}
+                        </button>
                         <button class="save-btn" onclick="event.stopPropagation(); toggleSaveCourse('${course.class_number}')">
                             ${utils.getHeartSvg(isSaved)}
                         </button>
@@ -229,6 +251,17 @@ function renderSearchList() {
             </div>
         `;
     }).join("");
+}
+
+/**
+ * toggleVisibility switches the visible flag and refreshes map
+ */
+function toggleVisibility(classNum) {
+    const offering = currentOfferings.find(o => o.class_number === classNum);
+    if (offering) {
+        offering.visible = offering.visible === false ? true : false;
+        refreshMapAndUI();
+    }
 }
 
 /**
@@ -289,6 +322,9 @@ function groupDataByLocation(offerings) {
     const locationMap = {};
 
     offerings.forEach(function (offering) {
+        // SKIP hidden offerings
+        if (offering.visible === false) return;
+
         const classColor = ColorManager.getColor(offering.class_number);
         offering.meetings.forEach(function (meet) {
             if (!meet.lat || meet.lat === 0 || isNaN(meet.lat)) {
@@ -351,9 +387,10 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
 
         if (visibleMeetings.length > 0) {
             visibleCount++;
-            offeringsHtml += `<div class="offering-group" style="border-left: 5px solid ${off.color}; padding-left: 8px;"
+            offeringsHtml += `<div class="offering-group" style="border-left: 5px solid ${off.color}; padding-left: 8px; cursor: pointer;"
                         onmouseenter="highlightSidebarCard('${classNum}', true)"
-                        onmouseleave="highlightSidebarCard('${classNum}', false)">
+                        onmouseleave="highlightSidebarCard('${classNum}', false)"
+                        onclick="focusClass('${classNum}')">
                 <div class="course-code" style="font-weight:800; color:#003c6c; margin-bottom:4px;">
                     ${off.courseCode} <i style="font-weight: 400; font-size: 0.9em; color: #64748b;">(${utils.getTermName(off.term)})</i>
                 </div>
@@ -527,7 +564,7 @@ function commitSelection(classNum) {
 
     let active = currentOfferings.find(o => o.class_number === classNum);
     if (active) active.meetings = filteredMeetings;
-    else currentOfferings.push({ ...original, meetings: filteredMeetings });
+    else currentOfferings.push({ ...original, meetings: filteredMeetings, visible: true });
 
     const sIdx = savedCourses.findIndex(s => s.class_number === classNum);
     if (sIdx > -1) {
@@ -569,15 +606,14 @@ function smartFitBounds(bounds) {
 
     // Define the "Off-limits" areas for the Map Camera
     const padding = {
-        top: 100,    // Space for top UI
+        top: 50,    // Space for top UI
         right: 50,
         bottom: 50,
         // If sidebar is open, shift the "center" of the map to the right
         left: (isSidebarOpen && !isMobile) ? 400 : 50
     };
 
-    // TEMPORARILY lift restriction to prevent the camera from "snapping"
-    // to a wrong point if the padded center falls outside UCSC_BOUNDS at low zoom.
+    // Temporarily lift restriction
     map.setOptions({ restriction: null });
 
     map.fitBounds(bounds, padding);
@@ -586,7 +622,7 @@ function smartFitBounds(bounds) {
     const listener = google.maps.event.addListener(map, 'idle', function() {
         if (map.getZoom() > 18) map.setZoom(18);
 
-        // Restore restriction after movement settles
+        // Restore restriction
         map.setOptions({
             restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false }
         });
@@ -602,12 +638,27 @@ function focusClass(classNumber) {
     const offering = currentOfferings.find(o => o.class_number === classNumber);
     if (!offering) return;
 
+    // Ensure it's visible if focusing
+    if (offering.visible === false) {
+        offering.visible = true;
+        refreshMapAndUI();
+    }
+
     const bounds = new google.maps.LatLngBounds();
     let validMeetings = offering.meetings.filter(m => m.lat && m.lat !== 0);
     if (validMeetings.length === 0) return;
 
     validMeetings.forEach(m => bounds.extend({ lat: m.lat, lng: m.lng }));
     smartFitBounds(bounds);
+
+    // Ensure the sidebar scrolls to the card and highlights it
+    const sidebarElement = document.getElementById(`card-${classNumber}`);
+    if (sidebarElement) {
+        sidebarElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        highlightSidebarCard(classNumber, true);
+        // Remove highlight after a delay to indicate "arrival"
+        setTimeout(() => highlightSidebarCard(classNumber, false), 2000);
+    }
 
     // Mobile UX: Auto-close sidebar so user can see the map
     if (window.innerWidth < 768) {
@@ -689,7 +740,9 @@ function refreshMapAndUI() {
         if (m.map) bounds.extend(m.position);
     });
 
-    smartFitBounds(bounds);
+    if (!bounds.isEmpty()) {
+        smartFitBounds(bounds);
+    }
 }
 
 /**
@@ -743,7 +796,7 @@ async function addSavedToResults(classNum) {
     if (course) {
         const alreadyIn = currentOfferings.find(c => c.class_number === classNum);
         if (!alreadyIn) {
-            currentOfferings.push(course);
+            currentOfferings.push({ ...course, visible: true });
             refreshMapAndUI();
         }
     }
@@ -757,7 +810,7 @@ function addAllSavedToResults() {
     savedCourses.forEach(course => {
         const alreadyIn = currentOfferings.find(c => c.class_number === course.class_number);
         if (!alreadyIn) {
-            currentOfferings.push(course);
+            currentOfferings.push({ ...course, visible: true });
         }
     });
     refreshMapAndUI();
