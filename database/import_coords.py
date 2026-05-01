@@ -15,37 +15,64 @@ def migrate():
     """
     Reads building coordinates from a text file and imports them into SQLite.
     Forces building names to uppercase to ensure robust JOIN operations.
+    Includes image_url paths for the frontend display.
     """
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        # Drop and recreate to ensure clean uppercase names
+        # Drop and recreate to ensure clean uppercase names and correct schema
         cursor.execute("DROP TABLE IF EXISTS buildings")
+
+        # Schema matching Go struct and dataset requirements
         cursor.execute(
-            "CREATE TABLE buildings (name TEXT PRIMARY KEY, lat REAL, lng REAL)"
+            """
+            CREATE TABLE buildings (
+                name TEXT PRIMARY KEY,
+                lat REAL,
+                lng REAL,
+                image_url TEXT
+            )
+            """
         )
 
         with open(COORDS_FILE, 'r', encoding='utf-8') as f:
             for line in f:
-                # No one-liner if blocks
+                # No one-liner if blocks per style guide
                 if '=' not in line:
                     continue
 
-                name, coords = line.split('=')
-                lat, lng = coords.split(',')
+                # Expected format: Name = Lat, Lng, ImagePath
+                name, data = line.split('=')
+                parts = data.split(',')
+
+                if len(parts) < 2:
+                    continue
+
+                lat = parts[0].strip()
+                lng = parts[1].strip()
+
+                # Handle optional image_url if present in text file
+                img_url = ""
+                if len(parts) > 2:
+                    img_url = parts[2].strip()
 
                 # Force uppercase for normalization
                 clean_name = name.strip().upper()
 
                 cursor.execute(
-                    "INSERT OR REPLACE INTO buildings VALUES (?, ?, ?)",
-                    (clean_name, float(lat.strip()), float(lng.strip()))
+                    "INSERT OR REPLACE INTO buildings VALUES (?, ?, ?, ?)",
+                    (
+                        clean_name,
+                        float(lat),
+                        float(lng),
+                        img_url
+                    )
                 )
 
         conn.commit()
         conn.close()
-        logging.info("Coordinates imported successfully in UPPERCASE.")
+        logging.info("Coordinates and image paths imported successfully.")
 
     except FileNotFoundError:
         logging.error(f"Migration failed: {COORDS_FILE} not found.")
