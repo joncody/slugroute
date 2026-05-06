@@ -35,6 +35,7 @@ let lastSearchResults = []; // Buffer for search results
 let pendingSelections = {}; // Tracks highlighted rows in the dropdown
 let savedCourses = JSON.parse(localStorage.getItem("slugroute_saved")) || [];
 let AdvancedMarkerElement;
+let userLocation;
 
 /**
  * ColorManager assigns unique colors to each class number
@@ -969,6 +970,30 @@ async function initMap() {
             activeInfoWindow = null;
         }
     });
+    
+    navigator.geolocation.getCurrentPosition(function(position) {
+        const userPos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+        };
 
+        const youAreHereDiv = document.createElement('div');
+        youAreHereDiv.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
+                <circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="2"/>
+                <circle cx="12" cy="12" r="4" fill="white"/>
+            </svg>
+        `;
+
+        new AdvancedMarkerElement({
+            map: map,
+            position: userPos,
+            content: youAreHereDiv,
+            title: "You Are Here"
+        });
+    });
+    
     refreshMapAndUI();
 }
+
+
