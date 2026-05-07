@@ -970,7 +970,18 @@ async function initMap() {
             activeInfoWindow = null;
         }
     });
-    
+    requestLocation();
+
+    refreshMapAndUI();
+}
+// 1.1 current location
+function requestLocation() {
+    document.getElementById('locationModal').style.display = 'block';
+}
+
+function allowLocation() {
+    document.getElementById('locationModal').style.display = 'none';
+    document.getElementById('locateBtn').style.display = 'none';
     navigator.geolocation.getCurrentPosition(function(position) {
         const userPos = {
             lat: position.coords.latitude,
@@ -989,11 +1000,12 @@ async function initMap() {
             map: map,
             position: userPos,
             content: youAreHereDiv,
-            title: "You Are Here"
+            title: "Current Location"
         });
     });
-    
-    refreshMapAndUI();
 }
 
-
+function denyLocation() {
+    document.getElementById('locationModal').style.display = 'none';
+}
+//current location
