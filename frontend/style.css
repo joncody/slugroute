@@ -12,6 +12,9 @@
     --text-muted: #64748b;
     --nav-height: 60px;
     --sidebar-width: 100%;
+    --accent-color: transparent;
+    --success-green: #059669;
+    --error-red: #ef4444;
 }
 
 /* --- Global Reset --- */
@@ -105,6 +108,12 @@ body {
     max-width: 450px;
 }
 
+#search-form {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+}
+
 .search-container input {
     flex-grow: 1;
     border: none;
@@ -155,6 +164,28 @@ body {
     }
 }
 
+.suggestion-header {
+    padding: 12px 16px 8px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--bg-light);
+}
+
+.suggestion-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ucsc-blue);
+    transition: background 0.2s;
+}
+
+.suggestion-item:hover {
+    background-color: var(--bg-light);
+}
+
 .preview-offering {
     padding: 12px;
     border-bottom: 1px solid var(--bg-light);
@@ -186,15 +217,17 @@ body {
 }
 
 .preview-add-all {
-    background: var(--ucsc-blue) !important;
-    color: white !important;
-    font-size: 10px !important;
-    padding: 0 12px !important;
+    background: var(--ucsc-blue);
+    color: white;
+    font-size: 10px;
+    padding: 0 12px;
     border-radius: 6px;
     cursor: pointer;
-    height: 34px !important;
-    min-height: 34px !important;
+    height: 34px;
+    min-height: 34px;
     white-space: nowrap;
+    border: none;
+    font-weight: 700;
 }
 
 .preview-sections-list {
@@ -216,8 +249,8 @@ body {
 }
 
 .preview-section-item.selected {
-    background-color: #fef9c3 !important;
-    border-color: var(--ucsc-gold);
+    background-color: #fef9c3;
+    border: 1px solid var(--ucsc-gold);
 }
 
 .preview-section-item span {
@@ -231,17 +264,70 @@ body {
 }
 
 .preview-lecture-only-btn {
-    background: #f1f5f9 !important;
-    color: var(--ucsc-blue) !important;
-    border: 1px solid var(--border-color) !important;
-    font-size: 10px !important;
-    font-weight: 800 !important;
-    padding: 0 12px !important;
+    background: #f1f5f9;
+    color: var(--ucsc-blue);
+    border: 1px solid var(--border-color);
+    font-size: 10px;
+    font-weight: 800;
+    padding: 0 12px;
     border-radius: 6px;
     cursor: pointer;
-    height: 34px !important;
-    min-height: 34px !important;
+    height: 34px;
+    min-height: 34px;
     white-space: nowrap;
+}
+
+.header-action-container {
+    display: flex;
+    gap: 8px;
+}
+
+.preview-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* --- Toast System --- */
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 320px;
+}
+
+.toast {
+    background: #334155;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: toast-in 0.3s ease-out forwards;
+}
+
+.toast.error {
+    background: var(--error-red);
+}
+
+.toast.fade-out {
+    animation: toast-out 0.4s ease-in forwards;
+}
+
+@keyframes toast-in {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes toast-out {
+    to { transform: translateY(-20px); opacity: 0; }
 }
 
 /* --- Layout --- */
@@ -288,7 +374,6 @@ body {
     width: 100%;
 }
 
-/* Desktop Override */
 @media (min-width: 768px) {
     :root {
         --nav-height: 70px;
@@ -309,10 +394,37 @@ body {
         top: var(--nav-height);
         height: calc(100% - var(--nav-height));
     }
+}
 
-    .sidebar.closed {
-        transform: translateX(-100%);
-    }
+/* --- Status Badges --- */
+.online-tag {
+    color: var(--success-green);
+    font-weight: 700;
+    font-size: 9px;
+    text-transform: uppercase;
+    background: #ecfdf5;
+    padding: 1px 4px;
+    border-radius: 4px;
+}
+
+.cancelled-tag {
+    color: #dc2626;
+    font-weight: 700;
+    font-size: 9px;
+    text-transform: uppercase;
+    background: #fef2f2;
+    padding: 1px 4px;
+    border-radius: 4px;
+}
+
+.tbd-tag {
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 9px;
+    text-transform: uppercase;
+    background: #f1f5f9;
+    padding: 1px 4px;
+    border-radius: 4px;
 }
 
 /* --- Sidebar Section UI --- */
@@ -343,7 +455,7 @@ body {
 .text-btn-red {
     background: none;
     border: none;
-    color: #ef4444;
+    color: var(--error-red);
     font-size: 10px;
     font-weight: 800;
     cursor: pointer;
@@ -386,8 +498,8 @@ body {
 
 .filter-group {
     display: flex;
-    gap: 8px;
-    margin-top: 12px;
+    gap: 6px;
+    margin-top: 8px;
 }
 
 .filter-item {
@@ -396,7 +508,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 12px 4px;
+    padding: 8px 2px;
     background: white;
     border: 1px solid var(--border-color);
     border-radius: 10px;
@@ -430,23 +542,24 @@ body {
 }
 
 .legend-symbol {
-    font-size: 22px;
+    font-size: 16px;
     color: var(--text-muted);
-    width: auto;
     text-align: center;
-    margin-right: 0;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     line-height: 1;
     transition: transform 0.2s ease;
 }
 
-.filter-item:hover .legend-symbol {
-    transform: scale(1.1);
+.symbol-star {
+    font-size: 20px;
 }
 
-/* Term Selector Styling */
-.term-selector-container {
-    margin-top: 12px;
+.symbol-triangle {
+    font-size: 18px;
+}
+
+.filter-item:hover .legend-symbol {
+    transform: scale(1.1);
 }
 
 .term-dropdown {
@@ -480,11 +593,6 @@ body {
     background-color: var(--bg-light);
 }
 
-.term-dropdown:focus {
-    border-color: var(--ucsc-blue);
-    box-shadow: 0 0 0 3px rgba(0, 60, 108, 0.1);
-}
-
 /* --- Course Card Styling --- */
 .course-list {
     display: flex;
@@ -495,189 +603,223 @@ body {
 .course-card {
     background: #ffffff;
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
     display: flex;
     flex-direction: column;
+    border-left: 4px solid var(--accent-color);
 }
 
 .course-card:hover {
-    background-color: #f1f5f9;
-    border-color: var(--ucsc-blue);
+    background-color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .course-card.highlight {
-    background-color: #fef9c3 !important;
-    border-color: #facc15 !important;
-    transform: scale(1.02);
+    background-color: #fefce8;
+    border-color: #facc15;
+}
+
+.course-card.hidden-offering {
+    opacity: 0.55;
+    filter: grayscale(0.4);
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     width: 100%;
 }
 
-.card-body {
-    width: 100%;
-    margin-top: 2px;
+.card-info-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.card-info-group h4 {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--ucsc-blue);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
 }
 
 .card-actions {
     display: flex;
-    align-items: center;
+    flex-direction: row;
+    margin-top: -8px;
+    margin-right: -10px;
+    margin-bottom: -8px;
 }
 
-.remove-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    opacity: 0.4;
-    padding: 0;
-    min-height: 44px;
-    min-width: 44px;
+.card-body {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.course-meta-row {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.remove-btn:hover {
-    opacity: 1;
-    background: #fee2e2;
-    color: #ef4444;
-    border-radius: 6px;
-}
-
-.course-header-row {
-    display: flex;
-    align-items: center;
+    justify-content: flex-start;
+    align-items: baseline;
     gap: 8px;
-}
-
-.course-card h4 {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--ucsc-blue);
 }
 
 .course-instructor {
     font-size: 12px;
     font-weight: 600;
+    color: #475569;
+}
+
+.course-id-tag {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
 }
 
 .course-term-tag {
     font-size: 10px;
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
 }
 
 .course-card-time {
     font-size: 11px;
     color: var(--text-muted);
     margin-top: 4px;
+    font-weight: 500;
 }
 
-/* Online Badge */
-.online-tag {
-    color: #16a34a;
-    font-weight: 800; /* Extra bold */
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-}
-
-/* --- Sidebar Meeting Tags --- */
+/* --- Meeting Tags (Sections) --- */
 .sidebar-tags-container {
     margin-top: 8px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     width: 100%;
 }
 
 .sidebar-meeting-tag {
     font-size: 11px;
-    background: var(--bg-light);
-    border-radius: 8px;
-    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: 6px;
+    padding: 6px 40px 6px 8px;
     color: var(--text-main);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border: 1px solid var(--border-color);
-    width: 100%;
-}
-
-.tag-info {
-    flex: 1;
-    display: flex;
     flex-direction: column;
-    gap: 4px;
+    position: relative;
+    transition: all 0.15s ease;
 }
 
-.tag-row {
+.sidebar-meeting-tag:hover {
+    background: #ffffff;
+    border-color: var(--border-color);
+}
+
+.tag-top {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
+    margin-bottom: 1px;
 }
 
-.location-row {
-    font-size: 10.5px;
+.tag-label {
+    font-weight: 800;
+    font-size: 9px;
+    color: #475569;
+    text-transform: uppercase;
+    background: #e2e8f0;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.loc-text {
+    font-weight: 700;
+    color: var(--text-main);
+    font-size: 11px;
+}
+
+.tag-time {
     color: var(--text-muted);
-    padding-left: 14px; /* Align under the type text */
+    font-size: 10.5px;
+    font-weight: 400;
 }
 
 .tag-remove-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
     background: none;
     border: none;
-    color: var(--text-muted);
-    font-size: 10px;
+    color: #cbd5e1;
+    font-size: 14px;
     cursor: pointer;
-    padding: 0;
-    border-radius: 3px;
-    opacity: 0.5;
-    transition: all 0.2s;
-    min-height: 44px;
-    min-width: 44px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 8px;
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.sidebar-meeting-tag:hover .tag-remove-btn {
+    opacity: 1;
 }
 
 .tag-remove-btn:hover {
-    opacity: 1;
+    color: var(--error-red);
     background: #fee2e2;
-    color: #ef4444;
-    border-radius: 4px;
 }
 
-.save-btn {
+/* --- Control Buttons (44x44 Targets) --- */
+.save-btn, .remove-btn {
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0;
-    border-radius: 50%;
-    min-height: 44px;
-    min-width: 44px;
+    height: 44px;
+    width: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 8px;
+    transition: all 0.15s;
 }
 
 .save-btn:hover {
     background-color: #f1f5f9;
 }
 
-.save-btn:hover svg {
-    transform: scale(1.15);
+.remove-btn {
+    opacity: 0.3;
+}
+
+.remove-btn:hover {
+    opacity: 1;
+    background: #fee2e2;
+    color: var(--error-red);
+}
+
+.action-svg {
+    transition: transform 0.2s ease;
+}
+
+.action-svg.dimmed {
+    opacity: 0.3;
+}
+
+.save-btn:hover .action-svg {
+    transform: scale(1.1);
 }
 
 .empty-msg {
@@ -689,11 +831,69 @@ body {
     border-radius: 12px;
 }
 
+/* --- Location Modal Styles --- */
+#location-modal {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    max-width: 300px;
+    text-align: center;
+}
+
+#location-modal h3 {
+    margin-bottom: 8px;
+}
+
+#location-modal p {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.modal-btn-secondary {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    background: white;
+}
+
+.modal-btn-primary {
+    padding: 8px 16px;
+    border-radius: 6px;
+    background: var(--ucsc-blue);
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
 /* --- Map / InfoWindow UI --- */
+.marker-wrapper {
+    line-height: 0;
+}
+
 .marker-svg {
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
     cursor: pointer;
     transition: transform 0.2s;
+}
+
+.marker-text {
+    pointer-events: none;
+    user-select: none;
 }
 
 .marker-svg:hover {
@@ -712,6 +912,44 @@ body {
     font-size: 14px;
     font-weight: 800;
     color: var(--ucsc-blue);
+}
+
+.iw-image {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.iw-offering {
+    border-left: 5px solid var(--accent-color);
+    padding-left: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.2s;
+    border-radius: 0 4px 4px 0;
+}
+
+.iw-offering:hover {
+    background-color: #f1f5f9;
+}
+
+.iw-course-code {
+    font-weight: 800;
+    color: #003c6c;
+    margin-bottom: 4px;
+}
+
+.iw-term-label {
+    font-weight: 400;
+    font-size: 0.9em;
+    color: #64748b;
+}
+
+.iw-badge-icon {
+    fill: white;
+    margin-right: 4px;
 }
 
 .meeting-card {
@@ -740,18 +978,37 @@ body {
     color: var(--text-muted);
 }
 
-/* Loading Shimmer Animation */
+/* --- Utilities & Animations --- */
 @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
 }
 
 .loading-skeleton {
-    height: 100px;
     width: 100%;
     background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite linear;
     border-radius: 12px;
+}
+
+.skeleton-preview {
+    margin: 16px;
+    height: 80px;
+    width: calc(100% - 32px);
     margin-bottom: 8px;
 }
+
+#locate-btn {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10;
+    padding: 10px 16px;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+
