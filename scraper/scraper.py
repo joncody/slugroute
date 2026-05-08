@@ -7,7 +7,7 @@ import logging
 import re
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime as dt
 
 import requests
 from bs4 import BeautifulSoup
@@ -17,9 +17,48 @@ from urllib3.util.retry import Retry
 # Global Configuration
 DB_NAME = "../database/slugroute.db"
 BASE_URL = "https://pisa.ucsc.edu/class_search/index.php"
-TARGET_TERMS = ["2260", "2262", "2264"]
 TIMEOUT = 30
 REQUEST_DELAY = 0.2
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler("scraper.log"),
+        logging.StreamHandler()
+    ]
+)
+
+
+def calculate_current_strms():
+    """
+    Calculates UCSC STRM codes based on the system clock.
+    UCSC Logic: 2 + YY + (0: Winter, 2: Spring, 4: Summer, 8: Fall)
+    """
+    now = dt.now()
+    month = now.month
+
+    if 1 <= month <= 3:
+        current_idx = 0
+    elif 4 <= month <= 6:
+        current_idx = 1
+    elif 7 <= month <= 8:
+        current_idx = 2
+    else:
+        current_idx = 3
+
+    term_suffixes = ["0", "2", "4", "8"]
+    strms = []
+
+    for i in range(3):
+        idx = (current_idx + i) % 4
+        year_offset = (current_idx + i) // 4
+        target_year = now.year + year_offset
+        year_suffix = str(target_year)[2:]
+        strms.append(f"2{year_suffix}{term_suffixes[idx]}")
+
+    return strms
 
 
 def get_session():
@@ -39,14 +78,14 @@ def get_session():
 
     try:
         session.get(BASE_URL, timeout=TIMEOUT)
-    except Exception as exc:
+    except requests.exceptions.RequestException as exc:
         logging.error(f"Failed to initialize session: {exc}")
 
     return session
 
 
 def clean_text(text):
-    """Removes excess whitespace and duplicate status text."""
+    """Removes excess whitespace."""
     if not text:
         return ""
 
@@ -61,10 +100,10 @@ def split_days_times(raw_text):
     if not cleaned:
         return cleaned, ""
 
-    if any(x in cleaned for x in ["TBA", "Cancelled", "TBD"]):
+    exceptions = ["TBA", "Cancelled", "TBD"]
+    if any(x in cleaned for x in exceptions):
         return cleaned, ""
 
-    # Find the first digit to separate day letters from time numbers
     match = re.search(r"\d", cleaned)
     if match:
         idx = match.start()
@@ -74,18 +113,16 @@ def split_days_times(raw_text):
 
 
 def split_location(raw_location):
-    """Separates Building name from Room number using regex."""
+    """Separates Building name from Room number."""
     text = clean_text(raw_location)
 
     if not text:
         return text, ""
 
-    # Ignore non-physical locations
     non_physical = ["ONLINE", "REMOTE", "TBA", "N/A", "TBD", "HARBOR"]
     if any(x in text.upper() for x in non_physical):
         return text, ""
 
-    # Regex looks for space followed by a room number (digits)
     match = re.search(r"^(.*)\s+([A-Z]?\d{2,}.*)$", text)
     if match:
         building, room = match.groups()
@@ -95,11 +132,10 @@ def split_location(raw_location):
 
 
 def init_db():
-    """Creates the SQLite schema if it doesn't exist."""
+    """Creates the SQLite schema."""
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
 
-        # Course Metadata
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS courses (
                 class_number TEXT,
@@ -111,7 +147,6 @@ def init_db():
                 PRIMARY KEY (class_number, term)
             )""")
 
-        # Main Meetings (LEC)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS lectures (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -125,7 +160,6 @@ def init_db():
                 FOREIGN KEY (class_number, term) REFERENCES courses (class_number, term)
             )""")
 
-        # Secondary Meetings (DIS/LAB)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS sections (
                 class_number TEXT,
@@ -146,7 +180,7 @@ def init_db():
 
 def save_course_data(cursor, data, term):
     """Inserts scraped course dictionary into the database."""
-    timestamp = datetime.now().isoformat()
+    timestamp = dt.now().isoformat()
 
     cursor.execute("""
         INSERT OR REPLACE INTO courses VALUES (?, ?, ?, ?, ?, ?)
@@ -159,7 +193,6 @@ def save_course_data(cursor, data, term):
         timestamp
     ))
 
-    # Refresh lecture records
     cursor.execute(
         "DELETE FROM lectures WHERE class_number = ? AND term = ?",
         (data['class_number'], term)
@@ -180,7 +213,6 @@ def save_course_data(cursor, data, term):
             lec['room_number']
         ))
 
-    # Update section records
     for sec in data['sections']:
         cursor.execute("""
             INSERT OR REPLACE INTO sections VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -199,15 +231,20 @@ def save_course_data(cursor, data, term):
 
 
 def fetch_class_detail(session, class_num, term):
-    """Requests and parses the detail page for a specific class number."""
+    """Parses the detail page for a specific class."""
     payload = {
         "action": "detail",
         "class_data[:STRM]": term,
         "class_data[:CLASS_NBR]": class_num
     }
 
-    resp = session.post(BASE_URL, data=payload, timeout=TIMEOUT)
-    resp.raise_for_status()
+    try:
+        resp = session.post(BASE_URL, data=payload, timeout=TIMEOUT)
+        resp.raise_for_status()
+    except requests.exceptions.RequestException as err:
+        logging.error(f"Error fetching class {class_num}: {err}")
+        return None
+
     soup = BeautifulSoup(resp.text, "html.parser")
 
     data = {
@@ -219,7 +256,6 @@ def fetch_class_detail(session, class_num, term):
         "sections": []
     }
 
-    # Parse header for course code and title
     header = soup.find("h2")
     if header:
         h_txt = clean_text(header.get_text())
@@ -227,7 +263,6 @@ def fetch_class_detail(session, class_num, term):
         if h_match:
             data["course_code"], data["lecture_section"], data["title"] = h_match.groups()
 
-    # Parse meeting table
     meet_h2 = soup.find("h2", string=re.compile(r"Meeting Information"))
     if meet_h2:
         table = meet_h2.find_next("table")
@@ -245,7 +280,6 @@ def fetch_class_detail(session, class_num, term):
                         "instructor": clean_text(cols[2].get_text(separator="; "))
                     })
 
-    # Parse associated sections panel
     sec_h2 = soup.find("h2", string=re.compile(r"Associated Discussion"))
     if sec_h2:
         panel_body = sec_h2.find_next("div", class_="panel-body")
@@ -256,7 +290,8 @@ def fetch_class_detail(session, class_num, term):
                     raw_id = clean_text(divs[0].get_text())
                     id_match = re.search(r"#(\d+)\s+([A-Z]+)\s+([0-9A-Z]+)", raw_id)
                     days, times = split_days_times(divs[1].get_text())
-                    building, room = split_location(divs[3].get_text().replace("Loc:", ""))
+                    raw_loc = divs[3].get_text().replace("Loc:", "")
+                    building, room = split_location(raw_loc)
                     data["sections"].append({
                         "class_number": id_match.group(1) if id_match else "",
                         "section_type": id_match.group(2) if id_match else "",
@@ -271,7 +306,8 @@ def fetch_class_detail(session, class_num, term):
 
 
 def scrape_term(session, conn, term):
-    """Loops through all classes found in a term's search results."""
+    """Scrapes all classes for a specific term."""
+    logging.info(f"--- Starting scrape for term {term} ---")
     payload = {
         "action": "results",
         "binds[:term]": term,
@@ -279,14 +315,22 @@ def scrape_term(session, conn, term):
         "rec_dur": "5000"
     }
 
-    resp = session.post(BASE_URL, data=payload, timeout=TIMEOUT)
+    try:
+        resp = session.post(BASE_URL, data=payload, timeout=TIMEOUT)
+        resp.raise_for_status()
+    except requests.exceptions.RequestException as err:
+        logging.error(f"Search results failed for term {term}: {err}")
+        return
+
     soup = BeautifulSoup(resp.text, "html.parser")
     class_links = soup.find_all("a", id=re.compile(r"class_nbr_"))
     class_nums = [a.get_text().strip() for a in class_links]
 
+    logging.info(f"Found {len(class_nums)} classes for term {term}")
+
     cursor = conn.cursor()
-    for class_num in class_nums:
-        # Check if already exists
+    new_count = 0
+    for i, class_num in enumerate(class_nums):
         cursor.execute(
             "SELECT 1 FROM courses WHERE class_number = ? AND term = ?",
             (class_num, term)
@@ -294,22 +338,42 @@ def scrape_term(session, conn, term):
         if cursor.fetchone():
             continue
 
+        data = fetch_class_detail(session, class_num, term)
+        if not data:
+            continue
+
         try:
-            data = fetch_class_detail(session, class_num, term)
             save_course_data(cursor, data, term)
             conn.commit()
+            new_count += 1
+
+            if i % 50 == 0 and i > 0:
+                logging.info(f"[{term}] Processed {i}/{len(class_nums)}...")
+
             time.sleep(REQUEST_DELAY)
-        except Exception as err:
-            logging.error(f"Failed to process class {class_num}: {err}")
+        except sqlite3.Error as err:
+            logging.error(f"DB Error for class {class_num}: {err}")
+
+    logging.info(f"Term {term} finished. Scraped {new_count} new entries.")
 
 
 def main():
-    """Entry point for the scraper."""
+    """Entry point for the scraper engine."""
+    logging.info("SlugRoute Scraper Engine Starting")
     init_db()
     session = get_session()
-    with sqlite3.connect(DB_NAME) as conn:
-        for term_code in TARGET_TERMS:
-            scrape_term(session, conn, term_code)
+
+    target_terms = calculate_current_strms()
+    logging.info(f"Calculated automated target terms: {target_terms}")
+
+    try:
+        with sqlite3.connect(DB_NAME) as conn:
+            for term_code in target_terms:
+                scrape_term(session, conn, term_code)
+    except sqlite3.Error as err:
+        logging.error(f"Failed to connect to database: {err}")
+
+    logging.info("All terms processed successfully.")
 
 
 if __name__ == "__main__":
