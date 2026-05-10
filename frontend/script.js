@@ -1271,7 +1271,6 @@ function requestLocation() {
 function allowLocation() {
     document.getElementById('location-modal').style.display = 'none';
     document.getElementById('locate-btn').style.display = 'none';
- 
     navigator.geolocation.getCurrentPosition(function(position) {
         const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
         const youAreHereDiv = document.createElement('div');
