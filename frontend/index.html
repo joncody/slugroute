@@ -84,14 +84,14 @@
         <!-- Map Container -->
         <main id="map-container">
             <div id="map"></div>
-            <button id="locate-btn">📍 Find Me</button>
+            <button id="locateBtn" onclick="requestLocation()">📍 Allow Location</button>
             
             <div id="location-modal">
                 <h3>📍 Enable Location</h3>
                 <p>Please allow SlugRoute to access your location so that it can help you navigate around campus.</p>
                 <div class="modal-actions">
-                    <button id="deny-location-btn" class="modal-btn-secondary">Not Now</button>
-                    <button id="allow-location-btn" class="modal-btn-primary">Allow</button>
+                    <button id="deny-location-btn" class="modal-btn-secondary" onclick="denyLocation()">Not Now</button>
+                    <button id="allow-location-btn" class="modal-btn-primary" onclick="allowLocation()">Allow</button>
                 </div>
             </div>
         </main>

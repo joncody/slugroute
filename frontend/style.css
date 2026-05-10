@@ -1187,11 +1187,11 @@ body {
     margin-bottom: 8px;
 }
 
-#locate-btn {
+#locateBtn {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
-    z-index: 10;
+    bottom: 40px;
+    left: 1220px;
+    z-index: 1000;
     padding: 10px 16px;
     background: white;
     border: 1px solid var(--border-color);

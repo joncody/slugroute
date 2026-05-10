@@ -1270,15 +1270,16 @@ function requestLocation() {
 
 function allowLocation() {
     document.getElementById('location-modal').style.display = 'none';
-    document.getElementById('locate-btn').style.display = 'none';
+    document.getElementById('locateBtn').style.display = 'none';
+ 
     navigator.geolocation.getCurrentPosition(function(position) {
         const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
         const youAreHereDiv = document.createElement('div');
         youAreHereDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`;
         new AdvancedMarkerElement({ map: map, position: userPos, content: youAreHereDiv, title: "Current Location" });
-    });
-}
 
+    }, null, { enableHighAccuracy: true });
+}
 function denyLocation() {
     document.getElementById('location-modal').style.display = 'none';
 }
