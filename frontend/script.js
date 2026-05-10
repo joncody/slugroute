@@ -568,19 +568,24 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
                 const type = m.type.toUpperCase();
                 const cat = utils.getFilterCategory(type);
                 const iconPath = utils.getIconPath(cat);
-                const roomStr = m.room_number ? `#${m.room_number}` : "";
+                const roomStr = m.room_number ? `${m.room_number}` : "TBA";
                 const timeStr = m.time || "TBA";
 
                 offeringsHtml += `<div class="meeting-card">
-                    <div class="meeting-header">
-                        <span class="type-badge">
-                            <svg width="10" height="10" viewBox="0 0 24 24" class="iw-badge-icon">
-                                <path d="${iconPath}" fill="white"/>
-                            </svg>${type}
-                        </span>
-                        <span class="instructor-name">${m.instructor || "Staff"}</span>
+                    <div class="meeting-row-top">
+                        <div class="meeting-identity">
+                            <span class="type-badge">
+                                <svg width="10" height="10" viewBox="0 0 24 24" class="iw-badge-icon">
+                                    <path d="${iconPath}" fill="white"/>
+                                </svg>${type}
+                            </span>
+                            <span class="instructor-name">${m.instructor || "Staff"}</span>
+                        </div>
+                        <div class="room-number-badge">Rm ${roomStr}</div>
                     </div>
-                    <div class="meeting-meta">${roomStr} | 🕒 ${timeStr}</div>
+                    <div class="meeting-row-bottom">
+                        <span class="meeting-time-text">🕒 ${timeStr}</span>
+                    </div>
                 </div>`;
             });
             offeringsHtml += `</div></div>`;
