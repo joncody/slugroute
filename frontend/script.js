@@ -1261,6 +1261,25 @@ async function initMap() {
 
     requestLocation();
     refreshMapAndUI();
+
+    // recenter button logic to reset map outside of campus bounds.
+    const recenterBtn = document.getElementById("recenter-ui-btn");
+
+    recenterBtn.onclick = function() {
+        map.setZoom(CONFIG.ZOOM.CAMPUS);
+        map.panTo(CONFIG.CAMPUS_CENTER);
+    };
+
+    // Listen for when the user moves the map
+    map.addListener("idle", function() {
+        const currentCenter = map.getCenter();
+        const campus = CONFIG.CAMPUS_CENTER;
+        
+        const isOffCenter = Math.abs(currentCenter.lat() - campus.lat) > 0.01 || 
+                            Math.abs(currentCenter.lng() - campus.lng) > 0.01;
+
+        recenterBtn.style.display = isOffCenter ? "block" : "none";
+    });
 }
 
 // Location helpers

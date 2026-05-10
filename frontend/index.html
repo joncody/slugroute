@@ -83,7 +83,13 @@
         </aside>
         <!-- Map Container -->
         <main id="map-container">
-            <div id="map"></div>
+            <div id="map">
+                <button id="recenter-ui-btn" class="floating-recenter-btn" style="display: none;">
+                    Recenter Campus
+                </button>
+            </div>
+                </button>
+            </div>
             <button id="locate-btn">📍 Find Me</button>
             
             <div id="location-modal">
@@ -94,6 +100,7 @@
                     <button id="allow-location-btn" class="modal-btn-primary">Allow</button>
                 </div>
             </div>
+
         </main>
     </div>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwp-UoWjYJ4mz-5IJFqAwZsiTffVRPmKg&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>
