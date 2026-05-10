@@ -494,9 +494,6 @@ body {
     position: relative;
 }
 
-#map {
-    position: relative; 
-}
 
 .floating-recenter-btn {
     position: absolute;
