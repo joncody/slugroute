@@ -283,6 +283,8 @@ body {
     white-space: nowrap;
 }
 
+.preview-add-all-btn:active { transform: scale(0.96); }
+
 .preview-sections-list {
     padding: 8px;
     display: flex;
@@ -1042,10 +1044,20 @@ body {
 
 .iw-image {
     width: 100%;
-    height: 120px;
+    height: 140px;
     object-fit: cover;
+    object-position: center;
     border-radius: 8px;
     margin-bottom: 8px;
+    background-color: #f1f5f9; /* Soft placeholder while loading */
+    display: block;
+}
+
+/* Ensure images that fail to load or are empty don't show a broken icon */
+.iw-image:not([src]),
+.iw-image[src=""],
+.iw-image[src="null"] {
+    display: none;
 }
 
 .iw-offering {

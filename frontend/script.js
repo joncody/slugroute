@@ -598,7 +598,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
 
     return `<div class="iw-container">
         <div class="iw-header"><h3>📍 ${locationGroup.building}</h3></div>
-        ${locationGroup.imageUrl ? `<img src="${locationGroup.imageUrl}" class="iw-image">` : ''}
+        ${locationGroup.imageUrl ? `<img src="${locationGroup.imageUrl}" class="iw-image" onerror="this.style.display='none'">` : ''}
         ${offeringsHtml}
     </div>`;
 }
