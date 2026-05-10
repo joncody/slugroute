@@ -143,16 +143,17 @@ body {
 .search-preview-dropdown {
     display: none;
     position: absolute;
-    top: calc(100% + 10px);
+    top: calc(100% + 8px);
     left: 0;
     right: 0;
-    background: white;
+    background: #ffffff;
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-    max-height: 450px;
+    box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.15);
+    max-height: 500px;
     overflow-y: auto;
     z-index: 2000;
+    padding: 8px; /* Padding inside the dropdown container */
 }
 
 @media (max-width: 768px) {
@@ -187,106 +188,223 @@ body {
 }
 
 .preview-offering {
-    padding: 12px;
-    border-bottom: 1px solid var(--bg-light);
+    background: #fff;
+    border: 1px solid #f1f5f9;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.preview-offering:last-child {
+    margin-bottom: 0;
 }
 
 .preview-header {
+    background: #f8fafc;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 12px;
-    margin-bottom: 12px;
+}
+
+.preview-course-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--ucsc-blue);
+}
+
+.preview-course-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+.preview-course-instructor {
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+}
+
+.preview-course-id {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
+    flex-shrink: 0;
 }
 
 .preview-header-info {
     flex: 1;
     min-width: 0;
-}
-
-.preview-header-info h4 {
-    color: var(--ucsc-blue);
-    font-size: 13px;
-    line-height: 1.2;
-    margin-bottom: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
 }
 
 .preview-sub-meta {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-muted);
+    font-weight: 500;
 }
 
-.preview-add-all {
-    background: var(--ucsc-blue);
-    color: white;
-    font-size: 10px;
+.preview-commit-btn {
+    background: var(--ucsc-gold);
+    color: var(--ucsc-blue);
+    border: none;
+    padding: 0 16px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.1s;
+    min-height: 38px;
+    white-space: nowrap;
+}
+
+.preview-commit-btn:active { transform: scale(0.96); }
+
+.preview-add-all-btn {
+    background: #f1f5f9;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
     padding: 0 12px;
     border-radius: 6px;
-    cursor: pointer;
-    height: 34px;
-    min-height: 34px;
-    white-space: nowrap;
-    border: none;
+    font-size: 11px;
     font-weight: 700;
+    cursor: pointer;
+    min-height: 38px;
+    white-space: nowrap;
 }
 
 .preview-sections-list {
+    padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+}
+
+.preview-section-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: #94a3b8;
+    margin: 4px 0 8px 6px;
 }
 
 .preview-section-item {
-    background: var(--bg-light);
-    border-radius: 6px;
-    padding: 8px 12px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
     cursor: pointer;
     transition: background 0.2s;
-    min-height: 44px;
     border: 1px solid transparent;
+    margin-bottom: 4px;
+    min-height: 44px;
+}
+
+.preview-section-item:hover {
+    background: #f8fafc;
 }
 
 .preview-section-item.selected {
-    background-color: #fef9c3;
-    border: 1px solid var(--ucsc-gold);
+    background: #f0f7ff;
+    border-color: #bae6fd;
 }
 
-.preview-section-item span {
-    font-size: 11px;
+/* Custom Checkbox */
+.custom-checkbox {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #cbd5e1;
+    border-radius: 4px;
+    background: white;
+    position: relative;
+    transition: all 0.2s;
+    flex-shrink: 0;
 }
 
-.preview-section-item .add-tag {
-    font-weight: 700;
-    color: var(--ucsc-blue);
-    font-size: 10px;
+.custom-checkbox.checked {
+    background: var(--ucsc-blue);
+    border-color: var(--ucsc-blue);
 }
 
-.preview-lecture-only-btn {
-    background: #f1f5f9;
-    color: var(--ucsc-blue);
-    border: 1px solid var(--border-color);
+.custom-checkbox.checked::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
+    font-weight: 900;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.preview-item-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.sec-time-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.sec-type {
     font-size: 10px;
     font-weight: 800;
-    padding: 0 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    height: 34px;
-    min-height: 34px;
-    white-space: nowrap;
+    color: var(--text-muted);
+    text-transform: uppercase;
 }
+
+.sec-time {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.sec-meta-row {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.sec-instructor {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.status-mini-tag {
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.status-mini-tag.cancelled { background: #fee2e2; color: #ef4444; }
 
 .header-action-container {
     display: flex;
     gap: 8px;
-}
-
-.preview-item-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    flex-shrink: 0;
 }
 
 /* --- Toast System --- */
@@ -669,18 +787,25 @@ body {
     justify-content: flex-start;
     align-items: baseline;
     gap: 8px;
+    min-width: 0;
 }
 
 .course-instructor {
     font-size: 12px;
     font-weight: 600;
     color: #475569;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+    display: inline-block;
 }
 
 .course-id-tag {
     font-size: 11px;
     font-weight: 400;
     color: var(--text-muted);
+    flex-shrink: 0;
 }
 
 .course-term-tag {
@@ -963,6 +1088,7 @@ body {
     flex-direction: column;
     gap: 2px;
 }
+
 .meeting-row-top {
     display: flex;
     justify-content: space-between;
@@ -973,6 +1099,7 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
 }
 
 .instructor-name {
@@ -982,7 +1109,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100px;
+    max-width: 110px;
 }
 
 .room-number-badge {
@@ -993,6 +1120,7 @@ body {
     padding: 2px 6px;
     border-radius: 4px;
     text-transform: uppercase;
+    flex-shrink: 0;
 }
 
 .meeting-row-bottom {
@@ -1005,6 +1133,7 @@ body {
     color: var(--text-muted);
     font-weight: 500;
 }
+
 .type-badge {
     font-size: 9px;
     padding: 1px 5px;
@@ -1016,6 +1145,7 @@ body {
     display: flex;
     align-items: center;
     line-height: 1;
+    flex-shrink: 0;
 }
 
 .meeting-meta {

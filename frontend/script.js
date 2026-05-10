@@ -328,7 +328,7 @@ function renderSearchList() {
                     <div class="card-info-group">
                         <h4>${course.course_code}</h4>
                         <div class="course-meta-row">
-                            <span class="course-instructor">${course.instructor}</span>
+                            <span class="course-instructor" title="${course.instructor}">${course.instructor}</span>
                             <span class="course-id-tag">#${course.class_number}</span>
                         </div>
                         <div class="course-term-tag">${utils.getTermName(course.term)}</div>
@@ -457,7 +457,7 @@ function renderSavedList() {
                 <div class="card-header">
                     <div class="card-info-group">
                         <h4>${course.course_code}</h4>
-                        <div class="course-instructor">${course.instructor}</div>
+                        <div class="course-instructor" title="${course.instructor}">${course.instructor}</div>
                         <div class="course-term-tag">${utils.getTermName(course.term)}</div>
                         <div class="course-card-time">🕒 ${timeStr}</div>
                     </div>
@@ -692,7 +692,7 @@ async function searchCourse() {
 }
 
 /**
- * renderSearchPreview populates the dropdown
+ * renderSearchPreview populates the dropdown with a "Schedule Builder" layout
  */
 function renderSearchPreview() {
     const container = document.getElementById("search-preview");
@@ -702,11 +702,15 @@ function renderSearchPreview() {
         const allMeets = offering.meetings;
         const lecMeet = allMeets.find(m => utils.getFilterCategory(m.type) === 'LEC');
 
-        const renderableSections = allMeets.filter(function(meet) {
-            const isSecondary = utils.getFilterCategory(meet.type) !== 'LEC';
-            const status = utils.getClassStatus(meet);
-            const hasTime = meet.time && meet.time.trim() !== "" && !meet.time.toUpperCase().includes("TBA");
-            return isSecondary && hasTime && status === 'PHYSICAL';
+        const displayableSections = allMeets.filter(meet => {
+            const isLec = utils.getFilterCategory(meet.type) === 'LEC';
+            return !isLec && meet.time && meet.time.trim() !== "";
+        });
+
+        const hasDisplayableSections = displayableSections.length > 0;
+
+        const renderableSections = displayableSections.filter(meet => {
+            return utils.getClassStatus(meet) === 'PHYSICAL';
         });
 
         const showAddAll = renderableSections.length > 0;
@@ -715,38 +719,52 @@ function renderSearchPreview() {
             <div class="preview-offering" id="preview-offering-${cn}">
                 <div class="preview-header">
                     <div class="preview-header-info">
-                        <h4>${offering.course_code} - ${offering.instructor}</h4>
-                        <div class="preview-sub-meta">🕒 ${lecMeet ? lecMeet.time : "TBA"} | Class #${cn}</div>
+                        <div class="preview-course-title">${offering.course_code}</div>
+                        <div class="preview-course-meta">
+                            <span class="preview-course-instructor" title="${offering.instructor}">${offering.instructor}</span>
+                            <span class="preview-course-id">#${cn}</span>
+                        </div>
+                        <div class="preview-sub-meta">🕒 ${lecMeet ? lecMeet.time : "TBA"}</div>
                     </div>
                     <div class="header-action-container">
-                        <button class="preview-lecture-only-btn commit-select-btn" data-class="${cn}">Add</button>
-                        ${showAddAll ? `<button class="preview-add-all toggle-all-btn" data-class="${cn}">Add All</button>` : ''}
+                        <button class="preview-commit-btn commit-select-btn" data-class="${cn}">Add to Map</button>
+                        ${showAddAll ? `<button class="preview-add-all-btn toggle-all-btn" data-class="${cn}">+ All</button>` : ''}
                     </div>
                 </div>
-                <div class="preview-sections-list">
-                    ${allMeets.map((meet, index) => {
-                        const isLec = utils.getFilterCategory(meet.type) === 'LEC';
-                        const status = utils.getClassStatus(meet);
+                ${hasDisplayableSections ? `
+                    <div class="preview-sections-list">
+                        <div class="preview-section-label">Available Sections</div>
+                        ${allMeets.map((meet, index) => {
+                            const isLec = utils.getFilterCategory(meet.type) === 'LEC';
+                            const status = utils.getClassStatus(meet);
 
-                        if (isLec || !meet.time || meet.time.trim() === "") {
-                            return '';
-                        }
+                            if (isLec || !meet.time || meet.time.trim() === "") {
+                                return '';
+                            }
 
-                        const isSelected = pendingSelections[cn].includes(index);
-                        const rowClass = isSelected ? 'preview-section-item selected' : 'preview-section-item';
-                        const actionText = isSelected ? '- Remove' : '+ Add My Section';
+                            const isSelected = pendingSelections[cn].includes(index);
+                            const rowClass = isSelected ? 'preview-section-item selected' : 'preview-section-item';
 
-                        return `
-                            <div class="${rowClass} preview-sec-row" data-class="${cn}" data-index="${index}">
-                                <div class="preview-item-info">
-                                    <span>${meet.type} | ${meet.time} (${meet.instructor || 'Staff'})</span>
-                                    ${status !== 'PHYSICAL' ? `<span class="${status.toLowerCase()}-tag">${status}</span>` : ''}
+                            return `
+                                <div class="${rowClass} preview-sec-row" data-class="${cn}" data-index="${index}">
+                                    <div class="checkbox-wrapper">
+                                        <div class="custom-checkbox ${isSelected ? 'checked' : ''}"></div>
+                                    </div>
+                                    <div class="preview-item-info">
+                                        <div class="sec-time-row">
+                                            <span class="sec-type">${meet.type}</span>
+                                            <span class="sec-time">${meet.time}</span>
+                                        </div>
+                                        <div class="sec-meta-row">
+                                            <span class="sec-instructor" title="${meet.instructor || 'Staff'}">${meet.instructor || 'Staff'}</span>
+                                            ${status !== 'PHYSICAL' ? `<span class="status-mini-tag ${status.toLowerCase()}">${status}</span>` : ''}
+                                        </div>
+                                    </div>
                                 </div>
-                                <span class="add-tag">${actionText}</span>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : ''}
             </div>
         `;
     }).join('');
@@ -894,8 +912,9 @@ function smartFitBounds(bounds) {
     const isSidebarOpen = !document.getElementById("sidebar").classList.contains("closed");
     const isMobile = window.innerWidth < 768;
 
+
     const padding = {
-        top: 80,
+        top: 100,
         right: 50,
         bottom: 50,
         left: (isSidebarOpen && !isMobile) ? 400 : 50
