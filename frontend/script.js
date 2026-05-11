@@ -39,6 +39,8 @@ let userLocation;
 let suggestionTimeout;
 let startMarker = null;
 let isChoosingLocation = false;
+let directionsService;
+let directionsRenderer;
 
 /**
  * ColorManager assigns unique colors to each class number
@@ -298,7 +300,7 @@ function renderSearchList() {
             const symbol = cat === 'LEC' ? '★' : (cat === 'LAB' ? '■' : '▲');
             const displayTime = m.time && m.time.trim() !== "" ? m.time : "TBA";
 
-            let locationHtml = `<span class="loc-text">${m.building}</span>`;
+            let locationHtml = `<span class="loc-text" title="${m.building}">${m.building}</span>`;
             if (status === "ONLINE") {
                 locationHtml = `<span class="online-tag">Online Instruction</span>`;
             } else if (status === "CANCELLED") {
@@ -353,47 +355,69 @@ function renderSearchList() {
             </div>
         `;
     }).join("");
-
-    attachListListeners();
 }
 
 /**
- * attachListListeners attaches event listeners for dynamically created sidebar items
+ * setupSidebarDelegation handles all clicks in sidebar containers
+ * This fixes the issue of handlers disappearing after re-renders.
  */
-function attachListListeners() {
-    document.querySelectorAll(".vis-toggle").forEach(function(btn) {
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            toggleVisibility(this.dataset.class);
-        };
-    });
+function setupSidebarDelegation() {
+    const containers = [
+        { id: 'search-results', handler: handleSearchResultsClick },
+        { id: 'saved-classes', handler: handleSavedClassesClick }
+    ];
 
-    document.querySelectorAll(".save-toggle").forEach(function(btn) {
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            toggleSaveCourse(this.dataset.class);
-        };
-    });
+    containers.forEach(function(config) {
+        const el = document.getElementById(config.id);
+        if (!el) return;
 
-    document.querySelectorAll(".result-remove").forEach(function(btn) {
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            removeResult(this.dataset.class);
-        };
-    });
+        el.onclick = function(e) {
+            const target = e.target;
 
-    document.querySelectorAll(".tag-remove-btn").forEach(function(btn) {
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            removeMeeting(this.dataset.class, parseInt(this.dataset.index));
-        };
-    });
+            // 1. Check for specific action buttons
+            const visBtn = target.closest('.vis-toggle');
+            if (visBtn) {
+                e.stopPropagation();
+                toggleVisibility(visBtn.dataset.class);
+                return;
+            }
 
-    document.querySelectorAll(".course-card").forEach(function(card) {
-        card.onclick = function() {
-            focusClass(this.dataset.class);
+            const saveBtn = target.closest('.save-toggle');
+            if (saveBtn) {
+                e.stopPropagation();
+                toggleSaveCourse(saveBtn.dataset.class);
+                return;
+            }
+
+            const removeBtn = target.closest('.result-remove');
+            if (removeBtn) {
+                e.stopPropagation();
+                removeResult(removeBtn.dataset.class);
+                return;
+            }
+
+            const tagRemoveBtn = target.closest('.tag-remove-btn');
+            if (tagRemoveBtn) {
+                e.stopPropagation();
+                removeMeeting(tagRemoveBtn.dataset.class, parseInt(tagRemoveBtn.dataset.index));
+                return;
+            }
+
+            // 2. Check for the general card click
+            const card = target.closest('.course-card');
+            if (card) {
+                config.handler(card.dataset.class);
+            }
         };
     });
+}
+
+function handleSearchResultsClick(classNum) {
+    focusClass(classNum);
+}
+
+function handleSavedClassesClick(classNum) {
+    addSavedToResults(classNum);
 }
 
 /**
@@ -472,19 +496,6 @@ function renderSavedList() {
             </div>
         `;
     }).join("");
-
-    document.querySelectorAll(".saved-item-card").forEach(function(card) {
-        card.onclick = function() {
-            addSavedToResults(this.dataset.class);
-        };
-    });
-
-    document.querySelectorAll(".saved-item-card .save-toggle").forEach(function(btn) {
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            toggleSaveCourse(this.dataset.class);
-        };
-    });
 }
 
 /**
@@ -547,7 +558,7 @@ function groupDataByLocation(offerings) {
 }
 
 /**
- * buildInfoWindowHtml creates HTML for Google Maps InfoWindow
+ * Updated buildInfoWindowHtml with Diamond Directions Icon
  */
 function buildInfoWindowHtml(locationGroup, activeFilters) {
     let offeringsHtml = "";
@@ -561,7 +572,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
         if (visibleMeetings.length > 0) {
             visibleCount++;
             offeringsHtml += `<div class="iw-offering" style="--accent-color: ${off.color}" data-class="${classNum}">
-                <div class="course-code iw-course-code">
+                <div class="course-code iw-course-code" title="${off.courseCode}">
                     ${off.courseCode} <i class="iw-term-label">(${utils.getTermName(off.term)})</i>
                 </div>
                 <div class="meetings-list">`;
@@ -581,7 +592,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
                                     <path d="${iconPath}" fill="white"/>
                                 </svg>${type}
                             </span>
-                            <span class="instructor-name">${m.instructor || "Staff"}</span>
+                            <span class="instructor-name" title="${m.instructor || 'Staff'}">${m.instructor || "Staff"}</span>
                         </div>
                         <div class="room-number-badge">Rm ${roomStr}</div>
                     </div>
@@ -594,12 +605,19 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
         }
     });
 
-    if (visibleCount === 0) {
-        return "";
-    }
+    if (visibleCount === 0) return "";
 
     return `<div class="iw-container">
-        <div class="iw-header"><h3>📍 ${locationGroup.building}</h3></div>
+        <div class="iw-header">
+            <div class="iw-title-row">
+                <h3 title="${locationGroup.building}">📍 ${locationGroup.building}</h3>
+                <button class="iw-directions-btn" onclick="getDirections(${locationGroup.lat}, ${locationGroup.lng})" title="Get Directions">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                        <path d="M4.5,20 v-11 c0-1.1,0.9-2,2-2 h9 v-3 l6,5 l-6,5 v-3 h-7.5 v6.5 H4.5 z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
         ${locationGroup.imageUrl ? `<img src="${locationGroup.imageUrl}" class="iw-image" onerror="this.style.display='none'">` : ''}
         ${offeringsHtml}
     </div>`;
@@ -624,7 +642,7 @@ async function fetchSuggestions(query) {
         if (data && data.length > 0) {
             preview.innerHTML = `<div class="suggestion-header">Suggestions</div>` +
                 data.map(function(s) {
-                    return `<div class="suggestion-item" data-val="${s}">${s}</div>`;
+                    return `<div class="suggestion-item" data-val="${s}" title="${s}">${s}</div>`;
                 }).join("");
 
             document.querySelectorAll(".suggestion-item").forEach(function(item) {
@@ -721,7 +739,7 @@ function renderSearchPreview() {
             <div class="preview-offering" id="preview-offering-${cn}">
                 <div class="preview-header">
                     <div class="preview-header-info">
-                        <div class="preview-course-title">${offering.course_code}</div>
+                        <div class="preview-course-title" title="${offering.course_code}">${offering.course_code}</div>
                         <div class="preview-course-meta">
                             <span class="preview-course-instructor" title="${offering.instructor}">${offering.instructor}</span>
                             <span class="preview-course-id">#${cn}</span>
@@ -893,7 +911,6 @@ window.onclick = function(e) {
         const preview = document.getElementById("search-preview");
         if (preview) {
             preview.style.display = "none";
-            renderSearchList();
         }
     }
 };
@@ -1099,6 +1116,9 @@ function clearResults() {
         activeInfoWindow.close();
         activeInfoWindow = null;
     }
+    if (directionsRenderer) {
+        directionsRenderer.setDirections({routes: []});
+    }
     currentOfferings.forEach(function(c) {
         ColorManager.releaseColor(c.class_number);
     });
@@ -1182,6 +1202,7 @@ function updateStartMarker(position, title) {
         startMarker.position = position;
     } else {
         const youAreHereDiv = document.createElement('div');
+        youAreHereDiv.style.transform = 'translateY(50%)';
         youAreHereDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`;
         startMarker = new AdvancedMarkerElement({
             map: map,
@@ -1191,6 +1212,43 @@ function updateStartMarker(position, title) {
         });
     }
     map.panTo(position);
+    map.setZoom(18);
+}
+
+/**
+ * getDirections calculates a walking route from the start marker to a building
+ */
+function getDirections(lat, lng) {
+    // Clear previous path
+    directionsRenderer.setDirections({routes: []});
+
+    if (!startMarker) {
+        showToast("Please set your starting location first using the GPS or Pin buttons.", "error");
+        return;
+    }
+
+    const request = {
+        origin: startMarker.position,
+        destination: { lat: parseFloat(lat), lng: parseFloat(lng) },
+        travelMode: google.maps.TravelMode.WALKING
+    };
+
+    directionsService.route(request, function(result, status) {
+        if (status === google.maps.DirectionsStatus.OK) {
+            directionsRenderer.setDirections(result);
+
+            // Account for sidebar by using our custom fit function with route bounds
+            const route = result.routes[0];
+            smartFitBounds(route.bounds);
+
+            // On mobile, close the sidebar to show the route
+            if (window.innerWidth < 768) {
+                document.getElementById("sidebar").classList.add("closed");
+            }
+        } else {
+            showToast("Could not find a walking route to this building.", "error");
+        }
+    });
 }
 
 /**
@@ -1261,6 +1319,18 @@ async function initMap() {
         fullscreenControl: false
     });
 
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({
+        map: map,
+        suppressMarkers: true, // Don't show default A/B markers; keep our custom ones
+        preserveViewport: true, // Account for sidebar manually in the callback
+        polylineOptions: {
+            strokeColor: "#003C6C", // UCSC Blue
+            strokeWeight: 5,
+            strokeOpacity: 0.7
+        }
+    });
+
     map.addListener("click", function(e) {
         if (isChoosingLocation) {
             updateStartMarker(e.latLng, "Custom Starting Point");
@@ -1287,6 +1357,9 @@ async function initMap() {
         denyLocation();
     };
 
+    // Initialize sidebar delegated listeners
+    setupSidebarDelegation();
+
     refreshMapAndUI();
 }
 
@@ -1296,11 +1369,10 @@ function toggleChooseLocationMode() {
     const btn = document.getElementById("choose-location-btn");
     if (isChoosingLocation) {
         btn.classList.add("active");
-        btn.textContent = "Click on Map...";
         map.setOptions({ draggableCursor: 'crosshair' });
+        showToast("Click anywhere on the map to set your starting point.");
     } else {
         btn.classList.remove("active");
-        btn.textContent = "Choose Location";
         map.setOptions({ draggableCursor: null });
     }
 }
@@ -1315,8 +1387,6 @@ function allowLocation() {
     navigator.geolocation.getCurrentPosition(function(position) {
         const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
         updateStartMarker(userPos, "Current Location");
-        map.panTo(userPos);
-        map.setZoom(18);
     }, null, { enableHighAccuracy: true });
 }
 function denyLocation() {
