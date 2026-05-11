@@ -1187,16 +1187,72 @@ body {
     margin-bottom: 8px;
 }
 
-#locate-btn {
-    position: fixed;
-    bottom: 40px;
-    right: 70px;
+/* --- New Location Flow Controls --- */
+.map-controls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     z-index: 1000;
-    padding: 10px 16px;
+    pointer-events: none;
+}
+
+.map-controls button {
+    pointer-events: auto;
+}
+
+.grab-btn {
+    position: absolute;
+    width: 40px;
+    height: 40px;
     background: white;
-    border: 1px solid var(--border-color);
+    border: none;
+    border-radius: 2px;
+    box-shadow: rgba(0, 0, 0, 0.3) 0px 1px 4px -1px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    bottom: 114px;
+    right: 12px;
+}
+
+.grab-btn:hover {
+    background: #f4f4f4;
+    color: #333;
+}
+
+.grab-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+.choose-btn {
+    position: absolute;
+    background: white;
+    color: var(--text-main);
+    padding: 0 16px;
+    height: 40px;
     border-radius: 8px;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    bottom: 24px;
+    right: 60px;
+}
+
+.choose-btn.active {
+    background: var(--ucsc-blue);
+    color: white;
+}
+
+.choose-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }

@@ -37,6 +37,8 @@ let savedCourses = JSON.parse(localStorage.getItem("slugroute_saved")) || [];
 let AdvancedMarkerElement;
 let userLocation;
 let suggestionTimeout;
+let startMarker = null;
+let isChoosingLocation = false;
 
 /**
  * ColorManager assigns unique colors to each class number
@@ -1173,6 +1175,25 @@ function addAllSavedToResults() {
 }
 
 /**
+ * updateStartMarker handles the shared marker for both location methods
+ */
+function updateStartMarker(position, title) {
+    if (startMarker) {
+        startMarker.position = position;
+    } else {
+        const youAreHereDiv = document.createElement('div');
+        youAreHereDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`;
+        startMarker = new AdvancedMarkerElement({
+            map: map,
+            position: position,
+            content: youAreHereDiv,
+            title: title
+        });
+    }
+    map.panTo(position);
+}
+
+/**
  * initMap starts engine
  */
 async function initMap() {
@@ -1240,15 +1261,22 @@ async function initMap() {
         fullscreenControl: false
     });
 
-    map.addListener("click", function() {
-        if (activeInfoWindow) {
+    map.addListener("click", function(e) {
+        if (isChoosingLocation) {
+            updateStartMarker(e.latLng, "Custom Starting Point");
+            toggleChooseLocationMode();
+        } else if (activeInfoWindow) {
             activeInfoWindow.close();
             activeInfoWindow = null;
         }
     });
 
-    document.getElementById("locate-btn").onclick = function() {
+    document.getElementById("grab-location-btn").onclick = function() {
         requestLocation();
+    };
+
+    document.getElementById("choose-location-btn").onclick = function() {
+        toggleChooseLocationMode();
     };
 
     document.getElementById("allow-location-btn").onclick = function() {
@@ -1259,24 +1287,34 @@ async function initMap() {
         denyLocation();
     };
 
-    requestLocation();
     refreshMapAndUI();
 }
 
 // Location helpers
+function toggleChooseLocationMode() {
+    isChoosingLocation = !isChoosingLocation;
+    const btn = document.getElementById("choose-location-btn");
+    if (isChoosingLocation) {
+        btn.classList.add("active");
+        btn.textContent = "Click on Map...";
+        map.setOptions({ draggableCursor: 'crosshair' });
+    } else {
+        btn.classList.remove("active");
+        btn.textContent = "Choose Location";
+        map.setOptions({ draggableCursor: null });
+    }
+}
+
 function requestLocation() {
     document.getElementById('location-modal').style.display = 'block';
 }
 
 function allowLocation() {
     document.getElementById('location-modal').style.display = 'none';
-    document.getElementById('locate-btn').style.display = 'none';
+
     navigator.geolocation.getCurrentPosition(function(position) {
         const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
-        const youAreHereDiv = document.createElement('div');
-        youAreHereDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`;
-        new AdvancedMarkerElement({ map: map, position: userPos, content: youAreHereDiv, title: "Current Location" });
-
+        updateStartMarker(userPos, "Current Location");
     }, null, { enableHighAccuracy: true });
 }
 function denyLocation() {
