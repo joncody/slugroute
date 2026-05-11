@@ -1315,6 +1315,8 @@ function allowLocation() {
     navigator.geolocation.getCurrentPosition(function(position) {
         const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
         updateStartMarker(userPos, "Current Location");
+        map.panTo(userPos);
+        map.setZoom(18);
     }, null, { enableHighAccuracy: true });
 }
 function denyLocation() {
