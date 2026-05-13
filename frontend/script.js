@@ -1198,6 +1198,10 @@ function addAllSavedToResults() {
  * updateStartMarker handles the shared marker for both location methods
  */
 function updateStartMarker(position, title) {
+    if (activeInfoWindow) {
+        activeInfoWindow.close();
+        activeInfoWindow = null;
+    }
     if (startMarker) {
         startMarker.position = position;
     } else {
