@@ -84,41 +84,33 @@
         <!-- Map Container -->
         <main id="map-container">
             <div id="map"></div>
-            
-            
             <div class="map-controls">
                 <div class="control-stack">
-                    <button id="choose-location-btn" class="map-btn" title="Set Start Point Manually">
-                        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                    <!-- Recenter is its own action -->
+                    <button id="recenter-ui-btn" class="map-btn" title="Recenter to UCSC">  
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 4h6V2H2v8h2V4z"/><path d="M20 4h-6V2h8v8h-2V4z"/><path d="M4 20h6v2H2v-8h2v6z"/><path d="M20 20h-6v2h8v-8h-2v6z"/><circle cx="12" cy="12" r="2"/>
+                        </svg>
                     </button>
-                    <button id="grab-location-btn" class="map-btn" title="Your GPS Location">
-                        <svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
-                    </button>
+                    <!-- Location Group: Related actions grouped together -->
+                    <div class="map-btn-group">
+                        <button id="choose-location-btn" class="map-btn" title="Set Start Point Manually">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        </button>
+                        <button id="grab-location-btn" class="map-btn" title="Your GPS Location">
+                            <svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
-            
-                
-            <button id="recenter-ui-btn" class="floating-recenter-btn" style="display: none;" title="Recenter to UCSC">  
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="2" y1="12" x2="6" y2="12"></line>
-                <line x1="18" y1="12" x2="22" y2="12"></line>
-                <line x1="12" y1="2" x2="12" y2="6"></line>
-                <line x1="12" y1="18" x2="12" y2="22"></line>
-                <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-            </button>
-            
-            
             <div id="location-modal">
                 <h3>📍 Enable Location</h3>
                 <p>Please allow SlugRoute to access your location so that it can help you navigate around campus.</p>
                 <div class="modal-actions">
-                    <button id="deny-location-btn" class="modal-btn-secondary" onclick="denyLocation()">Not Now</button>
-                    <button id="allow-location-btn" class="modal-btn-primary" onclick="allowLocation()">Allow</button>
+                    <button id="deny-location-btn" class="modal-btn-secondary">Not Now</button>
+                    <button id="allow-location-btn" class="modal-btn-primary">Allow</button>
                 </div>
             </div>
-
         </main>
     </div>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwp-UoWjYJ4mz-5IJFqAwZsiTffVRPmKg&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>

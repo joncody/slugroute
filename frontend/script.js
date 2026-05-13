@@ -35,7 +35,6 @@ let lastSearchResults = [];
 let pendingSelections = {};
 let savedCourses = JSON.parse(localStorage.getItem("slugroute_saved")) || [];
 let AdvancedMarkerElement;
-let userLocation;
 let suggestionTimeout;
 let startMarker = null;
 let isChoosingLocation = false;
@@ -91,6 +90,23 @@ const utils = {
         }
 
         return `${season} ${year}`;
+    },
+
+    calculateIdealTerm: function() {
+        const now = new Date();
+        const m = now.getMonth() + 1;
+        const y = now.getFullYear().toString().slice(-2);
+        let season = "0";
+
+        if (m >= 4 && m <= 6) {
+            season = "2";
+        } else if (m >= 7 && m <= 8) {
+            season = "4";
+        } else if (m >= 9) {
+            season = "8";
+        }
+
+        return `2${y}${season}`;
     },
 
     getFilterCategory: function(type) {
@@ -180,7 +196,7 @@ function showToast(message, type = "error") {
 }
 
 /**
- * populateTerms fetches available academic terms
+ * populateTerms fetches available academic terms and selects the ideal one
  */
 async function populateTerms() {
     const termSelect = document.getElementById("term-select");
@@ -194,23 +210,7 @@ async function populateTerms() {
         }
 
         termSelect.innerHTML = "";
-
-        const now = new Date();
-        const m = now.getMonth() + 1;
-        const y = now.getFullYear().toString().slice(-2);
-
-        let season = "0";
-        if (m >= 4 && m <= 6) {
-            season = "2";
-        }
-        if (m >= 7 && m <= 8) {
-            season = "4";
-        }
-        if (m >= 9) {
-            season = "8";
-        }
-
-        const idealTerm = `2${y}${season}`;
+        const idealTerm = utils.calculateIdealTerm();
 
         terms.forEach(function(t) {
             const opt = document.createElement("option");
@@ -240,14 +240,7 @@ function createMarkerElement(type, color, count = 1) {
         div.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 34" width="38" height="38" class="marker-svg">
                 <circle cx="17" cy="17" r="15" fill="${color}" stroke="#ffffff" stroke-width="2"/>
-                <text x="17" y="17"
-                      font-family="Inter, sans-serif"
-                      font-weight="800"
-                      font-size="14"
-                      fill="white"
-                      text-anchor="middle"
-                      dominant-baseline="central"
-                      class="marker-text">${count}</text>
+                <text x="17" y="17" font-family="Inter, sans-serif" font-weight="800" font-size="14" fill="white" text-anchor="middle" dominant-baseline="central" class="marker-text">${count}</text>
             </svg>
         `;
         return div;
@@ -263,7 +256,7 @@ function createMarkerElement(type, color, count = 1) {
 }
 
 /**
- * highlightSidebarCard visually highlights a card
+ * highlightSidebarCard visually highlights a card in the results sidebar
  */
 function highlightSidebarCard(classNumber, active) {
     const el = document.getElementById(`card-${classNumber}`);
@@ -274,6 +267,41 @@ function highlightSidebarCard(classNumber, active) {
             el.classList.remove('highlight');
         }
     }
+}
+
+/**
+ * renderMeetingTag builds the HTML for a single meeting row in a sidebar card
+ */
+function renderMeetingTag(course, m, index, color) {
+    const status = utils.getClassStatus(m);
+    const cat = utils.getFilterCategory(m.type);
+    const symbol = cat === 'LEC' ? '★' : (cat === 'LAB' ? '■' : '▲');
+    const displayTime = m.time && m.time.trim() !== "" ? m.time : "TBA";
+
+    let locationHtml = `<span class="loc-text" title="${m.building}">${m.building}</span>`;
+    if (status === "ONLINE") {
+        locationHtml = `<span class="online-tag">Online Instruction</span>`;
+    } else if (status === "CANCELLED") {
+        locationHtml = `<span class="cancelled-tag">Cancelled</span>`;
+    } else if (status === "TBD") {
+        locationHtml = `<span class="tbd-tag">Location TBA</span>`;
+    }
+
+    return `
+        <div class="sidebar-meeting-tag" style="--accent-color: ${color}">
+            <div class="tag-content">
+                <div class="tag-top">
+                    <span class="tag-symbol" style="color: ${color}">${symbol}</span>
+                    <span class="tag-label">${m.type}</span>
+                    ${locationHtml}
+                </div>
+                <div class="tag-bottom">
+                    <span class="tag-time">${displayTime}</span>
+                </div>
+            </div>
+            <button class="tag-remove-btn" title="Remove Section" data-class="${course.class_number}" data-index="${index}">✕</button>
+        </div>
+    `;
 }
 
 /**
@@ -295,35 +323,7 @@ function renderSearchList() {
         const isVisible = course.visible !== false;
 
         const meetingTagsHtml = course.meetings.map(function(m, index) {
-            const status = utils.getClassStatus(m);
-            const cat = utils.getFilterCategory(m.type);
-            const symbol = cat === 'LEC' ? '★' : (cat === 'LAB' ? '■' : '▲');
-            const displayTime = m.time && m.time.trim() !== "" ? m.time : "TBA";
-
-            let locationHtml = `<span class="loc-text" title="${m.building}">${m.building}</span>`;
-            if (status === "ONLINE") {
-                locationHtml = `<span class="online-tag">Online Instruction</span>`;
-            } else if (status === "CANCELLED") {
-                locationHtml = `<span class="cancelled-tag">Cancelled</span>`;
-            } else if (status === "TBD") {
-                locationHtml = `<span class="tbd-tag">Location TBA</span>`;
-            }
-
-            return `
-                <div class="sidebar-meeting-tag" style="--accent-color: ${color}">
-                    <div class="tag-content">
-                        <div class="tag-top">
-                            <span class="tag-symbol" style="color: ${color}">${symbol}</span>
-                            <span class="tag-label">${m.type}</span>
-                            ${locationHtml}
-                        </div>
-                        <div class="tag-bottom">
-                            <span class="tag-time">${displayTime}</span>
-                        </div>
-                    </div>
-                    <button class="tag-remove-btn" title="Remove Section" data-class="${course.class_number}" data-index="${index}">✕</button>
-                </div>
-            `;
+            return renderMeetingTag(course, m, index, color);
         }).join("");
 
         return `
@@ -359,7 +359,6 @@ function renderSearchList() {
 
 /**
  * setupSidebarDelegation handles all clicks in sidebar containers
- * This fixes the issue of handlers disappearing after re-renders.
  */
 function setupSidebarDelegation() {
     const containers = [
@@ -369,12 +368,13 @@ function setupSidebarDelegation() {
 
     containers.forEach(function(config) {
         const el = document.getElementById(config.id);
-        if (!el) return;
+        if (!el) {
+            return;
+        }
 
         el.onclick = function(e) {
             const target = e.target;
 
-            // 1. Check for specific action buttons
             const visBtn = target.closest('.vis-toggle');
             if (visBtn) {
                 e.stopPropagation();
@@ -403,7 +403,6 @@ function setupSidebarDelegation() {
                 return;
             }
 
-            // 2. Check for the general card click
             const card = target.closest('.course-card');
             if (card) {
                 config.handler(card.dataset.class);
@@ -421,7 +420,7 @@ function handleSavedClassesClick(classNum) {
 }
 
 /**
- * toggleVisibility switches the visible flag
+ * toggleVisibility switches the visible flag for a course on the map
  */
 function toggleVisibility(classNum) {
     const offering = currentOfferings.find(function(o) {
@@ -429,13 +428,13 @@ function toggleVisibility(classNum) {
     });
 
     if (offering) {
-        offering.visible = offering.visible === false ? true : false;
+        offering.visible = (offering.visible === false);
         refreshMapAndUI();
     }
 }
 
 /**
- * removeMeeting deletes a specific section
+ * removeMeeting deletes a specific section from a course result
  */
 function removeMeeting(classNum, meetingIndex) {
     const offering = currentOfferings.find(function(o) {
@@ -499,7 +498,7 @@ function renderSavedList() {
 }
 
 /**
- * groupDataByLocation clusters meeting data
+ * groupDataByLocation clusters meeting data into location points
  */
 function groupDataByLocation(offerings) {
     const locationMap = {};
@@ -558,7 +557,7 @@ function groupDataByLocation(offerings) {
 }
 
 /**
- * Updated buildInfoWindowHtml with Diamond Directions Icon
+ * buildInfoWindowHtml creates the content for Google Maps info windows
  */
 function buildInfoWindowHtml(locationGroup, activeFilters) {
     let offeringsHtml = "";
@@ -605,7 +604,9 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
         }
     });
 
-    if (visibleCount === 0) return "";
+    if (visibleCount === 0) {
+        return "";
+    }
 
     return `<div class="iw-container">
         <div class="iw-header">
@@ -624,7 +625,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
 }
 
 /**
- * fetchSuggestions handles autocomplete logic
+ * fetchSuggestions handles autocomplete logic for the search bar
  */
 async function fetchSuggestions(query) {
     const term = document.getElementById("term-select").value;
@@ -647,10 +648,9 @@ async function fetchSuggestions(query) {
 
             document.querySelectorAll(".suggestion-item").forEach(function(item) {
                 item.onclick = function(e) {
-                    e.stopPropagation(); // CRITICAL: Stop bubble so window.onclick closer doesn't trigger
+                    e.stopPropagation();
                     const val = this.dataset.val;
                     document.getElementById("course-input").value = val;
-                    // Trigger search selector
                     searchCourse();
                 };
             });
@@ -662,7 +662,7 @@ async function fetchSuggestions(query) {
 }
 
 /**
- * searchCourse handles API call
+ * searchCourse handles API call for course sections
  */
 async function searchCourse() {
     const input = document.getElementById("course-input");
@@ -712,6 +712,39 @@ async function searchCourse() {
 }
 
 /**
+ * renderPreviewSectionRow builds the HTML for a single section checkbox in the preview
+ */
+function renderPreviewSectionRow(meet, index, cn) {
+    const isLec = utils.getFilterCategory(meet.type) === 'LEC';
+    const status = utils.getClassStatus(meet);
+
+    if (isLec || !meet.time || meet.time.trim() === "") {
+        return '';
+    }
+
+    const isSelected = pendingSelections[cn].includes(index);
+    const rowClass = isSelected ? 'preview-section-item selected' : 'preview-section-item';
+
+    return `
+        <div class="${rowClass} preview-sec-row" data-class="${cn}" data-index="${index}">
+            <div class="checkbox-wrapper">
+                <div class="custom-checkbox ${isSelected ? 'checked' : ''}"></div>
+            </div>
+            <div class="preview-item-info">
+                <div class="sec-time-row">
+                    <span class="sec-type">${meet.type}</span>
+                    <span class="sec-time">${meet.time}</span>
+                </div>
+                <div class="sec-meta-row">
+                    <span class="sec-instructor" title="${meet.instructor || 'Staff'}">${meet.instructor || 'Staff'}</span>
+                    ${status !== 'PHYSICAL' ? `<span class="status-mini-tag ${status.toLowerCase()}">${status}</span>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
  * renderSearchPreview populates the dropdown with a "Schedule Builder" layout
  */
 function renderSearchPreview() {
@@ -727,13 +760,7 @@ function renderSearchPreview() {
             return !isLec && meet.time && meet.time.trim() !== "";
         });
 
-        const hasDisplayableSections = displayableSections.length > 0;
-
-        const renderableSections = displayableSections.filter(meet => {
-            return utils.getClassStatus(meet) === 'PHYSICAL';
-        });
-
-        const showAddAll = renderableSections.length > 0;
+        const showAddAll = displayableSections.some(meet => utils.getClassStatus(meet) === 'PHYSICAL');
 
         return `
             <div class="preview-offering" id="preview-offering-${cn}">
@@ -751,38 +778,10 @@ function renderSearchPreview() {
                         ${showAddAll ? `<button class="preview-add-all-btn toggle-all-btn" data-class="${cn}">+ All</button>` : ''}
                     </div>
                 </div>
-                ${hasDisplayableSections ? `
+                ${displayableSections.length > 0 ? `
                     <div class="preview-sections-list">
                         <div class="preview-section-label">Available Sections</div>
-                        ${allMeets.map((meet, index) => {
-                            const isLec = utils.getFilterCategory(meet.type) === 'LEC';
-                            const status = utils.getClassStatus(meet);
-
-                            if (isLec || !meet.time || meet.time.trim() === "") {
-                                return '';
-                            }
-
-                            const isSelected = pendingSelections[cn].includes(index);
-                            const rowClass = isSelected ? 'preview-section-item selected' : 'preview-section-item';
-
-                            return `
-                                <div class="${rowClass} preview-sec-row" data-class="${cn}" data-index="${index}">
-                                    <div class="checkbox-wrapper">
-                                        <div class="custom-checkbox ${isSelected ? 'checked' : ''}"></div>
-                                    </div>
-                                    <div class="preview-item-info">
-                                        <div class="sec-time-row">
-                                            <span class="sec-type">${meet.type}</span>
-                                            <span class="sec-time">${meet.time}</span>
-                                        </div>
-                                        <div class="sec-meta-row">
-                                            <span class="sec-instructor" title="${meet.instructor || 'Staff'}">${meet.instructor || 'Staff'}</span>
-                                            ${status !== 'PHYSICAL' ? `<span class="status-mini-tag ${status.toLowerCase()}">${status}</span>` : ''}
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
+                        ${allMeets.map((meet, index) => renderPreviewSectionRow(meet, index, cn)).join('')}
                     </div>
                 ` : ''}
             </div>
@@ -825,7 +824,7 @@ function attachPreviewListeners() {
 }
 
 /**
- * togglePendingSection handles checklist behavior
+ * togglePendingSection handles checklist behavior in the search preview
  */
 function togglePendingSection(classNum, index) {
     const list = pendingSelections[classNum];
@@ -839,7 +838,7 @@ function togglePendingSection(classNum, index) {
 }
 
 /**
- * toggleAllSections handles Add All shortcut
+ * toggleAllSections handles the "Add All" shortcut in search preview
  */
 function toggleAllSections(classNum) {
     const offering = lastSearchResults.find(function(o) {
@@ -852,7 +851,7 @@ function toggleAllSections(classNum) {
 }
 
 /**
- * commitSelection handles validation and mapping
+ * commitSelection handles validation and mapping of selected sections
  */
 function commitSelection(classNum) {
     const original = lastSearchResults.find(function(o) {
@@ -904,19 +903,8 @@ function commitSelection(classNum) {
 }
 
 /**
- * Global window click listener for closing dropdown
- */
-window.onclick = function(e) {
-    if (!e.target.closest('.search-container')) {
-        const preview = document.getElementById("search-preview");
-        if (preview) {
-            preview.style.display = "none";
-        }
-    }
-};
-
-/**
- * smartFitBounds: Centers the map
+ * smartFitBounds: Centers the map, handling the offset for the sidebar
+ * and providing special logic for single-location courses.
  */
 function smartFitBounds(bounds) {
     if (bounds.isEmpty()) {
@@ -931,33 +919,54 @@ function smartFitBounds(bounds) {
     const isSidebarOpen = !document.getElementById("sidebar").classList.contains("closed");
     const isMobile = window.innerWidth < 768;
 
+    // Check if bounds represent a single point (NE equals SW)
+    const isSinglePoint = bounds.getNorthEast().equals(bounds.getSouthWest());
 
-    const padding = {
-        top: 100,
-        right: 100,
-        bottom: 50,
-        left: (isSidebarOpen && !isMobile) ? 550 : 50
-    };
+    if (isSinglePoint) {
+        // Special logic for single meeting (e.g. CSE 101)
+        const center = bounds.getCenter();
+        map.setOptions({ restriction: null });
+        map.setZoom(CONFIG.ZOOM.BUILDING); // Use your constant (18)
+        map.panTo(center);
 
-    map.setOptions({ restriction: null });
-    map.fitBounds(bounds, padding);
-
-    const listener = google.maps.event.addListener(map, 'idle', function() {
-        if (map.getZoom() > 18) {
-            map.setZoom(18);
+        // If sidebar is open, shift the map center so the pin appears in the visible area
+        if (isSidebarOpen && !isMobile) {
+            // Shift the map left by half the sidebar width to push the pin right
+            // 350px sidebar / 2 = 175px shift
+            map.panBy(-175, 0);
         }
 
-        map.setOptions({
-            restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false }
-        });
+        // Re-apply restriction after pan
+        setTimeout(() => {
+            map.setOptions({
+                restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false }
+            });
+        }, 400);
 
-        google.maps.event.removeListener(listener);
-    });
+    } else {
+        // Standard logic for multiple meetings (e.g. CSE 30)
+        const padding = {
+            top: 100,
+            right: 100,
+            bottom: 50,
+            left: (isSidebarOpen && !isMobile) ? 550 : 50
+        };
+
+        map.setOptions({ restriction: null });
+        map.fitBounds(bounds, padding);
+
+        const listener = google.maps.event.addListener(map, 'idle', function() {
+            if (map.getZoom() > 18) {
+                map.setZoom(18);
+            }
+            map.setOptions({
+                restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false }
+            });
+            google.maps.event.removeListener(listener);
+        });
+    }
 }
 
-/**
- * focusClass centers map on specific course
- */
 function focusClass(classNumber) {
     const offering = currentOfferings.find(function(o) {
         return o.class_number === classNumber;
@@ -1002,7 +1011,7 @@ function focusClass(classNumber) {
 }
 
 /**
- * updateMarkers toggles visibility
+ * updateMarkers toggles marker visibility based on sidebar filters
  */
 function updateMarkers() {
     const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
@@ -1023,7 +1032,7 @@ function updateMarkers() {
 }
 
 /**
- * refreshMapAndUI redraw logic
+ * refreshMapAndUI triggers a complete redraw of map pins and sidebars
  */
 function refreshMapAndUI() {
     markers.forEach(function(m) {
@@ -1109,7 +1118,7 @@ function refreshMapAndUI() {
 }
 
 /**
- * clearResults empties current view
+ * clearResults empties current results and map
  */
 function clearResults() {
     if (activeInfoWindow) {
@@ -1127,7 +1136,7 @@ function clearResults() {
 }
 
 /**
- * removeResult removes a single card
+ * removeResult removes a single course card from the results
  */
 function removeResult(classNum) {
     if (activeInfoWindow) {
@@ -1142,7 +1151,7 @@ function removeResult(classNum) {
 }
 
 /**
- * toggleSaveCourse handles persistence
+ * toggleSaveCourse handles persistence to localStorage
  */
 function toggleSaveCourse(classNum) {
     const offering = currentOfferings.find(function(o) {
@@ -1166,6 +1175,9 @@ function toggleSaveCourse(classNum) {
     renderSearchList();
 }
 
+/**
+ * addSavedToResults adds a single saved course to the map
+ */
 async function addSavedToResults(classNum) {
     const course = savedCourses.find(function(c) {
         return c.class_number === classNum;
@@ -1182,6 +1194,9 @@ async function addSavedToResults(classNum) {
     focusClass(classNum);
 }
 
+/**
+ * addAllSavedToResults batches saved items into the results sidebar
+ */
 function addAllSavedToResults() {
     savedCourses.forEach(function(course) {
         const alreadyIn = currentOfferings.find(function(c) {
@@ -1195,7 +1210,7 @@ function addAllSavedToResults() {
 }
 
 /**
- * updateStartMarker handles the shared marker for both location methods
+ * updateStartMarker handles the blue user location pin
  */
 function updateStartMarker(position, title) {
     if (activeInfoWindow) {
@@ -1220,10 +1235,9 @@ function updateStartMarker(position, title) {
 }
 
 /**
- * getDirections calculates a walking route from the start marker to a building
+ * getDirections calculates a walking route from startMarker to destination
  */
 function getDirections(lat, lng) {
-    // Clear previous path
     directionsRenderer.setDirections({routes: []});
 
     if (!startMarker) {
@@ -1240,12 +1254,8 @@ function getDirections(lat, lng) {
     directionsService.route(request, function(result, status) {
         if (status === google.maps.DirectionsStatus.OK) {
             directionsRenderer.setDirections(result);
+            smartFitBounds(result.routes[0].bounds);
 
-            // Account for sidebar by using our custom fit function with route bounds
-            const route = result.routes[0];
-            smartFitBounds(route.bounds);
-
-            // On mobile, close the sidebar to show the route
             if (window.innerWidth < 768) {
                 document.getElementById("sidebar").classList.add("closed");
             }
@@ -1256,11 +1266,9 @@ function getDirections(lat, lng) {
 }
 
 /**
- * initMap starts engine
+ * setupSearchUI initializes the search input and form listeners
  */
-async function initMap() {
-    await populateTerms();
-
+function setupSearchUI() {
     const courseInput = document.getElementById("course-input");
     courseInput.oninput = function(e) {
         clearTimeout(suggestionTimeout);
@@ -1274,6 +1282,20 @@ async function initMap() {
         searchCourse();
     };
 
+    window.onclick = function(e) {
+        if (!e.target.closest('.search-container')) {
+            const preview = document.getElementById("search-preview");
+            if (preview) {
+                preview.style.display = "none";
+            }
+        }
+    };
+}
+
+/**
+ * setupMapControls initializes custom UI buttons on the map
+ */
+function setupMapControls() {
     document.getElementById("sidebar-toggle").onclick = function() {
         const sidebar = document.getElementById("sidebar");
         sidebar.classList.toggle("closed");
@@ -1307,6 +1329,59 @@ async function initMap() {
         };
     });
 
+    document.getElementById("recenter-ui-btn").onclick = function() {
+        if (activeInfoWindow) {
+            activeInfoWindow.close();
+            activeInfoWindow = null;
+        }
+        map.setZoom(CONFIG.ZOOM.CAMPUS);
+        map.panTo(CONFIG.CAMPUS_CENTER);
+        if (directionsRenderer) {
+            directionsRenderer.setDirections({routes: []});
+        }
+    };
+
+    document.getElementById("grab-location-btn").onclick = function() {
+        document.getElementById('location-modal').style.display = 'block';
+    };
+
+    document.getElementById("choose-location-btn").onclick = function() {
+        toggleChooseLocationMode();
+    };
+
+    document.getElementById("allow-location-btn").onclick = function() {
+        document.getElementById('location-modal').style.display = 'none';
+        navigator.geolocation.getCurrentPosition(function(position) {
+            const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
+            updateStartMarker(userPos, "Current Location");
+        }, null, { enableHighAccuracy: true });
+    };
+
+    document.getElementById("deny-location-btn").onclick = function() {
+        document.getElementById('location-modal').style.display = 'none';
+    };
+}
+
+/**
+ * toggleChooseLocationMode switches the crosshair cursor for pinning location
+ */
+function toggleChooseLocationMode() {
+    isChoosingLocation = !isChoosingLocation;
+    const btn = document.getElementById("choose-location-btn");
+    if (isChoosingLocation) {
+        btn.classList.add("active");
+        map.setOptions({ draggableCursor: 'crosshair' });
+        showToast("Click anywhere on the map to set your starting point.", "success");
+    } else {
+        btn.classList.remove("active");
+        map.setOptions({ draggableCursor: null });
+    }
+}
+
+/**
+ * initializeGoogleServices loads Google Maps libraries and setups map object
+ */
+async function initializeGoogleServices() {
     const { Map } = await google.maps.importLibrary("maps");
     const markerLib = await google.maps.importLibrary("marker");
     AdvancedMarkerElement = markerLib.AdvancedMarkerElement;
@@ -1326,10 +1401,10 @@ async function initMap() {
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({
         map: map,
-        suppressMarkers: true, // Don't show default A/B markers; keep our custom ones
-        preserveViewport: true, // Account for sidebar manually in the callback
+        suppressMarkers: true,
+        preserveViewport: true,
         polylineOptions: {
-            strokeColor: "#4285F4", // My location blue
+            strokeColor: "#4285F4",
             strokeWeight: 5,
             strokeOpacity: 0.7
         }
@@ -1344,108 +1419,16 @@ async function initMap() {
             activeInfoWindow = null;
         }
     });
+}
 
-    document.getElementById("grab-location-btn").onclick = function() {
-        requestLocation();
-    };
-
-    document.getElementById("choose-location-btn").onclick = function() {
-        toggleChooseLocationMode();
-    };
-
-    document.getElementById("allow-location-btn").onclick = function() {
-        allowLocation();
-    };
-
-    document.getElementById("deny-location-btn").onclick = function() {
-        denyLocation();
-    };
-
-    document.getElementById("recenter-ui-btn").onclick = function() {
-        setupRecenterButton();
-    }
-    // Initialize sidebar delegated listeners
+/**
+ * initMap entry point for Google Maps API
+ */
+async function initMap() {
+    await populateTerms();
+    setupSearchUI();
+    setupMapControls();
+    await initializeGoogleServices();
     setupSidebarDelegation();
-
     refreshMapAndUI();
-    
-    // recenter butto listener
-    handleMapRecenterVisibility();
-    /*
-    // recenter button logic to reset map outside of campus bounds.
-    const recenterBtn = document.getElementById("recenter-ui-btn");
-
-    recenterBtn.onclick = function() {
-        map.setZoom(CONFIG.ZOOM.CAMPUS);
-        map.panTo(CONFIG.CAMPUS_CENTER);
-    };
-    */
-   /*
-    // Listen for when the user moves the map
-    map.addListener("idle", function() {
-        const currentCenter = map.getCenter();
-        const campus = CONFIG.CAMPUS_CENTER;
-        
-        const isOffCenter = Math.abs(currentCenter.lat() - campus.lat) > 0.01 || 
-                            Math.abs(currentCenter.lng() - campus.lng) > 0.01;
-
-        recenterBtn.style.display = isOffCenter ? "block" : "none";
-    });
-    */
-}
-
-// Location helpers
-function toggleChooseLocationMode() {
-    isChoosingLocation = !isChoosingLocation;
-    const btn = document.getElementById("choose-location-btn");
-    if (isChoosingLocation) {
-        btn.classList.add("active");
-        map.setOptions({ draggableCursor: 'crosshair' });
-        showToast("Click anywhere on the map to set your starting point.");
-    } else {
-        btn.classList.remove("active");
-        map.setOptions({ draggableCursor: null });
-    }
-}
-
-function requestLocation() {
-    document.getElementById('location-modal').style.display = 'block';
-}
-
-function allowLocation() {
-    document.getElementById('location-modal').style.display = 'none';
-
-    navigator.geolocation.getCurrentPosition(function(position) {
-        const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
-        updateStartMarker(userPos, "Current Location");
-    }, null, { enableHighAccuracy: true });
-}
-function denyLocation() {
-    document.getElementById('location-modal').style.display = 'none';
-}
-
-function setupRecenterButton() {
-    const recenterBtn = document.getElementById("recenter-ui-btn");
-    if (!recenterBtn) return;
-
-    recenterBtn.onclick = function() {
-        map.setZoom(CONFIG.ZOOM.CAMPUS);
-        map.panTo(CONFIG.CAMPUS_CENTER);
-    };
-}
-
-function handleMapRecenterVisibility() {
-    const recenterBtn = document.getElementById("recenter-ui-btn");
-    if (!recenterBtn) return;
-
-    map.addListener("idle", function() {
-        const currentCenter = map.getCenter();
-        const campus = CONFIG.CAMPUS_CENTER;
-        
-        // Tolerance check: Is the user more than ~0.01 degrees away?
-        const isOffCenter = Math.abs(currentCenter.lat() - campus.lat) > 0.01 || 
-                            Math.abs(currentCenter.lng() - campus.lng) > 0.01;
-
-        recenterBtn.style.display = isOffCenter ? "flex" : "none";
-    });
 }
