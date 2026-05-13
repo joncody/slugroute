@@ -84,6 +84,8 @@
         <!-- Map Container -->
         <main id="map-container">
             <div id="map"></div>
+            
+            
             <div class="map-controls">
                 <div class="control-stack">
                     <button id="choose-location-btn" class="map-btn" title="Set Start Point Manually">
@@ -94,6 +96,20 @@
                     </button>
                 </div>
             </div>
+            
+                
+            <button id="recenter-ui-btn" class="floating-recenter-btn" style="display: none;" title="Recenter to UCSC">  
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="6" y2="12"></line>
+                <line x1="18" y1="12" x2="22" y2="12"></line>
+                <line x1="12" y1="2" x2="12" y2="6"></line>
+                <line x1="12" y1="18" x2="12" y2="22"></line>
+                <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </button>
+            
+            
             <div id="location-modal">
                 <h3>📍 Enable Location</h3>
                 <p>Please allow SlugRoute to access your location so that it can help you navigate around campus.</p>
@@ -102,6 +118,7 @@
                     <button id="allow-location-btn" class="modal-btn-primary" onclick="allowLocation()">Allow</button>
                 </div>
             </div>
+
         </main>
     </div>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwp-UoWjYJ4mz-5IJFqAwZsiTffVRPmKg&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>
