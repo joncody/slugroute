@@ -934,9 +934,9 @@ function smartFitBounds(bounds) {
 
     const padding = {
         top: 100,
-        right: 50,
+        right: 100,
         bottom: 50,
-        left: (isSidebarOpen && !isMobile) ? 400 : 50
+        left: (isSidebarOpen && !isMobile) ? 550 : 50
     };
 
     map.setOptions({ restriction: null });
