@@ -10,6 +10,27 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const (
+	queryFetchOfferings = `
+		SELECT 
+			c.class_number, c.course_code, c.term, c.title, 
+			l.instructor, l.days, l.times, l.building, l.room_number, 
+			IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
+		FROM courses c
+		JOIN lectures l ON c.class_number = l.class_number AND c.term = l.term
+		LEFT JOIN buildings b ON UPPER(TRIM(l.building)) = UPPER(TRIM(b.name))
+		WHERE (UPPER(c.course_code) = UPPER(?) OR UPPER(REPLACE(c.course_code, ' ', '')) = UPPER(REPLACE(?, ' ', ''))) 
+		AND c.term = ?`
+
+	queryAttachSections = `
+		SELECT 
+			s.section_type, s.instructor, s.days, s.times, s.building, s.room_number,
+			IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
+		FROM sections s
+		LEFT JOIN buildings b ON UPPER(TRIM(s.building)) = UPPER(TRIM(b.name))
+		WHERE s.parent_class_number = ? AND s.term = ?`
+)
+
 // Meeting represents a single time/location instance for a class.
 type Meeting struct {
 	Type       string  `json:"type"`
@@ -32,29 +53,31 @@ type Offering struct {
 	Meetings    []Meeting `json:"meetings"`
 }
 
+// scanMeeting is a helper to populate a Meeting struct from a row scan.
+func scanMeeting(rows *sql.Rows, mType string) (Meeting, error) {
+	var inst, days, times, bld, rm, imageURL string
+	var lat, lng float64
+
+	err := rows.Scan(&inst, &days, &times, &bld, &rm, &lat, &lng, &imageURL)
+	if err != nil {
+		return Meeting{}, err
+	}
+
+	return Meeting{
+		Type:       mType,
+		Building:   bld,
+		RoomNumber: rm,
+		Time:       fmt.Sprintf("%s %s", days, times),
+		Instructor: inst,
+		Lat:        lat,
+		Lng:        lng,
+		ImageURL:   imageURL,
+	}, nil
+}
+
 // fetchOfferings queries the DB for main lecture data and joins building coordinates.
 func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error) {
-	query := `
-		SELECT 
-			c.class_number, 
-			c.course_code, 
-			c.term, 
-			c.title, 
-			l.instructor, 
-			l.days, 
-			l.times, 
-			l.building, 
-			l.room_number, 
-			IFNULL(b.lat, 0), 
-			IFNULL(b.lng, 0), 
-			IFNULL(b.image_url, '')
-		FROM courses c
-		JOIN lectures l ON c.class_number = l.class_number AND c.term = l.term
-		LEFT JOIN buildings b ON UPPER(TRIM(l.building)) = UPPER(TRIM(b.name))
-		WHERE (UPPER(c.course_code) = UPPER(?) OR UPPER(REPLACE(c.course_code, ' ', '')) = UPPER(REPLACE(?, ' ', ''))) 
-		AND c.term = ?`
-
-	rows, err := db.Query(query, code, code, term)
+	rows, err := db.Query(queryFetchOfferings, code, code, term)
 	if err != nil {
 		return nil, err
 	}
@@ -63,11 +86,11 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 	offeringsMap := make(map[string]*Offering)
 
 	for rows.Next() {
-		var cn, cc, cterm, title, inst, days, times, bld, rm, imgURL string
+		var cn, cc, cterm, title, inst, days, times, bld, rm, imageURL string
 		var lat, lng float64
 
 		err := rows.Scan(
-			&cn, &cc, &cterm, &title, &inst, &days, &times, &bld, &rm, &lat, &lng, &imgURL,
+			&cn, &cc, &cterm, &title, &inst, &days, &times, &bld, &rm, &lat, &lng, &imageURL,
 		)
 		if err != nil {
 			return nil, err
@@ -92,7 +115,7 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 			Instructor: inst,
 			Lat:        lat,
 			Lng:        lng,
-			ImageURL:   imgURL,
+			ImageURL:   imageURL,
 		})
 	}
 	return offeringsMap, nil
@@ -100,32 +123,17 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 
 // attachSections fetches DIS/LAB sections linked to the parent lecture.
 func attachSections(db *sql.DB, term string, offerings map[string]*Offering) error {
-	query := `
-		SELECT 
-			s.section_type, 
-			s.instructor, 
-			s.days, 
-			s.times, 
-			s.building, 
-			s.room_number,
-			IFNULL(b.lat, 0), 
-			IFNULL(b.lng, 0), 
-			IFNULL(b.image_url, '')
-		FROM sections s
-		LEFT JOIN buildings b ON UPPER(TRIM(s.building)) = UPPER(TRIM(b.name))
-		WHERE s.parent_class_number = ? AND s.term = ?`
-
 	for cn, offering := range offerings {
-		secRows, err := db.Query(query, cn, term)
+		secRows, err := db.Query(queryAttachSections, cn, term)
 		if err != nil {
 			return err
 		}
 
 		for secRows.Next() {
-			var st, si, sd, stm, bld, rm, imgURL string
+			var st, si, sd, stm, bld, rm, imageURL string
 			var lat, lng float64
 
-			err := secRows.Scan(&st, &si, &sd, &stm, &bld, &rm, &lat, &lng, &imgURL)
+			err := secRows.Scan(&st, &si, &sd, &stm, &bld, &rm, &lat, &lng, &imageURL)
 			if err != nil {
 				secRows.Close()
 				return err
@@ -139,7 +147,7 @@ func attachSections(db *sql.DB, term string, offerings map[string]*Offering) err
 				Instructor: si,
 				Lat:        lat,
 				Lng:        lng,
-				ImageURL:   imgURL,
+				ImageURL:   imageURL,
 			})
 		}
 		secRows.Close()

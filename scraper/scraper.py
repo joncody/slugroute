@@ -37,17 +37,15 @@ def calculate_current_strms():
     UCSC Logic: 2 + YY + (0: Winter, 2: Spring, 4: Summer, 8: Fall)
     """
     now = dt.now()
-    month = now.month
+    # Map months to term suffixes: 1-3: Winter(0), 4-6: Spring(2), 7-8: Summer(4), 9-12: Fall(8)
+    month_to_idx = {
+        1: 0, 2: 0, 3: 0,
+        4: 1, 5: 1, 6: 1,
+        7: 2, 8: 2,
+        9: 3, 10: 3, 11: 3, 12: 3
+    }
 
-    if 1 <= month <= 3:
-        current_idx = 0
-    elif 4 <= month <= 6:
-        current_idx = 1
-    elif 7 <= month <= 8:
-        current_idx = 2
-    else:
-        current_idx = 3
-
+    current_idx = month_to_idx.get(now.month, 0)
     term_suffixes = ["0", "2", "4", "8"]
     strms = []
 
@@ -230,6 +228,74 @@ def save_course_data(cursor, data, term):
         ))
 
 
+def _parse_header(soup, data):
+    """Extracts course code, section, and title from the H2 header."""
+    header = soup.find("h2")
+    if not header:
+        return
+
+    h_txt = clean_text(header.get_text())
+    h_match = re.search(r"^([A-Z]+\s+\d+[A-Z]*)\s+-\s+(\d+)\s*(.*)$", h_txt)
+    if h_match:
+        data["course_code"] = h_match.group(1)
+        data["lecture_section"] = h_match.group(2)
+        data["title"] = h_match.group(3)
+
+
+def _parse_meetings(soup, data):
+    """Extracts main lecture meeting information."""
+    meet_h2 = soup.find("h2", string=re.compile(r"Meeting Information"))
+    if not meet_h2:
+        return
+
+    table = meet_h2.find_next("table")
+    if not table:
+        return
+
+    for row in table.find_all("tr")[1:]:
+        cols = row.find_all("td")
+        if len(cols) >= 3:
+            days, times = split_days_times(cols[0].get_text())
+            building, room = split_location(cols[1].get_text())
+            data["lectures"].append({
+                "days": days,
+                "times": times,
+                "building": building,
+                "room_number": room,
+                "instructor": clean_text(cols[2].get_text(separator="; "))
+            })
+
+
+def _parse_sections(soup, data):
+    """Extracts associated discussion/lab sections."""
+    sec_h2 = soup.find("h2", string=re.compile(r"Associated Discussion"))
+    if not sec_h2:
+        return
+
+    panel_body = sec_h2.find_next("div", class_="panel-body")
+    if not panel_body:
+        return
+
+    for row in panel_body.find_all("div", class_="row-striped"):
+        divs = row.find_all("div")
+        if len(divs) >= 4:
+            raw_id = clean_text(divs[0].get_text())
+            id_match = re.search(r"#(\d+)\s+([A-Z]+)\s+([0-9A-Z]+)", raw_id)
+            days, times = split_days_times(divs[1].get_text())
+            raw_loc = divs[3].get_text().replace("Loc:", "")
+            building, room = split_location(raw_loc)
+            data["sections"].append({
+                "class_number": id_match.group(1) if id_match else "",
+                "section_type": id_match.group(2) if id_match else "",
+                "section_id": id_match.group(3) if id_match else "",
+                "days": days,
+                "times": times,
+                "instructor": clean_text(divs[2].get_text(separator="; ")),
+                "building": building,
+                "room_number": room
+            })
+
+
 def fetch_class_detail(session, class_num, term):
     """Parses the detail page for a specific class."""
     payload = {
@@ -246,7 +312,6 @@ def fetch_class_detail(session, class_num, term):
         return None
 
     soup = BeautifulSoup(resp.text, "html.parser")
-
     data = {
         "class_number": class_num,
         "course_code": "UNK",
@@ -256,52 +321,10 @@ def fetch_class_detail(session, class_num, term):
         "sections": []
     }
 
-    header = soup.find("h2")
-    if header:
-        h_txt = clean_text(header.get_text())
-        h_match = re.search(r"^([A-Z]+\s+\d+[A-Z]*)\s+-\s+(\d+)\s*(.*)$", h_txt)
-        if h_match:
-            data["course_code"], data["lecture_section"], data["title"] = h_match.groups()
+    _parse_header(soup, data)
+    _parse_meetings(soup, data)
+    _parse_sections(soup, data)
 
-    meet_h2 = soup.find("h2", string=re.compile(r"Meeting Information"))
-    if meet_h2:
-        table = meet_h2.find_next("table")
-        if table:
-            for row in table.find_all("tr")[1:]:
-                cols = row.find_all("td")
-                if len(cols) >= 3:
-                    days, times = split_days_times(cols[0].get_text())
-                    building, room = split_location(cols[1].get_text())
-                    data["lectures"].append({
-                        "days": days,
-                        "times": times,
-                        "building": building,
-                        "room_number": room,
-                        "instructor": clean_text(cols[2].get_text(separator="; "))
-                    })
-
-    sec_h2 = soup.find("h2", string=re.compile(r"Associated Discussion"))
-    if sec_h2:
-        panel_body = sec_h2.find_next("div", class_="panel-body")
-        if panel_body:
-            for row in panel_body.find_all("div", class_="row-striped"):
-                divs = row.find_all("div")
-                if len(divs) >= 4:
-                    raw_id = clean_text(divs[0].get_text())
-                    id_match = re.search(r"#(\d+)\s+([A-Z]+)\s+([0-9A-Z]+)", raw_id)
-                    days, times = split_days_times(divs[1].get_text())
-                    raw_loc = divs[3].get_text().replace("Loc:", "")
-                    building, room = split_location(raw_loc)
-                    data["sections"].append({
-                        "class_number": id_match.group(1) if id_match else "",
-                        "section_type": id_match.group(2) if id_match else "",
-                        "section_id": id_match.group(3) if id_match else "",
-                        "days": days,
-                        "times": times,
-                        "instructor": clean_text(divs[2].get_text(separator="; ")),
-                        "building": building,
-                        "room_number": room
-                    })
     return data
 
 
