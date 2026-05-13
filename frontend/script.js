@@ -1329,7 +1329,7 @@ async function initMap() {
         suppressMarkers: true, // Don't show default A/B markers; keep our custom ones
         preserveViewport: true, // Account for sidebar manually in the callback
         polylineOptions: {
-            strokeColor: "#003C6C", // UCSC Blue
+            strokeColor: "#4285F4", // My location blue
             strokeWeight: 5,
             strokeOpacity: 0.7
         }
