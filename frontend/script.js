@@ -23,7 +23,8 @@ const CONFIG = {
         "#911eb4", "#42d4f4", "#f032e6", "#bfef45", "#fabed4",
         "#469990", "#dcbeff", "#9A6324", "#fffac8", "#800000",
         "#aaffc3", "#808000", "#ffd8b1", "#000075", "#a9a9a9"
-    ]
+    ],
+    MAP_ID: "75ccfb1714f1ad1ed6ac3269"
 };
 
 // Global State
@@ -625,7 +626,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
     return `<div class="iw-container">
         <div class="iw-header">
             <div class="iw-title-row">
-                <h3 title="${locationGroup.building}">${utils.getIcon('pin', 16, '#003C6C')} ${locationGroup.building}</h3>
+                <h3 title="${locationGroup.building}">${utils.getIcon('pin', 16, 'var(--ucsc-blue)')} ${locationGroup.building}</h3>
                 <button class="iw-directions-btn" onclick="getDirections(${locationGroup.lat}, ${locationGroup.lng})" title="Get Directions">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
                         <path d="M4.5,20 v-11 c0-1.1,0.9-2,2-2 h9 v-3 l6,5 l-6,5 v-3 h-7.5 v6.5 H4.5 z"/>
@@ -1329,6 +1330,31 @@ function setupMapControls() {
         }, 350);
     };
 
+    document.getElementById("theme-toggle").onclick = async function() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('slugroute_theme', newTheme);
+
+        if (map) {
+            const currentCenter = map.getCenter();
+            const currentZoom = map.getZoom();
+            const currentStartPos = startMarker ? startMarker.position : null;
+
+            await initializeGoogleServices();
+
+            map.setCenter(currentCenter);
+            map.setZoom(currentZoom);
+
+            if (currentStartPos) {
+                updateStartMarker(currentStartPos, "Starting Point");
+            }
+
+            refreshMapAndUI();
+        }
+    };
+
     document.getElementById("clear-results-btn").onclick = function() {
         clearResults();
     };
@@ -1398,12 +1424,17 @@ function toggleChooseLocationMode() {
 async function initializeGoogleServices() {
     const { Map } = await google.maps.importLibrary("maps");
     const markerLib = await google.maps.importLibrary("marker");
+    const { ColorScheme } = await google.maps.importLibrary("core");
     AdvancedMarkerElement = markerLib.AdvancedMarkerElement;
+
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const targetScheme = currentTheme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT;
 
     map = new Map(document.getElementById("map"), {
         center: CONFIG.CAMPUS_CENTER,
         zoom: CONFIG.ZOOM.CAMPUS,
-        mapId: "75ccfb1714f1ad1ed6ac3269",
+        mapId: CONFIG.MAP_ID,
+        colorScheme: targetScheme,
         restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false },
         disableDefaultUI: true,
         zoomControl: true,
@@ -1442,7 +1473,7 @@ async function initMap() {
     // Inject visual icons into the modal before starting
     const modalTitle = document.getElementById("modal-title");
     if (modalTitle) {
-        modalTitle.insertAdjacentHTML('afterbegin', utils.getIcon('pin', 20, '#003C6C') + ' ');
+        modalTitle.insertAdjacentHTML('afterbegin', utils.getIcon('pin', 20, 'var(--ucsc-blue)') + ' ');
     }
 
     await populateTerms();

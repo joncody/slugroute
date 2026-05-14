@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SlugRoute | UCSC Course Map</title>
+    <script>
+        // Apply theme immediately to prevent flashing
+        const savedTheme = localStorage.getItem('slugroute_theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    </script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -91,6 +96,12 @@
             <div id="map"></div>
             <div class="map-controls">
                 <div class="control-stack">
+                    <button id="theme-toggle" class="map-btn" title="Toggle Dark Mode">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path class="sun-icon" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"></path>
+                            <path class="moon-icon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
                     <!-- Recenter is its own action -->
                     <button id="recenter-ui-btn" class="map-btn" title="Recenter to UCSC">  
                         <svg viewBox="0 0 24 24" fill="currentColor">

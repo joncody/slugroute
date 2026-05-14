@@ -7,14 +7,44 @@
     --ucsc-blue: #003C6C;
     --ucsc-gold: #F1B82D;
     --bg-light: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-navbar: #003C6C;
+    --bg-sidebar: #ffffff;
+    --bg-input: rgba(255, 255, 255, 0.15);
+    --bg-tag: #f8fafc;
     --border-color: #e2e8f0;
     --text-main: #1e293b;
     --text-muted: #64748b;
+    --text-navbar: #ffffff;
     --nav-height: 60px;
     --sidebar-width: 100%;
     --accent-color: transparent;
     --success-green: #059669;
     --error-red: #ef4444;
+    --card-highlight: #fefce8;
+    --skeleton-start: #f0f0f0;
+    --skeleton-mid: #e0e0e0;
+}
+
+[data-theme='dark'] {
+    --bg-light: #0f172a;
+    --bg-card: #1e293b;
+    --bg-navbar: #020617;
+    --bg-sidebar: #0f172a;
+    --bg-input: rgba(0, 0, 0, 0.25);
+    --bg-tag: #0f172a;
+    --border-color: #334155;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+    --card-highlight: #334155;
+    --skeleton-start: #1e293b;
+    --skeleton-mid: #334155;
+    --ucsc-blue: #bae6fd; /* Lighten brand blue for readability on dark */
+    /* Native Google Dark UI Overrides */
+    --google-control-bg: #3c4043;
+    --google-control-hover: #4c5053;
+    --google-control-icon: #e8eaed;
+    --google-control-border: #5f6368;
 }
 
 /* --- Global Reset --- */
@@ -33,10 +63,17 @@ body {
     overflow: hidden;
 }
 
+/* --- Theme Toggle Icons --- */
+.sun-icon { display: block; }
+.moon-icon { display: none; }
+
+[data-theme='dark'] .sun-icon { display: none; }
+[data-theme='dark'] .moon-icon { display: block; }
+
 /* --- Navigation --- */
 .navbar {
     height: var(--nav-height);
-    background-color: var(--ucsc-blue);
+    background-color: var(--bg-navbar);
     display: flex;
     align-items: center;
     position: relative;
@@ -64,7 +101,7 @@ body {
 .menu-btn {
     background: none;
     border: none;
-    color: white;
+    color: var(--text-navbar);
     font-size: 24px;
     cursor: pointer;
     padding: 0;
@@ -101,7 +138,7 @@ body {
     display: flex;
     position: relative;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--bg-input);
     padding: 6px;
     border-radius: 10px;
     width: 100%;
@@ -123,11 +160,13 @@ body {
     outline: none;
     width: 50px;
     min-height: 44px;
+    background: var(--bg-card);
+    color: var(--text-main);
 }
 
 .search-container button {
     background-color: var(--ucsc-gold);
-    color: var(--ucsc-blue);
+    color: #003C6C;
     font-weight: 700;
     padding: 8px 20px;
     border: none;
@@ -146,7 +185,7 @@ body {
     top: calc(100% + 8px);
     left: 0;
     right: 0;
-    background: #ffffff;
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.15);
@@ -171,7 +210,7 @@ body {
     font-weight: 800;
     text-transform: uppercase;
     color: var(--text-muted);
-    border-bottom: 1px solid var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .suggestion-item {
@@ -179,7 +218,7 @@ body {
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
-    color: var(--ucsc-blue);
+    color: var(--text-main);
     transition: background 0.2s;
     white-space: nowrap;
     overflow: hidden;
@@ -191,8 +230,8 @@ body {
 }
 
 .preview-offering {
-    background: #fff;
-    border: 1px solid #f1f5f9;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
     border-radius: 10px;
     margin-bottom: 12px;
     overflow: hidden;
@@ -204,9 +243,9 @@ body {
 }
 
 .preview-header {
-    background: #f8fafc;
+    background: var(--bg-light);
     padding: 12px 16px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -216,7 +255,7 @@ body {
 .preview-course-title {
     font-size: 14px;
     font-weight: 800;
-    color: var(--ucsc-blue);
+    color: var(--text-main);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -233,7 +272,7 @@ body {
 .preview-course-instructor {
     font-size: 12px;
     font-weight: 600;
-    color: #475569;
+    color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -263,7 +302,7 @@ body {
 
 .preview-commit-btn {
     background: var(--ucsc-gold);
-    color: var(--ucsc-blue);
+    color: #003C6C;
     border: none;
     padding: 0 16px;
     border-radius: 6px;
@@ -278,7 +317,7 @@ body {
 .preview-commit-btn:active { transform: scale(0.96); }
 
 .preview-add-all-btn {
-    background: #f1f5f9;
+    background: var(--bg-light);
     color: var(--text-main);
     border: 1px solid var(--border-color);
     padding: 0 12px;
@@ -302,7 +341,7 @@ body {
     font-size: 9px;
     text-transform: uppercase;
     font-weight: 800;
-    color: #94a3b8;
+    color: var(--text-muted);
     margin: 4px 0 8px 6px;
 }
 
@@ -320,20 +359,20 @@ body {
 }
 
 .preview-section-item:hover {
-    background: #f8fafc;
+    background: var(--bg-light);
 }
 
 .preview-section-item.selected {
-    background: #f0f7ff;
-    border-color: #bae6fd;
+    background: var(--bg-tag);
+    border-color: var(--ucsc-blue);
 }
 
 .custom-checkbox {
     width: 18px;
     height: 18px;
-    border: 2px solid #cbd5e1;
+    border: 2px solid var(--text-muted);
     border-radius: 4px;
-    background: white;
+    background: var(--bg-card);
     position: relative;
     transition: all 0.2s;
     flex-shrink: 0;
@@ -436,7 +475,7 @@ body {
     border-radius: 8px;
     font-size: 13px;
     font-weight: 600;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     animation: toast-in 0.3s ease-out forwards;
 }
 
@@ -476,7 +515,7 @@ body {
     left: 0;
     width: 100%;
     height: calc(100% - var(--nav-height));
-    background: white;
+    background: var(--bg-sidebar);
     overflow-y: auto;
     z-index: 1000;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -496,7 +535,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: #e5e7eb;
+    background: var(--bg-light);
     z-index: 1;
 }
 
@@ -554,7 +593,7 @@ body {
     font-weight: 700;
     font-size: 9px;
     text-transform: uppercase;
-    background: #f1f5f9;
+    background: var(--bg-tag);
     padding: 1px 4px;
     border-radius: 4px;
 }
@@ -624,7 +663,7 @@ body {
 }
 
 .text-btn-blue:hover {
-    background: #f1f5f9;
+    background-color: #f1f5f9;
     border-radius: 6px;
 }
 
@@ -641,7 +680,7 @@ body {
     align-items: center;
     justify-content: center;
     padding: 8px 2px;
-    background: white;
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     cursor: pointer;
@@ -664,9 +703,9 @@ body {
 
 .filter-item:has(input:checked) {
     border-color: var(--ucsc-blue);
-    background-color: #f0f7ff;
-    color: var(--ucsc-blue);
-    box-shadow: 0 2px 8px rgba(0, 60, 108, 0.1);
+    background-color: var(--bg-tag);
+    color: var(--text-main);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .filter-item:has(input:checked) .legend-symbol {
@@ -702,11 +741,11 @@ body {
     padding: 10px 12px;
     border-radius: 10px;
     border: 1px solid var(--border-color);
-    background-color: white;
+    background-color: var(--bg-card);
     font-family: 'Inter', sans-serif;
     font-size: 16px;
     font-weight: 600;
-    color: var(--ucsc-blue);
+    color: var(--text-main);
     outline: none;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -721,6 +760,8 @@ body {
 .term-dropdown option {
     padding: 14px;
     min-height: 44px;
+    background: var(--bg-card);
+    color: var(--text-main);
 }
 
 .term-dropdown:hover {
@@ -736,7 +777,7 @@ body {
 }
 
 .course-card {
-    background: #ffffff;
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 10px;
     padding: 10px 12px;
@@ -749,14 +790,14 @@ body {
 }
 
 .course-card:hover {
-    background-color: #ffffff;
+    background-color: var(--bg-card);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .course-card.highlight {
-    background-color: #fefce8;
-    border-color: #facc15;
+    background-color: var(--card-highlight);
+    border-color: var(--ucsc-gold);
 }
 
 .course-card.hidden-offering {
@@ -780,7 +821,7 @@ body {
 .card-info-group h4 {
     font-size: 15px;
     font-weight: 800;
-    color: var(--ucsc-blue);
+    color: var(--text-main);
     letter-spacing: -0.01em;
     line-height: 1.2;
 }
@@ -791,6 +832,10 @@ body {
     margin-top: -8px;
     margin-right: -10px;
     margin-bottom: -8px;
+}
+
+.card-actions .remove-btn {
+    color: var(--text-muted);
 }
 
 .card-body {
@@ -809,7 +854,7 @@ body {
 .course-instructor {
     font-size: 12px;
     font-weight: 600;
-    color: #475569;
+    color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -853,8 +898,8 @@ body {
 
 .sidebar-meeting-tag {
     font-size: 11px;
-    background: #f8fafc;
-    border: 1px solid #f1f5f9;
+    background: var(--bg-tag);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 6px 40px 6px 8px;
     color: var(--text-main);
@@ -865,7 +910,7 @@ body {
 }
 
 .sidebar-meeting-tag:hover {
-    background: #ffffff;
+    background: var(--bg-card);
     border-color: var(--border-color);
 }
 
@@ -879,9 +924,9 @@ body {
 .tag-label {
     font-weight: 800;
     font-size: 9px;
-    color: #475569;
+    color: var(--text-muted);
     text-transform: uppercase;
-    background: #e2e8f0;
+    background: var(--bg-light);
     padding: 1px 4px;
     border-radius: 3px;
 }
@@ -911,7 +956,7 @@ body {
     transform: translateY(-50%);
     background: none;
     border: none;
-    color: #cbd5e1;
+    color: var(--text-muted);
     font-size: 14px;
     cursor: pointer;
     width: 44px;
@@ -948,7 +993,7 @@ body {
 }
 
 .save-btn:hover {
-    background-color: #f1f5f9;
+    background-color: var(--bg-light);
 }
 
 .remove-btn {
@@ -989,7 +1034,7 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: white;
+    background: var(--bg-card);
     padding: 24px;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
@@ -1004,10 +1049,11 @@ body {
     align-items: center;
     justify-content: center;
     gap: 8px;
+    color: var(--text-main);
 }
 
 #location-modal p {
-    color: #64748b;
+    color: var(--text-muted);
     font-size: 0.9rem;
     margin-bottom: 16px;
 }
@@ -1021,15 +1067,16 @@ body {
 .modal-btn-secondary {
     padding: 8px 16px;
     border-radius: 6px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-color);
     cursor: pointer;
-    background: white;
+    background: var(--bg-card);
+    color: var(--text-main);
 }
 
 .modal-btn-primary {
     padding: 8px 16px;
     border-radius: 6px;
-    background: var(--ucsc-blue);
+    background: #003C6C;
     color: white;
     border: none;
     cursor: pointer;
@@ -1124,7 +1171,7 @@ body {
     object-position: center;
     border-radius: 8px;
     margin-bottom: 8px;
-    background-color: #f1f5f9;
+    background-color: var(--bg-light);
     display: block;
 }
 
@@ -1144,12 +1191,12 @@ body {
 }
 
 .iw-offering:hover {
-    background-color: #f1f5f9;
+    background-color: var(--bg-light);
 }
 
 .iw-course-code {
     font-weight: 800;
-    color: #003c6c;
+    color: var(--ucsc-blue);
     margin-bottom: 4px;
     white-space: nowrap;
     overflow: hidden;
@@ -1159,7 +1206,7 @@ body {
 .iw-term-label {
     font-weight: 400;
     font-size: 0.9em;
-    color: #64748b;
+    color: var(--text-muted);
 }
 
 .iw-badge-icon {
@@ -1168,11 +1215,11 @@ body {
 }
 
 .meeting-card {
-    background-color: #f8fafc;
+    background-color: var(--bg-tag);
     border-radius: 6px;
     padding: 6px 8px;
     margin-top: 5px;
-    border: 1px solid #f1f5f9;
+    border: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -1204,7 +1251,7 @@ body {
 .room-number-badge {
     font-size: 11px;
     font-weight: 800;
-    color: var(--ucsc-blue);
+    color: #003c6c;
     background: #e0f2fe;
     padding: 2px 6px;
     border-radius: 4px;
@@ -1240,6 +1287,79 @@ body {
     flex-shrink: 0;
 }
 
+/* --- Dark Mode Overrides --- */
+[data-theme='dark'] .gm-style-iw-c {
+    background-color: var(--bg-card) !important;
+    padding: 0 !important;
+}
+
+[data-theme='dark'] .gm-style-iw-tc::after {
+    background-color: var(--bg-card) !important;
+}
+
+[data-theme='dark'] .gm-ui-hover-effect {
+    background: none !important;
+    opacity: 0.7 !important;
+}
+
+[data-theme='dark'] .gm-ui-hover-effect:hover {
+    opacity: 1 !important;
+}
+
+[data-theme='dark'] .gm-ui-hover-effect span {
+    background-color: #ffffff !important;
+}
+
+[data-theme='dark'] .remove-btn {
+    opacity: 0.8;
+    color: var(--text-main) !important;
+}
+
+[data-theme='dark'] .remove-btn:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444 !important;
+    opacity: 1;
+}
+
+[data-theme='dark'] .tag-remove-btn {
+    color: var(--text-main) !important;
+    opacity: 0; /* Align with light mode hover behavior */
+}
+
+[data-theme='dark'] .tag-remove-btn:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444 !important;
+    opacity: 1;
+}
+
+[data-theme='dark'] .sidebar-meeting-tag:hover .tag-remove-btn {
+    opacity: 0.6; /* Align with light mode hover behavior */
+}
+
+[data-theme='dark'] .sidebar-meeting-tag:hover .tag-remove-btn:hover {
+    opacity: 1;
+}
+
+[data-theme='dark'] .sidebar-meeting-tag {
+    border-color: transparent;
+}
+
+[data-theme='dark'] .meeting-card {
+    border-color: transparent;
+}
+
+[data-theme='dark'] .save-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .text-btn-blue:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .text-btn-red:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
 /* --- Utilities & Animations --- */
 @keyframes shimmer {
     0% { background-position: -200% 0; }
@@ -1248,7 +1368,7 @@ body {
 
 .loading-skeleton {
     width: 100%;
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background: linear-gradient(90deg, var(--skeleton-start) 25%, var(--skeleton-mid) 50%, var(--skeleton-start) 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite linear;
     border-radius: 12px;
@@ -1294,7 +1414,7 @@ body {
 .map-btn {
     width: 44px;
     height: 44px;
-    background: white;
+    background: var(--bg-card);
     border: none;
     border-radius: 6px;
     box-shadow: rgba(0, 0, 0, 0.3) 0px 1px 4px -1px;
@@ -1302,19 +1422,37 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
+    color: var(--text-muted);
     transition: background 0.2s, color 0.2s, box-shadow 0.2s;
     pointer-events: auto;
 }
 
 .map-btn:hover {
-    background: #f4f4f4;
+    background: var(--bg-light);
     color: var(--ucsc-blue);
 }
 
 .map-btn:active {
-    background: #e8f0fe;
+    background: var(--bg-tag);
     box-shadow: rgba(0, 0, 0, 0.3) 0px 1px 4px -1px, inset 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='dark'] .map-btn {
+    background: var(--google-control-bg);
+    color: var(--google-control-icon);
+    box-shadow: rgba(0, 0, 0, 0.3) 0px 1px 4px -1px;
+}
+
+[data-theme='dark'] .map-btn:hover {
+    background: var(--google-control-hover);
+}
+
+[data-theme='dark'] .map-btn-group {
+    box-shadow: rgba(0, 0, 0, 0.3) 0px 1px 4px -1px;
+}
+
+[data-theme='dark'] .map-btn-group .map-btn:not(:last-child) {
+    border-bottom: 1px solid var(--google-control-border);
 }
 
 .map-btn-group .map-btn {
@@ -1341,7 +1479,7 @@ body {
 }
 
 .map-btn-group .map-btn:not(:last-child) {
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .map-btn svg {
