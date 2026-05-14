@@ -147,6 +147,20 @@ const utils = {
         return "M12 2L2 21H22L12 2Z";
     },
 
+    /**
+     * getIcon returns an inline SVG string for common UI symbols
+     */
+    getIcon: function(name, size = 16, color = "currentColor") {
+        const icons = {
+            pin: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; display: inline-block;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`,
+            clock: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; display: inline-block;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
+            star: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><path d="M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z"/></svg>`,
+            square: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><rect x="3" y="3" width="18" height="18"/></svg>`,
+            triangle: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><path d="M12 2L2 21H22L12 2Z"/></svg>`
+        };
+        return icons[name] || "";
+    },
+
     getHeartSvg: function(isSaved) {
         const fill = isSaved ? "#ef4444" : "none";
         const stroke = isSaved ? "#ef4444" : "#64748b";
@@ -275,7 +289,7 @@ function highlightSidebarCard(classNumber, active) {
 function renderMeetingTag(course, m, index, color) {
     const status = utils.getClassStatus(m);
     const cat = utils.getFilterCategory(m.type);
-    const symbol = cat === 'LEC' ? '★' : (cat === 'LAB' ? '■' : '▲');
+    const symbol = cat === 'LEC' ? utils.getIcon('star', 12, color) : (cat === 'LAB' ? utils.getIcon('square', 10, color) : utils.getIcon('triangle', 12, color));
     const displayTime = m.time && m.time.trim() !== "" ? m.time : "TBA";
 
     let locationHtml = `<span class="loc-text" title="${m.building}">${m.building}</span>`;
@@ -484,7 +498,7 @@ function renderSavedList() {
                         <h4>${course.course_code}</h4>
                         <div class="course-instructor" title="${course.instructor}">${course.instructor}</div>
                         <div class="course-term-tag">${utils.getTermName(course.term)}</div>
-                        <div class="course-card-time">🕒 ${timeStr}</div>
+                        <div class="course-card-time">${utils.getIcon('clock', 12)} ${timeStr}</div>
                     </div>
                     <div class="card-actions">
                         <button class="save-btn save-toggle" data-class="${course.class_number}">
@@ -596,7 +610,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
                         <div class="room-number-badge">Rm ${roomStr}</div>
                     </div>
                     <div class="meeting-row-bottom">
-                        <span class="meeting-time-text">🕒 ${timeStr}</span>
+                        <span class="meeting-time-text">${utils.getIcon('clock', 12)} ${timeStr}</span>
                     </div>
                 </div>`;
             });
@@ -611,7 +625,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
     return `<div class="iw-container">
         <div class="iw-header">
             <div class="iw-title-row">
-                <h3 title="${locationGroup.building}">📍 ${locationGroup.building}</h3>
+                <h3 title="${locationGroup.building}">${utils.getIcon('pin', 16, '#003C6C')} ${locationGroup.building}</h3>
                 <button class="iw-directions-btn" onclick="getDirections(${locationGroup.lat}, ${locationGroup.lng})" title="Get Directions">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
                         <path d="M4.5,20 v-11 c0-1.1,0.9-2,2-2 h9 v-3 l6,5 l-6,5 v-3 h-7.5 v6.5 H4.5 z"/>
@@ -771,7 +785,7 @@ function renderSearchPreview() {
                             <span class="preview-course-instructor" title="${offering.instructor}">${offering.instructor}</span>
                             <span class="preview-course-id">#${cn}</span>
                         </div>
-                        <div class="preview-sub-meta">🕒 ${lecMeet ? lecMeet.time : "TBA"}</div>
+                        <div class="preview-sub-meta">${utils.getIcon('clock', 12)} ${lecMeet ? lecMeet.time : "TBA"}</div>
                     </div>
                     <div class="header-action-container">
                         <button class="preview-commit-btn commit-select-btn" data-class="${cn}">Add to Map</button>
@@ -1425,6 +1439,12 @@ async function initializeGoogleServices() {
  * initMap entry point for Google Maps API
  */
 async function initMap() {
+    // Inject visual icons into the modal before starting
+    const modalTitle = document.getElementById("modal-title");
+    if (modalTitle) {
+        modalTitle.insertAdjacentHTML('afterbegin', utils.getIcon('pin', 20, '#003C6C') + ' ');
+    }
+
     await populateTerms();
     setupSearchUI();
     setupMapControls();
