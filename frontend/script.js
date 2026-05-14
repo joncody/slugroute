@@ -38,6 +38,8 @@ let savedCourses = JSON.parse(localStorage.getItem("slugroute_saved")) || [];
 let AdvancedMarkerElement;
 let suggestionTimeout;
 let startMarker = null;
+let currentDestination = null;
+let lastRoute = null;
 let isChoosingLocation = false;
 let directionsService;
 let directionsRenderer;
@@ -961,7 +963,7 @@ function smartFitBounds(bounds) {
     } else {
         // Standard logic for multiple meetings (e.g. CSE 30)
         const padding = {
-            top: 100,
+            top: 50,
             right: 100,
             bottom: 50,
             left: (isSidebarOpen && !isMobile) ? 550 : 50
@@ -1143,6 +1145,8 @@ function clearResults() {
     if (directionsRenderer) {
         directionsRenderer.setDirections({routes: []});
     }
+    lastRoute = null;
+    currentDestination = null;
     currentOfferings.forEach(function(c) {
         ColorManager.releaseColor(c.class_number);
     });
@@ -1232,8 +1236,13 @@ function updateStartMarker(position, title) {
         activeInfoWindow.close();
         activeInfoWindow = null;
     }
+    if (directionsRenderer) {
+        directionsRenderer.setDirections({routes: []});
+        lastRoute = null;
+    }
     if (startMarker) {
         startMarker.position = position;
+        startMarker.map = map;
     } else {
         const youAreHereDiv = document.createElement('div');
         youAreHereDiv.style.transform = 'translateY(50%)';
@@ -1245,6 +1254,9 @@ function updateStartMarker(position, title) {
             title: title
         });
     }
+    if (currentDestination) {
+        getDirections(currentDestination.lat, currentDestination.lng);
+    }
     map.panTo(position);
     map.setZoom(18);
 }
@@ -1255,6 +1267,8 @@ function updateStartMarker(position, title) {
 function getDirections(lat, lng) {
     directionsRenderer.setDirections({routes: []});
 
+    currentDestination = { lat: parseFloat(lat), lng: parseFloat(lng) };
+
     if (!startMarker) {
         showToast("Please set your starting location first using the GPS or Pin buttons.", "error");
         return;
@@ -1262,12 +1276,13 @@ function getDirections(lat, lng) {
 
     const request = {
         origin: startMarker.position,
-        destination: { lat: parseFloat(lat), lng: parseFloat(lng) },
+        destination: currentDestination,
         travelMode: google.maps.TravelMode.WALKING
     };
 
     directionsService.route(request, function(result, status) {
         if (status === google.maps.DirectionsStatus.OK) {
+            lastRoute = result;
             directionsRenderer.setDirections(result);
             smartFitBounds(result.routes[0].bounds);
 
@@ -1349,6 +1364,9 @@ function setupMapControls() {
 
             if (currentStartPos) {
                 updateStartMarker(currentStartPos, "Starting Point");
+            }
+            if (lastRoute) {
+                directionsRenderer.setDirections(lastRoute);
             }
 
             refreshMapAndUI();
@@ -1450,8 +1468,8 @@ async function initializeGoogleServices() {
         preserveViewport: true,
         polylineOptions: {
             strokeColor: "#4285F4",
-            strokeWeight: 5,
-            strokeOpacity: 0.7
+            strokeWeight: 6,
+            strokeOpacity: 0.8
         }
     });
 
