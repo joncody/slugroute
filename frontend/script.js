@@ -1236,10 +1236,6 @@ function updateStartMarker(position, title) {
         activeInfoWindow.close();
         activeInfoWindow = null;
     }
-    if (directionsRenderer) {
-        directionsRenderer.setDirections({routes: []});
-        lastRoute = null;
-    }
     if (startMarker) {
         startMarker.position = position;
         startMarker.map = map;
@@ -1408,6 +1404,13 @@ function setupMapControls() {
 
     document.getElementById("allow-location-btn").onclick = function() {
         document.getElementById('location-modal').style.display = 'none';
+
+        // Clear existing route state before getting new location
+        if (directionsRenderer) {
+            directionsRenderer.setDirections({routes: []});
+            lastRoute = null;
+        }
+
         navigator.geolocation.getCurrentPosition(function(position) {
             const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
             updateStartMarker(userPos, "Current Location");
@@ -1426,6 +1429,11 @@ function toggleChooseLocationMode() {
     isChoosingLocation = !isChoosingLocation;
     const btn = document.getElementById("choose-location-btn");
     if (isChoosingLocation) {
+        // Clear existing route state when starting manual pin
+        if (directionsRenderer) {
+            directionsRenderer.setDirections({routes: []});
+            lastRoute = null;
+        }
         btn.classList.add("active");
         map.setOptions({ draggableCursor: 'crosshair' });
         showToast("Click anywhere on the map to set your starting point.", "success");
