@@ -3,6 +3,9 @@
  */
 
 const CONFIG = {
+    // NOTE: Routes API requires an explicit API Key for the REST call.
+    // This should match the key used in your script tag.
+    API_KEY: "AIzaSyBwp-UoWjYJ4mz-5IJFqAwZsiTffVRPmKg",
     DEFAULT_TERM: "2262",
     CAMPUS_CENTER: {
         lat: 36.9914,
@@ -41,7 +44,7 @@ let startMarker = null;
 let currentDestination = null;
 let lastRoute = null;
 let isChoosingLocation = false;
-let directionsService;
+// directionsRenderer will now hold a google.maps.Polyline for compatibility with Routes API v2 results
 let directionsRenderer;
 
 /**
@@ -1143,7 +1146,7 @@ function clearResults() {
         activeInfoWindow = null;
     }
     if (directionsRenderer) {
-        directionsRenderer.setDirections({routes: []});
+        directionsRenderer.setPath([]);
     }
     lastRoute = null;
     currentDestination = null;
@@ -1257,8 +1260,10 @@ function updateStartMarker(position, title) {
 /**
  * getDirections calculates a walking route from startMarker to destination
  */
-function getDirections(lat, lng) {
-    directionsRenderer.setDirections({routes: []});
+async function getDirections(lat, lng) {
+    if (directionsRenderer) {
+        directionsRenderer.setPath([]);
+    }
 
     currentDestination = { lat: parseFloat(lat), lng: parseFloat(lng) };
 
@@ -1267,17 +1272,70 @@ function getDirections(lat, lng) {
         return;
     }
 
-    const request = {
-        origin: startMarker.position,
-        destination: currentDestination,
-        travelMode: google.maps.TravelMode.WALKING
+    const requestBody = {
+        origin: {
+            location: {
+                latLng: {
+                    latitude: startMarker.position.lat,
+                    longitude: startMarker.position.lng
+                }
+            }
+        },
+        destination: {
+            location: {
+                latLng: {
+                    latitude: currentDestination.lat,
+                    longitude: currentDestination.lng
+                }
+            }
+        },
+        travelMode: "WALK",
+        computeAlternativeRoutes: false,
+        routeModifiers: {
+            avoidTolls: false,
+            avoidHighways: false,
+            avoidFerries: false
+        }
     };
 
-    directionsService.route(request, function(result, status) {
-        if (status === google.maps.DirectionsStatus.OK) {
-            lastRoute = result;
-            directionsRenderer.setDirections(result);
-            smartFitBounds(result.routes[0].bounds);
+    try {
+        const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': CONFIG.API_KEY,
+                'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.polyline,routes.legs,routes.viewport'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+
+        if (data.routes && data.routes.length > 0) {
+            const route = data.routes[0];
+            lastRoute = route;
+
+            // 1. Decode the snapped path from Google
+            const snappedPath = google.maps.geometry.encoding.decodePath(route.polyline.encodedPolyline);
+
+            // 2. Prepend the marker and append the destination
+            // This forces the blue line to touch your marker and the building star.
+            const fullPath = [
+                startMarker.position, // Actual blue dot location
+                ...snappedPath,       // The route on the road/path
+                currentDestination    // Actual building location
+            ];
+
+            // 3. Set the path with the new connectors
+            directionsRenderer.setPath(fullPath);
+
+            const viewport = route.viewport;
+            const bounds = new google.maps.LatLngBounds(
+                { lat: viewport.low.latitude, lng: viewport.low.longitude },
+                { lat: viewport.high.latitude, lng: viewport.high.longitude }
+            );
+
+            smartFitBounds(bounds);
 
             if (window.innerWidth < 768) {
                 document.getElementById("sidebar").classList.add("closed");
@@ -1285,7 +1343,10 @@ function getDirections(lat, lng) {
         } else {
             showToast("Could not find a walking route to this building.", "error");
         }
-    });
+    } catch (err) {
+        console.error("Routes API Error:", err);
+        showToast("Error connecting to the routing service.", "error");
+    }
 }
 
 /**
@@ -1359,7 +1420,9 @@ function setupMapControls() {
                 updateStartMarker(currentStartPos, "Starting Point");
             }
             if (lastRoute) {
-                directionsRenderer.setDirections(lastRoute);
+                // Re-render the existing path on the new map theme
+                const decodedPath = google.maps.geometry.encoding.decodePath(lastRoute.polyline.encodedPolyline);
+                directionsRenderer.setPath(decodedPath);
             }
 
             refreshMapAndUI();
@@ -1388,7 +1451,7 @@ function setupMapControls() {
         map.setZoom(CONFIG.ZOOM.CAMPUS);
         map.panTo(CONFIG.CAMPUS_CENTER);
         if (directionsRenderer) {
-            directionsRenderer.setDirections({routes: []});
+            directionsRenderer.setPath([]);
             lastRoute = null;
             currentDestination = null;
         }
@@ -1407,7 +1470,7 @@ function setupMapControls() {
 
         // Clear existing route state before getting new location
         if (directionsRenderer) {
-            directionsRenderer.setDirections({routes: []});
+            directionsRenderer.setPath([]);
             lastRoute = null;
         }
 
@@ -1431,7 +1494,7 @@ function toggleChooseLocationMode() {
     if (isChoosingLocation) {
         // Clear existing route state when starting manual pin
         if (directionsRenderer) {
-            directionsRenderer.setDirections({routes: []});
+            directionsRenderer.setPath([]);
             lastRoute = null;
         }
         btn.classList.add("active");
@@ -1450,6 +1513,9 @@ async function initializeGoogleServices() {
     const { Map } = await google.maps.importLibrary("maps");
     const markerLib = await google.maps.importLibrary("marker");
     const { ColorScheme } = await google.maps.importLibrary("core");
+    // Import geometry library for polyline decoding
+    await google.maps.importLibrary("geometry");
+
     AdvancedMarkerElement = markerLib.AdvancedMarkerElement;
 
     const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -1468,16 +1534,16 @@ async function initializeGoogleServices() {
         fullscreenControl: false
     });
 
-    directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({
+    // directionsRenderer is now a Polyline instance to render Routes API v2 paths
+    directionsRenderer = new google.maps.Polyline({
         map: map,
-        suppressMarkers: true,
-        preserveViewport: true,
-        polylineOptions: {
-            strokeColor: "#4285F4",
-            strokeWeight: 6,
-            strokeOpacity: 0.8
-        }
+        strokeColor: "#4285F4",
+        strokeWeight: 6,
+        strokeOpacity: 0.8,
+        icons: [{
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 3, fillOpacity: 1 },
+            offset: '100%'
+        }]
     });
 
     map.addListener("click", function(e) {
