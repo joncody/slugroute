@@ -313,7 +313,7 @@ function renderMeetingTag(course, m, index, color) {
                     ${locationHtml}
                 </div>
                 <div class="tag-bottom">
-                    <span class="tag-time">${displayTime}</span>
+                    <span class="tag-time">${utils.getIcon('clock', 11)} ${displayTime}</span>
                 </div>
             </div>
             <button class="tag-remove-btn" title="Remove Section" data-class="${course.class_number}" data-index="${index}">✕</button>
@@ -560,7 +560,7 @@ function groupDataByLocation(offerings) {
             }
 
             if (!locationMap[locKey].offerings[offering.class_number]) {
-                locationMap[locKey].offerings[offering.class_number] = {
+                locationMap[locationKey].offerings[offering.class_number] = {
                     courseCode: offering.course_code,
                     term: offering.term,
                     color: classColor,
