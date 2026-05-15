@@ -963,7 +963,7 @@ function smartFitBounds(bounds) {
     } else {
         // Standard logic for multiple meetings (e.g. CSE 30)
         const padding = {
-            top: 50,
+            top: 75,
             right: 100,
             bottom: 50,
             left: (isSidebarOpen && !isMobile) ? 550 : 50
