@@ -560,7 +560,7 @@ function groupDataByLocation(offerings) {
             }
 
             if (!locationMap[locKey].offerings[offering.class_number]) {
-                locationMap[locationKey].offerings[offering.class_number] = {
+                locationMap[locKey].offerings[offering.class_number] = {
                     courseCode: offering.course_code,
                     term: offering.term,
                     color: classColor,
