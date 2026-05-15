@@ -1290,7 +1290,6 @@ body {
 /* --- Dark Mode Overrides --- */
 [data-theme='dark'] .gm-style-iw-c {
     background-color: var(--bg-card) !important;
-    padding: 0 !important;
 }
 
 [data-theme='dark'] .gm-style-iw-tc::after {
