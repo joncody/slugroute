@@ -1254,9 +1254,6 @@ function updateStartMarker(position, title) {
             title: title
         });
     }
-    if (currentDestination) {
-        getDirections(currentDestination.lat, currentDestination.lng);
-    }
     map.panTo(position);
     map.setZoom(18);
 }
@@ -1396,6 +1393,8 @@ function setupMapControls() {
         map.panTo(CONFIG.CAMPUS_CENTER);
         if (directionsRenderer) {
             directionsRenderer.setDirections({routes: []});
+            lastRoute = null;
+            currentDestination = null;
         }
     };
 
