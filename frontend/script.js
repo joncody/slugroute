@@ -917,6 +917,7 @@ function commitSelection(classNum) {
         localStorage.setItem("slugroute_saved", JSON.stringify(savedCourses));
     }
 
+    document.getElementById("course-input").value = "";
     document.getElementById("search-preview").style.display = "none";
     refreshMapAndUI();
     focusClass(classNum);
@@ -966,7 +967,7 @@ function smartFitBounds(bounds) {
     } else {
         // Standard logic for multiple meetings (e.g. CSE 30)
         const padding = {
-            top: 75,
+            top: 100,
             right: 100,
             bottom: 50,
             left: (isSidebarOpen && !isMobile) ? 550 : 50
@@ -1410,6 +1411,7 @@ function setupMapControls() {
             const currentCenter = map.getCenter();
             const currentZoom = map.getZoom();
             const currentStartPos = startMarker ? startMarker.position : null;
+            const currentDestPos = currentDestination; // Preserve destination literal
 
             await initializeGoogleServices();
 
@@ -1419,10 +1421,16 @@ function setupMapControls() {
             if (currentStartPos) {
                 updateStartMarker(currentStartPos, "Starting Point");
             }
-            if (lastRoute) {
-                // Re-render the existing path on the new map theme
-                const decodedPath = google.maps.geometry.encoding.decodePath(lastRoute.polyline.encodedPolyline);
-                directionsRenderer.setPath(decodedPath);
+
+            if (lastRoute && currentDestPos && currentStartPos) {
+                // Re-render the existing path on the new map theme including custom connectors
+                const snappedPath = google.maps.geometry.encoding.decodePath(lastRoute.polyline.encodedPolyline);
+                const fullPath = [
+                    currentStartPos,
+                    ...snappedPath,
+                    currentDestPos
+                ];
+                directionsRenderer.setPath(fullPath);
             }
 
             refreshMapAndUI();
@@ -1521,7 +1529,8 @@ async function initializeGoogleServices() {
     const currentTheme = document.documentElement.getAttribute('data-theme');
     const targetScheme = currentTheme === 'dark' ? ColorScheme.DARK : ColorScheme.LIGHT;
 
-    map = new Map(document.getElementById("map"), {
+    const mapElement = document.getElementById("map");
+    map = new Map(mapElement, {
         center: CONFIG.CAMPUS_CENTER,
         zoom: CONFIG.ZOOM.CAMPUS,
         mapId: CONFIG.MAP_ID,
@@ -1533,6 +1542,10 @@ async function initializeGoogleServices() {
         streetViewControl: false,
         fullscreenControl: false
     });
+
+    // Disable browser focus ring on the map container
+    mapElement.style.outline = "none";
+    mapElement.setAttribute("tabindex", "-1");
 
     // directionsRenderer is now a Polyline instance to render Routes API v2 paths
     directionsRenderer = new google.maps.Polyline({
