@@ -14,7 +14,7 @@ const (
 	queryFetchOfferings = `
 		SELECT 
 			c.class_number, c.course_code, c.term, c.title, 
-			l.instructor, l.days, l.times, l.building, l.room_number, 
+			IFNULL(l.instructor, ''), IFNULL(l.days, ''), IFNULL(l.times, ''), IFNULL(l.building, ''), IFNULL(l.room_number, ''), 
 			IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
 		FROM courses c
 		JOIN lectures l ON c.class_number = l.class_number AND c.term = l.term
@@ -24,7 +24,7 @@ const (
 
 	queryAttachSections = `
 		SELECT 
-			s.section_type, s.instructor, s.days, s.times, s.building, s.room_number,
+			IFNULL(s.section_type, ''), IFNULL(s.instructor, ''), IFNULL(s.days, ''), IFNULL(s.times, ''), IFNULL(s.building, ''), IFNULL(s.room_number, ''),
 			IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
 		FROM sections s
 		LEFT JOIN buildings b ON UPPER(TRIM(s.building)) = UPPER(TRIM(b.name))

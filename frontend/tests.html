@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SlugRoute JS Unit Tests</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.5; background: #f8fafc; }
+        .test-case { margin-bottom: 10px; padding: 10px; border-left: 5px solid #ccc; background: white; }
+        .pass { border-color: #10b981; }
+        .fail { border-color: #ef4444; color: #b91c1c; }
+        h1 { color: #003C6C; }
+        .summary { font-weight: bold; margin-bottom: 20px; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+    <h1>SlugRoute JavaScript Unit Tests</h1>
+    <div id="summary" class="summary">Running tests...</div>
+    <div id="results"></div>
+
+    <script>
+        // Mocks for Google Maps and configuration dependencies
+        window.google = { maps: { SymbolPath: { CIRCLE: 0 } } };
+        window.localStorage = { 
+            data: {},
+            getItem: (k) => window.localStorage.data[k] || null, 
+            setItem: (k, v) => window.localStorage.data[k] = v 
+        };
+    </script>
+    <script src="script.js"></script>
+    <script>
+        const resultsContainer = document.getElementById('results');
+        const summaryContainer = document.getElementById('summary');
+        let passed = 0;
+        let total = 0;
+
+        function assert(name, condition) {
+            total++;
+            const div = document.createElement('div');
+            div.className = 'test-case ' + (condition ? 'pass' : 'fail');
+            div.textContent = (condition ? '✓ ' : '✗ ') + name;
+            resultsContainer.appendChild(div);
+            if (condition) passed++;
+        }
+
+        function runTests() {
+            // --- Utils Tests ---
+            assert("formatCourseCode trims and uppercases", utils.formatCourseCode(" cse101 ") === "CSE 101");
+            assert("getFilterCategory LBS -> LAB", utils.getFilterCategory("LBS") === "LAB");
+            assert("getClassStatus detects Online", utils.getClassStatus({building: "Online Instruction"}) === "ONLINE");
+            assert("getTermName Winter 2026", utils.getTermName("2260") === "Winter 2026");
+
+            // --- ColorManager Tests ---
+            const c1 = ColorManager.getColor("10001");
+            const c2 = ColorManager.getColor("10001");
+            assert("ColorManager returns same color for same ID", c1 === c2);
+            
+            const c3 = ColorManager.getColor("20002");
+            assert("ColorManager returns different color for different ID", c1 !== c3);
+
+            // --- groupDataByLocation Tests (Clustering logic) ---
+            const mockOfferings = [
+                {
+                    class_number: "111",
+                    course_code: "TEST 1",
+                    visible: true,
+                    meetings: [{ type: "LEC", lat: 37.1, lng: -122.1, building: "Bld A" }]
+                },
+                {
+                    class_number: "222",
+                    course_code: "TEST 2",
+                    visible: true,
+                    meetings: [{ type: "LAB", lat: 37.1, lng: -122.1, building: "Bld A" }]
+                }
+            ];
+            
+            const grouped = groupDataByLocation(mockOfferings);
+            const key = "37.1,-122.1";
+            
+            assert("Clustering: groups different courses at same lat/lng", grouped[key] !== undefined);
+            assert("Clustering: count of total meetings is correct", grouped[key].totalMeetings === 2);
+            assert("Clustering: identifies highest priority (LEC)", grouped[key].highestPriorityType === "LEC");
+
+            summaryContainer.textContent = `Results: ${passed} / ${total} tests passed.`;
+            summaryContainer.style.color = passed === total ? '#059669' : '#ef4444';
+        }
+
+        window.onload = runTests;
+    </script>
+</body>
+</html>
