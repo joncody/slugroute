@@ -276,17 +276,50 @@ function createMarkerElement(type, color, count = 1) {
 }
 
 /**
- * highlightSidebarCard visually highlights a card in the results sidebar
+ * highlightSidebarCard visually highlights a card in the results sidebar and map InfoWindow
  */
-function highlightSidebarCard(classNumber, active) {
-    const el = document.getElementById(`card-${classNumber}`);
-    if (el) {
-        if (active) {
-            el.classList.add('highlight');
+function highlightSidebarCard(classNumber, active, meetingIndex = null) {
+    const sidebarEl = document.getElementById(`card-${classNumber}`);
+    const iwEl = document.querySelector(`.iw-offering[data-class="${classNumber}"]`);
+
+    const updateElement = (el) => {
+        if (!el) return;
+
+        if (meetingIndex === null) {
+            // Course-level toggle
+            if (active) {
+                el.classList.add('highlight');
+            } else {
+                el.classList.remove('highlight');
+                // Cleanup child meeting highlights if we are deactivating the whole card
+                el.querySelectorAll('.highlight').forEach(node => node.classList.remove('highlight'));
+            }
         } else {
-            el.classList.remove('highlight');
+            // Subsection-level toggle
+            const selector = el.classList.contains('course-card')
+                ? `.sidebar-meeting-tag[data-index="${meetingIndex}"]`
+                : `.iw-meeting-card[data-index="${meetingIndex}"]`;
+
+            const tag = el.querySelector(selector);
+            if (tag) {
+                if (active) {
+                    tag.classList.add('highlight');
+                } else {
+                    tag.classList.remove('highlight');
+                }
+            }
+
+            // If entering a section, ensure parent is highlighted.
+            // If leaving a section, we do NOT remove parent highlight
+            // (parent's onmouseleave will handle that when the whole offering is left).
+            if (active) {
+                el.classList.add('highlight');
+            }
         }
-    }
+    };
+
+    updateElement(sidebarEl);
+    updateElement(iwEl);
 }
 
 /**
@@ -308,7 +341,7 @@ function renderMeetingTag(course, m, index, color) {
     }
 
     return `
-        <div class="sidebar-meeting-tag" style="--accent-color: ${color}">
+        <div class="sidebar-meeting-tag" style="--accent-color: ${color}" data-class="${course.class_number}" data-index="${index}">
             <div class="tag-content">
                 <div class="tag-top">
                     <span class="tag-symbol" style="color: ${color}">${symbol}</span>
@@ -350,10 +383,12 @@ function renderSearchList() {
             <div class="course-card ${!isVisible ? 'hidden-offering' : ''}" id="card-${course.class_number}" data-class="${course.class_number}" style="--accent-color: ${isVisible ? color : '#e2e8f0'}">
                 <div class="card-header">
                     <div class="card-info-group">
-                        <h4>${course.course_code}</h4>
+                        <div class="card-title-row" title="${course.course_code}, #${course.class_number}">
+                            <h4>${course.course_code}</h4>
+                            <span class="course-id-tag">#${course.class_number}</span>
+                        </div>
                         <div class="course-meta-row">
                             <span class="course-instructor" title="${course.instructor}">${course.instructor}</span>
-                            <span class="course-id-tag">#${course.class_number}</span>
                         </div>
                         <div class="course-term-tag">${utils.getTermName(course.term)}</div>
                     </div>
@@ -378,7 +413,7 @@ function renderSearchList() {
 }
 
 /**
- * setupSidebarDelegation handles all clicks in sidebar containers
+ * setupSidebarDelegation handles all clicks and bidirectional hover highlighting in sidebars
  */
 function setupSidebarDelegation() {
     const containers = [
@@ -423,9 +458,31 @@ function setupSidebarDelegation() {
                 return;
             }
 
+            const tag = target.closest('.sidebar-meeting-tag');
+            if (tag) {
+                e.stopPropagation();
+                focusClass(tag.dataset.class, parseInt(tag.dataset.index));
+                return;
+            }
+
             const card = target.closest('.course-card');
             if (card) {
                 config.handler(card.dataset.class);
+            }
+        };
+
+        // Bidirectional hover listeners for sidebar -> map InfoWindow
+        el.onmouseover = function(e) {
+            const card = e.target.closest('.course-card');
+            if (card) {
+                highlightSidebarCard(card.dataset.class, true);
+            }
+        };
+
+        el.onmouseout = function(e) {
+            const card = e.target.closest('.course-card');
+            if (card) {
+                highlightSidebarCard(card.dataset.class, false);
             }
         };
     });
@@ -501,7 +558,10 @@ function renderSavedList() {
             <div class="course-card saved-item-card" data-class="${course.class_number}" style="--accent-color: ${color}">
                 <div class="card-header">
                     <div class="card-info-group">
-                        <h4>${course.course_code}</h4>
+                        <div class="card-title-row" title="${course.course_code}, #${course.class_number}">
+                            <h4>${course.course_code}</h4>
+                            <span class="course-id-tag">#${course.class_number}</span>
+                        </div>
                         <div class="course-instructor" title="${course.instructor}">${course.instructor}</div>
                         <div class="course-term-tag">${utils.getTermName(course.term)}</div>
                         <div class="course-card-time">${utils.getIcon('clock', 12)} ${timeStr}</div>
@@ -529,7 +589,7 @@ function groupDataByLocation(offerings) {
         }
 
         const classColor = ColorManager.getColor(offering.class_number);
-        offering.meetings.forEach(function(meet) {
+        offering.meetings.forEach(function(meet, mIndex) {
             if (!meet.lat || meet.lat === 0 || isNaN(meet.lat)) {
                 return;
             }
@@ -570,7 +630,8 @@ function groupDataByLocation(offerings) {
                     meetings: []
                 };
             }
-            locationMap[locKey].offerings[offering.class_number].meetings.push(meet);
+            // Track original index for bidirectional highlight sync
+            locationMap[locKey].offerings[offering.class_number].meetings.push({ ...meet, originalIndex: mIndex });
         });
     });
     return locationMap;
@@ -603,7 +664,7 @@ function buildInfoWindowHtml(locationGroup, activeFilters) {
                 const roomStr = m.room_number ? `${m.room_number}` : "TBA";
                 const timeStr = m.time || "TBA";
 
-                offeringsHtml += `<div class="meeting-card">
+                offeringsHtml += `<div class="meeting-card iw-meeting-card" data-class="${classNum}" data-index="${m.originalIndex}">
                     <div class="meeting-row-top">
                         <div class="meeting-identity">
                             <span class="type-badge">
@@ -988,7 +1049,7 @@ function smartFitBounds(bounds) {
     }
 }
 
-function focusClass(classNumber) {
+function focusClass(classNumber, meetingIndex = null) {
     const offering = currentOfferings.find(function(o) {
         return o.class_number === classNumber;
     });
@@ -1011,18 +1072,32 @@ function focusClass(classNumber) {
         return;
     }
 
-    validMeetings.forEach(function(m) {
-        bounds.extend({ lat: m.lat, lng: m.lng });
-    });
+    // Zoom in on one particular section if specified
+    if (meetingIndex !== null && offering.meetings[meetingIndex]) {
+        const m = offering.meetings[meetingIndex];
+        if (m.lat && m.lat !== 0) {
+            bounds.extend({ lat: m.lat, lng: m.lng });
+        } else {
+            // Fallback to all sections if that specific one is online/TBA
+            validMeetings.forEach(function(m) {
+                bounds.extend({ lat: m.lat, lng: m.lng });
+            });
+        }
+    } else {
+        // Default: fit all sections for the card
+        validMeetings.forEach(function(m) {
+            bounds.extend({ lat: m.lat, lng: m.lng });
+        });
+    }
 
     smartFitBounds(bounds);
 
     const sidebarElement = document.getElementById(`card-${classNumber}`);
     if (sidebarElement) {
         sidebarElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        highlightSidebarCard(classNumber, true);
+        highlightSidebarCard(classNumber, true, meetingIndex);
         setTimeout(function() {
-            highlightSidebarCard(classNumber, false);
+            highlightSidebarCard(classNumber, false, meetingIndex);
         }, 2000);
     }
 
@@ -1050,6 +1125,20 @@ function updateMarkers() {
             activeInfoWindow = null;
         }
     });
+
+    // Refresh existing InfoWindow content if it's still attached to a visible marker
+    if (activeInfoWindow) {
+        const anchor = activeInfoWindow.getAnchor();
+        if (anchor && anchor.map) {
+            const content = buildInfoWindowHtml(anchor.locationGroup, activeFilters);
+            if (!content) {
+                activeInfoWindow.close();
+                activeInfoWindow = null;
+            } else {
+                activeInfoWindow.setContent(content);
+            }
+        }
+    }
 }
 
 /**
@@ -1101,6 +1190,7 @@ function refreshMapAndUI(shouldFitBounds = true) {
         });
 
         marker.categories = group.filterCategories;
+        marker.locationGroup = group;
         marker.addListener("click", function() {
             const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
                 return cb.value;
@@ -1128,6 +1218,22 @@ function refreshMapAndUI(shouldFitBounds = true) {
                     };
                     el.onclick = function() {
                         focusClass(this.dataset.class);
+                    };
+                });
+
+                const iwMeetingCards = document.querySelectorAll('.iw-meeting-card');
+                iwMeetingCards.forEach(function(el) {
+                    el.onmouseenter = function(e) {
+                        e.stopPropagation();
+                        highlightSidebarCard(this.dataset.class, true, parseInt(this.dataset.index));
+                    };
+                    el.onmouseleave = function(e) {
+                        e.stopPropagation();
+                        highlightSidebarCard(this.dataset.class, false, parseInt(this.dataset.index));
+                    };
+                    el.onclick = function(e) {
+                        e.stopPropagation();
+                        focusClass(this.dataset.class, parseInt(this.dataset.index));
                     };
                 });
             });
@@ -1571,10 +1677,6 @@ async function initializeGoogleServices() {
         streetViewControl: false,
         fullscreenControl: false
     });
-
-    // Disable browser focus ring on the map container
-    mapElement.style.outline = "none";
-    mapElement.setAttribute("tabindex", "-1");
 
     // directionsRenderer is now a Polyline instance to render Routes API v2 paths
     directionsRenderer = new google.maps.Polyline({

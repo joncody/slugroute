@@ -7,12 +7,13 @@
     --ucsc-blue: #003C6C;
     --ucsc-gold: #F1B82D;
     --bg-light: #f8fafc;
-    --bg-card: #ffffff;
+    --bg-card: #f1f5f9;
+    --bg-card-hover: #ffffff;
     --bg-navbar: #003C6C;
-    --bg-sidebar: #ffffff;
+    --bg-sidebar: #e2e8f0;
     --bg-input: rgba(255, 255, 255, 0.15);
     --bg-tag: #f8fafc;
-    --border-color: #e2e8f0;
+    --border-color: #cbd5e1;
     --text-main: #1e293b;
     --text-muted: #64748b;
     --text-navbar: #ffffff;
@@ -21,7 +22,8 @@
     --accent-color: transparent;
     --success-green: #059669;
     --error-red: #ef4444;
-    --card-highlight: #fefce8;
+    --card-highlight: #f8fafc;
+    --card-shadow-hover: rgba(0, 0, 0, 0.12);
     --skeleton-start: #f0f0f0;
     --skeleton-mid: #e0e0e0;
 }
@@ -29,6 +31,7 @@
 [data-theme='dark'] {
     --bg-light: #0f172a;
     --bg-card: #1e293b;
+    --bg-card-hover: #2d394d;
     --bg-navbar: #020617;
     --bg-sidebar: #0f172a;
     --bg-input: rgba(255, 255, 255, 0.1);
@@ -36,10 +39,11 @@
     --border-color: #334155;
     --text-main: #f1f5f9;
     --text-muted: #94a3b8;
-    --card-highlight: #334155;
+    --card-highlight: #0f172a;
+    --card-shadow-hover: rgba(0, 0, 0, 0.5);
     --skeleton-start: #1e293b;
     --skeleton-mid: #334155;
-    --ucsc-blue: #bae6fd; /* Lighten brand blue for readability on dark */
+    --ucsc-blue: #bae6fd;
     /* Native Google Dark UI Overrides */
     --google-control-bg: #3c4043;
     --google-control-hover: #4c5053;
@@ -608,6 +612,7 @@ body {
     justify-content: space-between;
     align-items: center;
     min-height: 44px;
+    padding-right: 4px;
 }
 
 .sidebar-section h3 {
@@ -712,6 +717,16 @@ body {
     color: var(--ucsc-gold);
 }
 
+[data-theme='dark'] .filter-item:hover {
+    background-color: var(--bg-card-hover);
+}
+
+[data-theme='dark'] .filter-item:has(input:checked) {
+    background-color: var(--bg-card-hover);
+    color: var(--text-main);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
 .legend-symbol {
     font-size: 16px;
     color: var(--text-muted);
@@ -783,21 +798,21 @@ body {
     padding: 10px 12px;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
     display: flex;
     flex-direction: column;
     border-left: 4px solid var(--accent-color);
+    position: relative;
 }
 
 .course-card:hover {
-    background-color: var(--bg-card);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    background-color: var(--bg-card-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px var(--card-shadow-hover);
 }
 
 .course-card.highlight {
-    background-color: var(--card-highlight);
-    border-color: var(--ucsc-gold);
+    background-color: var(--bg-card-hover);
 }
 
 .course-card.hidden-offering {
@@ -816,6 +831,15 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.card-title-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: baseline;
+    width: 100%;
 }
 
 .card-info-group h4 {
@@ -824,14 +848,36 @@ body {
     color: var(--text-main);
     letter-spacing: -0.01em;
     line-height: 1.2;
+    white-space: nowrap;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .card-actions {
     display: flex;
     flex-direction: row;
-    margin-top: -8px;
-    margin-right: -10px;
+    margin-top: -10px;
+    margin-right: -12px;
     margin-bottom: -8px;
+    gap: 0;
+}
+
+.card-actions .save-btn, .card-actions .remove-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    height: 44px;
+    width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0;
+    transition: all 0.15s;
+}
+
+.result-remove {
+    border-top-right-radius: 9px !important;
 }
 
 .card-actions .remove-btn {
@@ -858,15 +904,20 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 140px;
-    display: inline-block;
+    max-width: 100%;
+    display: block;
 }
 
 .course-id-tag {
     font-size: 11px;
     font-weight: 400;
     color: var(--text-muted);
-    flex-shrink: 0;
+    margin-left: 8px;
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .course-term-tag {
@@ -898,7 +949,7 @@ body {
 
 .sidebar-meeting-tag {
     font-size: 11px;
-    background: var(--bg-tag);
+    background: transparent;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 6px 40px 6px 8px;
@@ -907,10 +958,10 @@ body {
     flex-direction: column;
     position: relative;
     transition: all 0.15s ease;
+    cursor: pointer;
 }
 
-.sidebar-meeting-tag:hover {
-    background: var(--bg-card);
+.sidebar-meeting-tag:hover, .sidebar-meeting-tag.highlight {
     border-color: var(--border-color);
 }
 
@@ -954,25 +1005,26 @@ body {
 
 .tag-remove-btn {
     position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
+    right: -1px;
+    top: -1px;
+    bottom: -1px;
     background: none;
     border: none;
     color: var(--text-muted);
     font-size: 14px;
     cursor: pointer;
     width: 44px;
-    height: 44px;
+    height: auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
     opacity: 0;
     transition: all 0.2s;
 }
 
-.sidebar-meeting-tag:hover .tag-remove-btn {
+.sidebar-meeting-tag:hover .tag-remove-btn, .sidebar-meeting-tag.highlight .tag-remove-btn {
     opacity: 1;
 }
 
@@ -982,17 +1034,8 @@ body {
 }
 
 /* --- Control Buttons (44x44 Targets) --- */
-.save-btn, .remove-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    height: 44px;
-    width: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    transition: all 0.15s;
+.result-remove {
+    opacity: 1 !important;
 }
 
 .save-btn:hover {
@@ -1004,7 +1047,7 @@ body {
 }
 
 .remove-btn:hover {
-    opacity: 1;
+    opacity: 1 !important;
     background: #fee2e2;
     color: var(--error-red);
 }
@@ -1086,6 +1129,14 @@ body {
 }
 
 /* --- Map / InfoWindow UI --- */
+.gm-style-iw-c {
+    background-color: var(--bg-sidebar) !important;
+}
+
+.gm-style-iw-tc::after {
+    background-color: var(--bg-sidebar) !important;
+}
+
 .marker-wrapper {
     line-height: 0;
 }
@@ -1185,16 +1236,18 @@ body {
 }
 
 .iw-offering {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
     border-left: 4px solid var(--accent-color);
-    padding: 4px 0 4px 10px;
+    border-radius: 10px;
+    padding: 10px 12px;
     cursor: pointer;
     margin-top: 12px;
-    transition: background-color 0.2s;
-    border-radius: 4px;
+    transition: background-color 0.3s;
 }
 
-.iw-offering:hover {
-    background-color: var(--bg-light);
+.iw-offering:hover, .iw-offering.highlight {
+    background-color: var(--bg-card-hover);
 }
 
 .iw-course-code {
@@ -1217,8 +1270,8 @@ body {
     margin-right: 4px;
 }
 
-.meeting-card {
-    background-color: var(--bg-tag);
+.iw-meeting-card {
+    background-color: transparent;
     border-radius: 6px;
     padding: 6px 8px;
     margin-top: 5px;
@@ -1226,6 +1279,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    transition: border-color 0.2s;
 }
 
 .meeting-row-top {
@@ -1292,11 +1346,11 @@ body {
 
 /* --- Dark Mode Overrides --- */
 [data-theme='dark'] .gm-style-iw-c {
-    background-color: var(--bg-card) !important;
+    background-color: var(--bg-sidebar) !important;
 }
 
 [data-theme='dark'] .gm-style-iw-tc::after {
-    background-color: var(--bg-card) !important;
+    background-color: var(--bg-sidebar) !important;
 }
 
 [data-theme='dark'] .gm-ui-hover-effect {
@@ -1332,22 +1386,6 @@ body {
     background-color: rgba(239, 68, 68, 0.2);
     color: #ef4444 !important;
     opacity: 1;
-}
-
-[data-theme='dark'] .sidebar-meeting-tag:hover .tag-remove-btn {
-    opacity: 0.6; /* Align with light mode hover behavior */
-}
-
-[data-theme='dark'] .sidebar-meeting-tag:hover .tag-remove-btn:hover {
-    opacity: 1;
-}
-
-[data-theme='dark'] .sidebar-meeting-tag {
-    border-color: transparent;
-}
-
-[data-theme='dark'] .meeting-card {
-    border-color: transparent;
 }
 
 [data-theme='dark'] .save-btn:hover {
