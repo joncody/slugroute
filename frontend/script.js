@@ -1055,7 +1055,7 @@ function updateMarkers() {
 /**
  * refreshMapAndUI triggers a complete redraw of map pins and sidebars
  */
-function refreshMapAndUI() {
+function refreshMapAndUI(shouldFitBounds = true) {
     markers.forEach(function(m) {
         m.map = null;
     });
@@ -1074,6 +1074,19 @@ function refreshMapAndUI() {
     }
 
     const locationGroups = groupDataByLocation(currentOfferings);
+
+    // If a route is drawn to a destination that is removed, remove the route
+    if (currentDestination) {
+        const destKey = `${currentDestination.lat},${currentDestination.lng}`;
+        if (!locationGroups[destKey]) {
+            if (directionsRenderer) {
+                directionsRenderer.setPath([]);
+            }
+            lastRoute = null;
+            currentDestination = null;
+        }
+    }
+
     const bounds = new google.maps.LatLngBounds();
 
     for (const key in locationGroups) {
@@ -1133,7 +1146,7 @@ function refreshMapAndUI() {
         }
     });
 
-    if (!bounds.isEmpty()) {
+    if (shouldFitBounds && !bounds.isEmpty()) {
         smartFitBounds(bounds);
     }
 }
@@ -1401,6 +1414,12 @@ function setupMapControls() {
     };
 
     document.getElementById("theme-toggle").onclick = async function() {
+        const currentCenter = map.getCenter();
+        const currentZoom = map.getZoom();
+        const currentStartPos = startMarker ? startMarker.position : null;
+        const currentDestPos = currentDestination;
+        const routeToRestore = lastRoute;
+
         const currentTheme = document.documentElement.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
@@ -1408,22 +1427,28 @@ function setupMapControls() {
         localStorage.setItem('slugroute_theme', newTheme);
 
         if (map) {
-            const currentCenter = map.getCenter();
-            const currentZoom = map.getZoom();
-            const currentStartPos = startMarker ? startMarker.position : null;
-            const currentDestPos = currentDestination; // Preserve destination literal
-
+            // Re-initialize the entire map instance to pull new styles from Map ID
             await initializeGoogleServices();
 
-            map.setCenter(currentCenter);
             map.setZoom(currentZoom);
+            map.setCenter(currentCenter);
 
             if (currentStartPos) {
-                updateStartMarker(currentStartPos, "Starting Point");
+                // Manually restore start pin without triggering panTo/auto-zoom
+                const youAreHereDiv = document.createElement('div');
+                youAreHereDiv.style.transform = 'translateY(50%)';
+                youAreHereDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`;
+                startMarker = new AdvancedMarkerElement({
+                    map: map,
+                    position: currentStartPos,
+                    content: youAreHereDiv,
+                    title: "Starting Point"
+                });
             }
 
-            if (lastRoute && currentDestPos && currentStartPos) {
-                // Re-render the existing path on the new map theme including custom connectors
+            if (routeToRestore && currentDestPos && currentStartPos) {
+                lastRoute = routeToRestore;
+                currentDestination = currentDestPos;
                 const snappedPath = google.maps.geometry.encoding.decodePath(lastRoute.polyline.encodedPolyline);
                 const fullPath = [
                     currentStartPos,
@@ -1433,7 +1458,8 @@ function setupMapControls() {
                 directionsRenderer.setPath(fullPath);
             }
 
-            refreshMapAndUI();
+            // Refresh UI and markers without force-fitting bounds to keep the exact view
+            refreshMapAndUI(false);
         }
     };
 
@@ -1458,11 +1484,14 @@ function setupMapControls() {
         }
         map.setZoom(CONFIG.ZOOM.CAMPUS);
         map.panTo(CONFIG.CAMPUS_CENTER);
+    };
+
+    document.getElementById("clear-route-btn").onclick = function() {
         if (directionsRenderer) {
             directionsRenderer.setPath([]);
-            lastRoute = null;
-            currentDestination = null;
         }
+        lastRoute = null;
+        currentDestination = null;
     };
 
     document.getElementById("grab-location-btn").onclick = function() {
