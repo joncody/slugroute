@@ -310,8 +310,6 @@ function highlightSidebarCard(classNumber, active, meetingIndex = null) {
             }
 
             // If entering a section, ensure parent is highlighted.
-            // If leaving a section, we do NOT remove parent highlight
-            // (parent's onmouseleave will handle that when the whole offering is left).
             if (active) {
                 el.classList.add('highlight');
             }
@@ -995,7 +993,6 @@ function smartFitBounds(bounds) {
 
     if (activeInfoWindow) {
         activeInfoWindow.close();
-        activeInfoWindow = null;
     }
 
     const isSidebarOpen = !document.getElementById("sidebar").classList.contains("closed");
@@ -1119,23 +1116,22 @@ function updateMarkers() {
             return activeFilters.includes(cat);
         });
         m.map = isVisible ? map : null;
-
-        if (!isVisible && activeInfoWindow && activeInfoWindow.getAnchor() === m) {
-            activeInfoWindow.close();
-            activeInfoWindow = null;
-        }
     });
 
-    // Refresh existing InfoWindow content if it's still attached to a visible marker
-    if (activeInfoWindow) {
+    // Refresh existing InfoWindow content if it's open
+    if (activeInfoWindow && activeInfoWindow.getMap()) {
         const anchor = activeInfoWindow.getAnchor();
-        if (anchor && anchor.map) {
-            const content = buildInfoWindowHtml(anchor.locationGroup, activeFilters);
-            if (!content) {
+        if (anchor) {
+            // If the anchor marker was hidden by filters, close the window
+            if (!anchor.map) {
                 activeInfoWindow.close();
-                activeInfoWindow = null;
             } else {
-                activeInfoWindow.setContent(content);
+                const content = buildInfoWindowHtml(anchor.locationGroup, activeFilters);
+                if (!content) {
+                    activeInfoWindow.close();
+                } else {
+                    activeInfoWindow.setContent(content);
+                }
             }
         }
     }
@@ -1152,7 +1148,6 @@ function refreshMapAndUI(shouldFitBounds = true) {
 
     if (activeInfoWindow) {
         activeInfoWindow.close();
-        activeInfoWindow = null;
     }
 
     renderSearchList();
@@ -1200,44 +1195,7 @@ function refreshMapAndUI(shouldFitBounds = true) {
                 return;
             }
 
-            if (activeInfoWindow) {
-                activeInfoWindow.close();
-                activeInfoWindow = null;
-            }
-
-            activeInfoWindow = new google.maps.InfoWindow({ content: content });
-
-            google.maps.event.addListener(activeInfoWindow, 'domready', function() {
-                const iwOfferings = document.querySelectorAll('.iw-offering');
-                iwOfferings.forEach(function(el) {
-                    el.onmouseenter = function() {
-                        highlightSidebarCard(this.dataset.class, true);
-                    };
-                    el.onmouseleave = function() {
-                        highlightSidebarCard(this.dataset.class, false);
-                    };
-                    el.onclick = function() {
-                        focusClass(this.dataset.class);
-                    };
-                });
-
-                const iwMeetingCards = document.querySelectorAll('.iw-meeting-card');
-                iwMeetingCards.forEach(function(el) {
-                    el.onmouseenter = function(e) {
-                        e.stopPropagation();
-                        highlightSidebarCard(this.dataset.class, true, parseInt(this.dataset.index));
-                    };
-                    el.onmouseleave = function(e) {
-                        e.stopPropagation();
-                        highlightSidebarCard(this.dataset.class, false, parseInt(this.dataset.index));
-                    };
-                    el.onclick = function(e) {
-                        e.stopPropagation();
-                        focusClass(this.dataset.class, parseInt(this.dataset.index));
-                    };
-                });
-            });
-
+            activeInfoWindow.setContent(content);
             activeInfoWindow.open({ map: map, anchor: marker });
         });
 
@@ -1263,7 +1221,6 @@ function refreshMapAndUI(shouldFitBounds = true) {
 function clearResults() {
     if (activeInfoWindow) {
         activeInfoWindow.close();
-        activeInfoWindow = null;
     }
     if (directionsRenderer) {
         directionsRenderer.setPath([]);
@@ -1283,7 +1240,6 @@ function clearResults() {
 function removeResult(classNum) {
     if (activeInfoWindow) {
         activeInfoWindow.close();
-        activeInfoWindow = null;
     }
     ColorManager.releaseColor(classNum);
     currentOfferings = currentOfferings.filter(function(c) {
@@ -1357,7 +1313,6 @@ function addAllSavedToResults() {
 function updateStartMarker(position, title) {
     if (activeInfoWindow) {
         activeInfoWindow.close();
-        activeInfoWindow = null;
     }
     if (startMarker) {
         startMarker.position = position;
@@ -1533,6 +1488,12 @@ function setupMapControls() {
         localStorage.setItem('slugroute_theme', newTheme);
 
         if (map) {
+            // Close existing window on old map instance
+            if (activeInfoWindow) {
+                activeInfoWindow.close();
+                activeInfoWindow = null;
+            }
+
             // Re-initialize the entire map instance to pull new styles from Map ID
             await initializeGoogleServices();
 
@@ -1586,7 +1547,6 @@ function setupMapControls() {
     document.getElementById("recenter-ui-btn").onclick = function() {
         if (activeInfoWindow) {
             activeInfoWindow.close();
-            activeInfoWindow = null;
         }
         map.setZoom(CONFIG.ZOOM.CAMPUS);
         map.panTo(CONFIG.CAMPUS_CENTER);
@@ -1690,13 +1650,49 @@ async function initializeGoogleServices() {
         }]
     });
 
+    // Setup Singleton InfoWindow
+    if (!activeInfoWindow) {
+        activeInfoWindow = new google.maps.InfoWindow();
+
+        // Re-attach highlighting listeners whenever content is injected
+        activeInfoWindow.addListener('domready', function() {
+            const iwOfferings = document.querySelectorAll('.iw-offering');
+            iwOfferings.forEach(function(el) {
+                el.onmouseenter = function() {
+                    highlightSidebarCard(this.dataset.class, true);
+                };
+                el.onmouseleave = function() {
+                    highlightSidebarCard(this.dataset.class, false);
+                };
+                el.onclick = function() {
+                    focusClass(this.dataset.class);
+                };
+            });
+
+            const iwMeetingCards = document.querySelectorAll('.iw-meeting-card');
+            iwMeetingCards.forEach(function(el) {
+                el.onmouseenter = function(e) {
+                    e.stopPropagation();
+                    highlightSidebarCard(this.dataset.class, true, parseInt(this.dataset.index));
+                };
+                el.onmouseleave = function(e) {
+                    e.stopPropagation();
+                    highlightSidebarCard(this.dataset.class, false, parseInt(this.dataset.index));
+                };
+                el.onclick = function(e) {
+                    e.stopPropagation();
+                    focusClass(this.dataset.class, parseInt(this.dataset.index));
+                };
+            });
+        });
+    }
+
     map.addListener("click", function(e) {
         if (isChoosingLocation) {
             updateStartMarker(e.latLng, "Custom Starting Point");
             toggleChooseLocationMode();
         } else if (activeInfoWindow) {
             activeInfoWindow.close();
-            activeInfoWindow = null;
         }
     });
 }
