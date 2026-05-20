@@ -1592,27 +1592,3 @@ body {
     margin-top: 4px;
     line-height: 1;
 }
-
-/* Targeting the main container when it contains our bubble */
-.gm-style-iw-c:has(.route-bubble-container) {
-    box-shadow: 0 8px 16px var(--card-shadow-hover) !important;
-    background: none !important;
-    border: none !important;
-    overflow: visible !important;
-}
-
-/* Aggressively hide everything related to the default InfoWindow header for the route bubble */
-.gm-style-iw-c:has(.route-bubble-container) .gm-style-iw-chr,
-.gm-style-iw-c:has(.route-bubble-container) .gm-style-iw-ch,
-.gm-style-iw-c:has(.route-bubble-container) .gm-ui-hover-effect {
-    display: none !important;
-}
-
-/* Remove all internal margins and paddings from the Google wrapper for the route bubble */
-.gm-style-iw-d:has(.route-bubble-container) {
-    margin: 0 !important;
-    padding: 0 !important;
-    max-height: none !important;
-    max-width: none !important;
-    overflow: visible !important;
-}
