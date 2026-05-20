@@ -161,7 +161,10 @@ const utils = {
             star: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><path d="M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z"/></svg>`,
             square: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><rect x="3" y="3" width="18" height="18"/></svg>`,
             triangle: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><path d="M12 2L2 21H22L12 2Z"/></svg>`,
-            walk: `<svg width="${size}" height="${size}" viewBox="0 0 16 16" fill="${color}"><path d="M9.5 1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M6.44 3.752A.75.75 0 0 1 7 3.5h1.445c.742 0 1.32.643 1.243 1.38l-.43 4.083a1.8 1.8 0 0 1-.088.395l-.318.906.213.242a.8.8 0 0 1 .114.175l2 4.25a.75.75 0 1 1-1.357.638l-1.956-4.154-1.68-1.921A.75.75 0 0 1 6 8.96l.138-2.613-.435.489-.464 2.786a.75.75 0 1 1-1.48-.246l.5-3a.75.75 0 0 1 .18-.375l2-2.25Z"/><path d="M6.25 11.745v-1.418l1.204 1.375.261.524a.8.8 0 0 1-.12.231l-2.5 3.25a.75.75 0 1 1-1.19-.914zm4.22-4.215-.494-.494.205-1.843.006-.067 1.124 1.124h1.44a.75.75 0 0 1 0 1.5H11a.75.75 0 0 1-.531-.22Z"/></svg>`
+            walk: `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" fill="${color}" class="bi bi-person-walking" viewBox="0 0 16 16">
+              <path d="M9.5 1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M6.44 3.752A.75.75 0 0 1 7 3.5h1.445c.742 0 1.32.643 1.243 1.38l-.43 4.083a1.8 1.8 0 0 1-.088.395l-.318.906.213.242a.8.8 0 0 1 .114.175l2 4.25a.75.75 0 1 1-1.357.638l-1.956-4.154-1.68-1.921A.75.75 0 0 1 6 8.96l.138-2.613-.435.489-.464 2.786a.75.75 0 1 1-1.48-.246l.5-3a.75.75 0 0 1 .18-.375l2-2.25Z"/>
+              <path d="M6.25 11.745v-1.418l1.204 1.375.261.524a.8.8 0 0 1-.12.231l-2.5 3.25a.75.75 0 1 1-1.19-.914zm4.22-4.215-.494-.494.205-1.843.006-.067 1.124 1.124h1.44a.75.75 0 0 1 0 1.5H11a.75.75 0 0 1-.531-.22Z"/>
+            </svg>`
         };
         return icons[name] || "";
     },
@@ -1116,6 +1119,24 @@ function updateMarkers() {
         });
         m.map = isVisible ? map : null;
     });
+
+    // If the current route destination is now hidden by filters, remove the route
+    if (currentDestination) {
+        const destMarker = markers.find(function(m) {
+            return m.position.lat === currentDestination.lat && m.position.lng === currentDestination.lng;
+        });
+
+        if (destMarker && !destMarker.map) {
+            if (directionsRenderer) {
+                directionsRenderer.setPath([]);
+            }
+            if (routeLabelWindow) {
+                routeLabelWindow.close();
+            }
+            lastRoute = null;
+            currentDestination = null;
+        }
+    }
 
     // Refresh existing InfoWindow content if it's open
     if (activeInfoWindow && activeInfoWindow.getMap()) {
