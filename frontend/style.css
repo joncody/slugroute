@@ -1131,10 +1131,29 @@ body {
 /* --- Map / InfoWindow UI --- */
 .gm-style-iw-c {
     background-color: var(--bg-sidebar) !important;
+    padding: 0 !important;
+    box-shadow: 0 8px 16px var(--card-shadow-hover) !important;
+    border-radius: 12px !important;
+}
+
+.gm-style-iw-d {
+    overflow: hidden !important;
 }
 
 .gm-style-iw-tc::after {
     background-color: var(--bg-sidebar) !important;
+}
+
+/* Apply dark shadow fix to the InfoWindow triangle pointer and shift it down 1px to allow border visibility */
+.gm-style-iw-tc {
+    filter: drop-shadow(0 4px 12px var(--card-shadow-hover)) !important;
+    -webkit-filter: drop-shadow(0 4px 12px var(--card-shadow-hover)) !important;
+    top: 1px !important;
+}
+
+/* Remove default Google Maps InfoWindow header space */
+.gm-style-iw-ch {
+    padding-top: 0 !important;
 }
 
 .marker-wrapper {
@@ -1158,7 +1177,7 @@ body {
 }
 
 .iw-container {
-    padding: 5px;
+    padding: 12px;
     width: 280px;
     font-family: 'Inter', sans-serif;
 }
@@ -1544,4 +1563,56 @@ body {
 @keyframes pinBounce {
     from { transform: translateY(0); }
     to { transform: translateY(-3px); }
+}
+
+/* --- Route Bubble Overlay --- */
+.route-bubble-container {
+    padding: 10px 14px;
+    text-align: center;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
+.route-bubble-time {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1;
+}
+
+.route-bubble-dist {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-top: 4px;
+    line-height: 1;
+}
+
+/* Targeting the main container when it contains our bubble */
+.gm-style-iw-c:has(.route-bubble-container) {
+    box-shadow: 0 8px 16px var(--card-shadow-hover) !important;
+    background: none !important;
+    border: none !important;
+    overflow: visible !important;
+}
+
+/* Aggressively hide everything related to the default InfoWindow header for the route bubble */
+.gm-style-iw-c:has(.route-bubble-container) .gm-style-iw-chr,
+.gm-style-iw-c:has(.route-bubble-container) .gm-style-iw-ch,
+.gm-style-iw-c:has(.route-bubble-container) .gm-ui-hover-effect {
+    display: none !important;
+}
+
+/* Remove all internal margins and paddings from the Google wrapper for the route bubble */
+.gm-style-iw-d:has(.route-bubble-container) {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-height: none !important;
+    max-width: none !important;
+    overflow: visible !important;
 }

@@ -31,6 +31,7 @@ const CONFIG = {
 let map;
 let markers = [];
 let activeInfoWindow = null;
+let routeLabelWindow = null;
 let currentOfferings = [];
 let lastSearchResults = [];
 let pendingSelections = {};
@@ -159,7 +160,8 @@ const utils = {
             clock: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; display: inline-block;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
             star: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><path d="M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z"/></svg>`,
             square: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><rect x="3" y="3" width="18" height="18"/></svg>`,
-            triangle: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><path d="M12 2L2 21H22L12 2Z"/></svg>`
+            triangle: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><path d="M12 2L2 21H22L12 2Z"/></svg>`,
+            walk: `<svg width="${size}" height="${size}" viewBox="0 0 16 16" fill="${color}"><path d="M9.5 1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M6.44 3.752A.75.75 0 0 1 7 3.5h1.445c.742 0 1.32.643 1.243 1.38l-.43 4.083a1.8 1.8 0 0 1-.088.395l-.318.906.213.242a.8.8 0 0 1 .114.175l2 4.25a.75.75 0 1 1-1.357.638l-1.956-4.154-1.68-1.921A.75.75 0 0 1 6 8.96l.138-2.613-.435.489-.464 2.786a.75.75 0 1 1-1.48-.246l.5-3a.75.75 0 0 1 .18-.375l2-2.25Z"/><path d="M6.25 11.745v-1.418l1.204 1.375.261.524a.8.8 0 0 1-.12.231l-2.5 3.25a.75.75 0 1 1-1.19-.914zm4.22-4.215-.494-.494.205-1.843.006-.067 1.124 1.124h1.44a.75.75 0 0 1 0 1.5H11a.75.75 0 0 1-.531-.22Z"/></svg>`
         };
         return icons[name] || "";
     },
@@ -1163,6 +1165,9 @@ function refreshMapAndUI(shouldFitBounds = true) {
             if (directionsRenderer) {
                 directionsRenderer.setPath([]);
             }
+            if (routeLabelWindow) {
+                routeLabelWindow.close();
+            }
             lastRoute = null;
             currentDestination = null;
         }
@@ -1218,6 +1223,9 @@ function refreshMapAndUI(shouldFitBounds = true) {
 function clearResults() {
     if (activeInfoWindow) {
         activeInfoWindow.close();
+    }
+    if (routeLabelWindow) {
+        routeLabelWindow.close();
     }
     if (directionsRenderer) {
         directionsRenderer.setPath([]);
@@ -1330,11 +1338,45 @@ function updateStartMarker(position, title) {
 }
 
 /**
+ * displayRouteBubble places a stat bubble at the midpoint of the route path
+ */
+function displayRouteBubble(path, durationSec, distanceMeters) {
+    if (!routeLabelWindow) {
+        routeLabelWindow = new google.maps.InfoWindow({
+            disableAutoPan: true,
+            headerDisabled: true
+        });
+    }
+
+    const midIdx = Math.floor(path.length / 2);
+    const midPoint = path[midIdx];
+    const minutes = Math.round(durationSec / 60);
+    const miles = (distanceMeters / 1609.34).toFixed(1);
+
+    const content = `
+        <div class="route-bubble-container">
+            <div class="route-bubble-time">
+                ${utils.getIcon('walk', 14, 'currentColor')}
+                <span>${minutes} min</span>
+            </div>
+            <div class="route-bubble-dist">${miles} miles</div>
+        </div>
+    `;
+
+    routeLabelWindow.setContent(content);
+    routeLabelWindow.setPosition(midPoint);
+    routeLabelWindow.open(map);
+}
+
+/**
  * getDirections calculates a walking route from startMarker to destination
  */
 async function getDirections(lat, lng) {
     if (directionsRenderer) {
         directionsRenderer.setPath([]);
+    }
+    if (routeLabelWindow) {
+        routeLabelWindow.close();
     }
 
     currentDestination = { lat: parseFloat(lat), lng: parseFloat(lng) };
@@ -1386,15 +1428,20 @@ async function getDirections(lat, lng) {
             const snappedPath = google.maps.geometry.encoding.decodePath(route.polyline.encodedPolyline);
 
             // 2. Prepend the marker and append the destination
-            // This forces the blue line to touch your marker and the building star.
             const fullPath = [
-                startMarker.position, // Actual blue dot location
-                ...snappedPath,       // The route on the road/path
-                currentDestination    // Actual building location
+                startMarker.position,
+                ...snappedPath,
+                currentDestination
             ];
 
-            // 3. Set the path with the new connectors
+            // 3. Set the path
             directionsRenderer.setPath(fullPath);
+
+            // 4. Handle stats
+            const durationSec = parseInt(route.duration.replace('s', ''));
+            const distanceMeters = route.distanceMeters;
+
+            displayRouteBubble(snappedPath, durationSec, distanceMeters);
 
             const viewport = route.viewport;
             const bounds = new google.maps.LatLngBounds(
@@ -1485,6 +1532,10 @@ function setupMapControls() {
                 activeInfoWindow.close();
                 activeInfoWindow = null;
             }
+            if (routeLabelWindow) {
+                routeLabelWindow.close();
+                routeLabelWindow = null;
+            }
 
             // Re-initialize the entire map instance to pull new styles from Map ID
             await initializeGoogleServices();
@@ -1515,6 +1566,10 @@ function setupMapControls() {
                     currentDestPos
                 ];
                 directionsRenderer.setPath(fullPath);
+
+                const durationSec = parseInt(lastRoute.duration.replace('s', ''));
+                const distanceMeters = lastRoute.distanceMeters;
+                displayRouteBubble(snappedPath, durationSec, distanceMeters);
             }
 
             // Refresh UI and markers without force-fitting bounds to keep the exact view
@@ -1548,6 +1603,9 @@ function setupMapControls() {
         if (directionsRenderer) {
             directionsRenderer.setPath([]);
         }
+        if (routeLabelWindow) {
+            routeLabelWindow.close();
+        }
         lastRoute = null;
         currentDestination = null;
     };
@@ -1567,6 +1625,9 @@ function setupMapControls() {
         if (directionsRenderer) {
             directionsRenderer.setPath([]);
             lastRoute = null;
+        }
+        if (routeLabelWindow) {
+            routeLabelWindow.close();
         }
 
         navigator.geolocation.getCurrentPosition(function(position) {
@@ -1591,6 +1652,9 @@ function toggleChooseLocationMode() {
         if (directionsRenderer) {
             directionsRenderer.setPath([]);
             lastRoute = null;
+        }
+        if (routeLabelWindow) {
+            routeLabelWindow.close();
         }
         btn.classList.add("active");
         map.setOptions({ draggableCursor: 'crosshair' });
