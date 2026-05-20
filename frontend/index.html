@@ -9,7 +9,7 @@
         const savedTheme = localStorage.getItem('slugroute_theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
     </script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
     <!-- Toast Notification Container -->
@@ -24,7 +24,7 @@
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg>
                 </button>
-                <img src="logo.png" class="logo-slug" alt="Sammy the Slug Logo">
+                <img src="/logo.png" class="logo-slug" alt="Sammy the Slug Logo">
                 <span class="logo-text">SlugRoute</span>
             </div>
             <div class="search-container">
@@ -113,13 +113,16 @@
                             <path class="moon-icon" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                         </svg>
                     </button>
-                    <!-- Recenter is its own action -->
                     <button id="recenter-ui-btn" class="map-btn" title="Recenter to UCSC">  
                         <svg viewBox="0 0 24 24" fill="currentColor">
                             <path d="M4 4h6V2H2v8h2V4z"/><path d="M20 4h-6V2h8v8h-2V4z"/><path d="M4 20h6v2H2v-8h2v6z"/><path d="M20 20h-6v2h8v-8h-2v6z"/><circle cx="12" cy="12" r="2"/>
                         </svg>
                     </button>
-                    <!-- Location Group: Related actions grouped together -->
+                    <button id="clear-route-btn" class="map-btn" title="Clear Route">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8.086 2.207a2 2 0 0 1 2.828 0l3.879 3.879a2 2 0 0 1 0 2.828l-5.5 5.5A2 2 0 0 1 7.879 15H5.12a2 2 0 0 1-1.414-.586l-2.5-2.5a2 2 0 0 1 0-2.828zm2.121.707a1 1 0 0 0-1.414 0L4.16 7.547l5.293 5.293 4.633-4.633a1 1 0 0 0 0-1.414zM8.746 13.547 3.453 8.254 1.914 9.793a1 1 0 0 0 0 1.414l2.5 2.5a1 1 0 0 0 .707.293H7.88a1 1 0 0 0 .707-.293z"/>
+                        </svg>
+                    </button>
                     <div class="map-btn-group">
                         <button id="choose-location-btn" class="map-btn" title="Set Start Point Manually">
                             <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
@@ -140,7 +143,8 @@
             </div>
         </main>
     </div>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBwp-UoWjYJ4mz-5IJFqAwZsiTffVRPmKg&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>
-    <script src="script.js"></script>
+    <!-- The .MapsKey variable is supplanted by the Go server at runtime -->
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ .MapsKey }}&map_ids=75ccfb1714f1ad1ed6ac3269&callback=initMap" async defer></script>
+    <script src="/script.js"></script>
 </body>
 </html>

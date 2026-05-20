@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"crypto/md5"
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -19,7 +22,7 @@ const (
 	queryFetchOfferings = `
 		SELECT 
 			c.class_number, c.course_code, c.term, c.title, 
-			l.instructor, l.days, l.times, l.building, l.room_number, 
+			IFNULL(l.instructor, ''), IFNULL(l.days, ''), IFNULL(l.times, ''), IFNULL(l.building, ''), IFNULL(l.room_number, ''), 
 			IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
 		FROM courses c
 		JOIN lectures l ON c.class_number = l.class_number AND c.term = l.term
@@ -29,7 +32,7 @@ const (
 
 	queryAttachSections = `
 		SELECT 
-			s.section_type, s.instructor, s.days, s.times, s.building, s.room_number,
+			IFNULL(s.section_type, ''), IFNULL(s.instructor, ''), IFNULL(s.days, ''), IFNULL(s.times, ''), IFNULL(s.building, ''), IFNULL(s.room_number, ''),
 			IFNULL(b.lat, 0), IFNULL(b.lng, 0), IFNULL(b.image_url, '')
 		FROM sections s
 		LEFT JOIN buildings b ON UPPER(TRIM(s.building)) = UPPER(TRIM(b.name))
@@ -346,6 +349,44 @@ func exportCalendarHandler() gin.HandlerFunc {
 	}
 }
 
+// getRoutesProxyHandler proxies navigation requests to Google Routes API v2.
+func getRoutesProxyHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		apiKey := os.Getenv("GOOGLE_MAPS_API_KEY")
+		if apiKey == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Map API key not configured on server"})
+			return
+		}
+
+		body, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+
+		req, err := http.NewRequest("POST", "https://routes.googleapis.com/directions/v2:computeRoutes", bytes.NewBuffer(body))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create proxy request"})
+			return
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Goog-Api-Key", apiKey)
+		req.Header.Set("X-Goog-FieldMask", "routes.duration,routes.distanceMeters,routes.polyline,routes.legs,routes.viewport")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"error": "Google API unreachable"})
+			return
+		}
+		defer resp.Body.Close()
+
+		respBody, _ := io.ReadAll(resp.Body)
+		c.Data(resp.StatusCode, "application/json", respBody)
+	}
+}
+
 func main() {
 	db, err := sql.Open("sqlite3", "../database/slugroute.db")
 	if err != nil {
@@ -355,12 +396,29 @@ func main() {
 
 	r := gin.Default()
 
+	// Load HTML templates from the frontend folder
+	r.LoadHTMLGlob("../frontend/*.html")
+
+	// API Routes
 	r.GET("/api/course/:term/:code", getCourseHandler(db))
 	r.GET("/api/terms", getTermsHandler(db))
 	r.GET("/api/suggest", getSuggestionsHandler(db))
 	r.POST("/api/schedule/export", exportCalendarHandler())
+	r.POST("/api/routes-proxy", getRoutesProxyHandler())
 
-	r.NoRoute(gin.WrapH(http.FileServer(http.Dir("../frontend"))))
+	// Root Route: Render index.html with injected API key
+	r.GET("/", func(c *gin.Context) {
+		apiKey := os.Getenv("GOOGLE_MAPS_API_KEY")
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"MapsKey": apiKey,
+		})
+	})
+
+	// Static assets (CSS, JS, Images)
+	r.StaticFile("/script.js", "../frontend/script.js")
+	r.StaticFile("/style.css", "../frontend/style.css")
+	r.StaticFile("/logo.png", "../frontend/logo.png")
+	r.Static("/images", "../frontend/images")
 
 	log.Println("SlugRoute live at http://localhost:8080")
 	r.Run(":8080")
