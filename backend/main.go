@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
@@ -249,6 +252,44 @@ func getSuggestionsHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+// getRoutesProxyHandler proxies navigation requests to Google Routes API v2.
+func getRoutesProxyHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		apiKey := os.Getenv("GOOGLE_MAPS_API_KEY")
+		if apiKey == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Map API key not configured on server"})
+			return
+		}
+
+		body, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			return
+		}
+
+		req, err := http.NewRequest("POST", "https://routes.googleapis.com/directions/v2:computeRoutes", bytes.NewBuffer(body))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create proxy request"})
+			return
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Goog-Api-Key", apiKey)
+		req.Header.Set("X-Goog-FieldMask", "routes.duration,routes.distanceMeters,routes.polyline,routes.legs,routes.viewport")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"error": "Google API unreachable"})
+			return
+		}
+		defer resp.Body.Close()
+
+		respBody, _ := io.ReadAll(resp.Body)
+		c.Data(resp.StatusCode, "application/json", respBody)
+	}
+}
+
 func main() {
 	db, err := sql.Open("sqlite3", "../database/slugroute.db")
 	if err != nil {
@@ -258,11 +299,28 @@ func main() {
 
 	r := gin.Default()
 
+	// Load HTML templates from the frontend folder
+	r.LoadHTMLGlob("../frontend/*.html")
+
+	// API Routes
 	r.GET("/api/course/:term/:code", getCourseHandler(db))
 	r.GET("/api/terms", getTermsHandler(db))
 	r.GET("/api/suggest", getSuggestionsHandler(db))
+	r.POST("/api/routes-proxy", getRoutesProxyHandler())
 
-	r.NoRoute(gin.WrapH(http.FileServer(http.Dir("../frontend"))))
+	// Root Route: Render index.html with injected API key
+	r.GET("/", func(c *gin.Context) {
+		apiKey := os.Getenv("GOOGLE_MAPS_API_KEY")
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"MapsKey": apiKey,
+		})
+	})
+
+	// Static assets (CSS, JS, Images)
+	r.StaticFile("/script.js", "../frontend/script.js")
+	r.StaticFile("/style.css", "../frontend/style.css")
+	r.StaticFile("/logo.png", "../frontend/logo.png")
+	r.Static("/images", "../frontend/images")
 
 	log.Println("SlugRoute live at http://localhost:8080")
 	r.Run(":8080")

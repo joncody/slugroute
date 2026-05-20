@@ -3,9 +3,6 @@
  */
 
 const CONFIG = {
-    // NOTE: Routes API requires an explicit API Key for the REST call.
-    // This should match the key used in your script tag.
-    API_KEY: "AIzaSyBwp-UoWjYJ4mz-5IJFqAwZsiTffVRPmKg",
     DEFAULT_TERM: "2262",
     CAMPUS_CENTER: {
         lat: 36.9914,
@@ -1374,13 +1371,8 @@ async function getDirections(lat, lng) {
     };
 
     try {
-        const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+        const response = await fetch('/api/routes-proxy', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Goog-Api-Key': CONFIG.API_KEY,
-                'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.polyline,routes.legs,routes.viewport'
-            },
             body: JSON.stringify(requestBody)
         });
 
