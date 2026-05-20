@@ -1558,6 +1558,76 @@ async function initializeGoogleServices() {
 }
 
 /**
+ * Binds the "Sync to Calendar" button directly to the backend .ics generator.
+ * Merges both mapped classes and saved classes so nothing gets left out.
+ */
+function setupCalendarExport() {
+    const syncBtn = document.getElementById('syncCalendarBtn');
+    if (!syncBtn) return;
+
+    syncBtn.addEventListener('click', async () => {
+        // 1. Gather sections from both the active map and the saved sidebar list
+        const activeClasses = currentOfferings || [];
+        const savedClasses = savedCourses || []; // Reads your saved list state variable
+
+        // 2. Merge them into a single list
+        const combinedList = [...activeClasses, ...savedClasses];
+
+        // 3. Remove any exact duplicates (in case a class is both saved AND on the map)
+        const finalSchedule = combinedList.filter((offering, index, self) =>
+            index === self.findIndex((o) => o.ClassNumber === offering.ClassNumber)
+        );
+    
+        // 4. If absolutely nothing is found in either list, show the warning
+        if (finalSchedule.length === 0) {
+            showToast('Please add or save at least one course first!', 'error');
+            return;
+        }
+
+        const initialHtml = syncBtn.innerHTML;
+
+        try {
+            syncBtn.disabled = true;
+            syncBtn.innerText = "Generating File...";
+
+            const response = await fetch('/api/schedule/export', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'text/calendar'
+                },
+                body: JSON.stringify(finalSchedule)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server returned status code: ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+
+            const anchor = document.createElement('a');
+            anchor.href = downloadUrl;
+            anchor.download = `slugroute-schedule-${new Date().getFullYear()}.ics`;
+            document.body.appendChild(anchor);
+            anchor.click();
+
+            anchor.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+
+            showToast('Calendar file exported successfully!', 'success');
+
+        } catch (error) {
+            console.error('Calendar generation process failed:', error);
+            showToast('Failed to export calendar. Please try again.', 'error');
+        } finally {
+            syncBtn.disabled = false;
+            syncBtn.innerHTML = initialHtml;
+        }
+    });
+}
+
+/**
  * initMap entry point for Google Maps API
  */
 async function initMap() {
@@ -1573,4 +1643,5 @@ async function initMap() {
     await initializeGoogleServices();
     setupSidebarDelegation();
     refreshMapAndUI();
+    setupCalendarExport();
 }

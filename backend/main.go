@@ -1,13 +1,18 @@
 package main
 
 import (
+	"crypto/md5"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
+
+	"slugroute/utils"
 )
 
 const (
@@ -249,6 +254,98 @@ func getSuggestionsHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
+func exportCalendarHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var selectedSchedule []Offering
+		if err := c.ShouldBindJSON(&selectedSchedule); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid schedule payload"})
+			return
+		}
+
+		loc, _ := time.LoadLocation("America/Los_Angeles")
+
+		// Map term configurations using the utils struct namespace
+		config := utils.TermConfig{
+			InstructionStart: time.Date(2026, 9, 24, 0, 0, 0, 0, loc),
+			InstructionEnd:   time.Date(2026, 12, 4, 0, 0, 0, 0, loc),
+			Holidays: []time.Time{
+				time.Date(2026, 11, 11, 0, 0, 0, 0, loc),
+				time.Date(2026, 11, 26, 0, 0, 0, 0, loc),
+				time.Date(2026, 11, 27, 0, 0, 0, 0, loc),
+			},
+		}
+
+		var icalEvents []utils.Event // <-- Notice the utils namespace prefix
+
+		for _, off := range selectedSchedule {
+			for _, meet := range off.Meetings {
+				timeTokens := strings.SplitN(meet.Time, " ", 2)
+				if len(timeTokens) < 2 {
+					continue
+				}
+
+				dayPart := timeTokens[0]
+				rangePart := timeTokens[1]
+
+				// Use utils prefix to execute parsing operations
+				rruleDays, validWeekdays := utils.MapDaysToICal(dayPart)
+				if rruleDays == "" {
+					continue
+				}
+
+				startStr, endStr, err := utils.ParseTimeRange(rangePart)
+				if err != nil {
+					continue
+				}
+
+				pStart, _ := time.Parse("3:04 PM", startStr)
+				pEnd, _ := time.Parse("3:04 PM", endStr)
+
+				var firstClassStart time.Time
+				foundFirst := false
+				for d := config.InstructionStart; d.Before(config.InstructionEnd.AddDate(0, 0, 1)); d = d.AddDate(0, 0, 1) {
+					for _, wd := range validWeekdays {
+						if d.Weekday() == wd {
+							firstClassStart = time.Date(d.Year(), d.Month(), d.Day(), pStart.Hour(), pStart.Minute(), 0, 0, loc)
+							foundFirst = true
+							break
+						}
+					}
+					if foundFirst {
+						break
+					}
+				}
+
+				firstClassEnd := time.Date(firstClassStart.Year(), firstClassStart.Month(), firstClassStart.Day(), pEnd.Hour(), pEnd.Minute(), 0, 0, loc)
+				untilStr := config.InstructionEnd.UTC().Format("20060102T235959Z")
+
+				uidData := fmt.Sprintf("%s-%s-%s", off.ClassNumber, meet.Type, meet.Time)
+				uid := fmt.Sprintf("%x@slugroute.ucsc.edu", md5.Sum([]byte(uidData)))
+
+				icalEvents = append(icalEvents, utils.Event{
+					UID:         uid,
+					Summary:     fmt.Sprintf("%s (%s)", off.CourseCode, meet.Type),
+					Location:    fmt.Sprintf("%s, Room %s", meet.Building, meet.RoomNumber),
+					Description: fmt.Sprintf("Instructor: %s\nClass Number: %s", meet.Instructor, off.ClassNumber),
+					DTStart:     firstClassStart,
+					DTEnd:       firstClassEnd,
+					RRule:       fmt.Sprintf("FREQ=WEEKLY;BYDAY=%s;UNTIL=%s", rruleDays, untilStr),
+					ExDates:     config.Holidays,
+				})
+			}
+		}
+
+		c.Header("Content-Type", "text/calendar; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=slugroute-schedule.ics")
+		c.Status(http.StatusOK)
+
+		// Direct streaming call output using the utils framework reference
+		if err := utils.MarshalICS(c.Writer, icalEvents); err != nil {
+			log.Println("Error generating calendar stream output:", err)
+		}
+	}
+}
+
 func main() {
 	db, err := sql.Open("sqlite3", "../database/slugroute.db")
 	if err != nil {
@@ -261,6 +358,7 @@ func main() {
 	r.GET("/api/course/:term/:code", getCourseHandler(db))
 	r.GET("/api/terms", getTermsHandler(db))
 	r.GET("/api/suggest", getSuggestionsHandler(db))
+	r.POST("/api/schedule/export", exportCalendarHandler())
 
 	r.NoRoute(gin.WrapH(http.FileServer(http.Dir("../frontend"))))
 
