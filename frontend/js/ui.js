@@ -244,6 +244,8 @@ export function removeMeeting(classNum, meetingIndex) {
     });
 
     if (offering && offering.meetings.length > 1) {
+        const removedCategory = utils.getFilterCategory(offering.meetings[meetingIndex].type);
+
         offering.meetings.splice(meetingIndex, 1);
 
         const savedIdx = store.savedCourses.findIndex(function(s) {
@@ -255,7 +257,12 @@ export function removeMeeting(classNum, meetingIndex) {
             localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
         }
 
-        refreshMapAndUI(false);
+        const categoryStillExists = offering.meetings.some(function(m) {
+            return utils.getFilterCategory(m.type) === removedCategory;
+        });
+
+        // Refocus the map only if the removed section was the last one of its category (LEC, LAB, or DIS)
+        refreshMapAndUI(!categoryStillExists);
     } else {
         removeResult(classNum);
     }
