@@ -1,107 +1,4 @@
-/**
- * SlugRoute | UCSC Map Styles
- */
-
-/* --- Variables --- */
-:root {
-    --ucsc-blue: #003C6C;
-    --ucsc-gold: #F1B82D;
-    --bg-light: #f8fafc;
-    --bg-card: #f1f5f9;
-    --bg-card-hover: #ffffff;
-    --bg-navbar: #003C6C;
-    --bg-sidebar: #e2e8f0;
-    --bg-input: rgba(255, 255, 255, 0.15);
-    --bg-tag: #f8fafc;
-    --border-color: #cbd5e1;
-    --text-main: #1e293b;
-    --text-muted: #64748b;
-    --text-navbar: #ffffff;
-    --nav-height: 60px;
-    --sidebar-width: 100%;
-    --accent-color: transparent;
-    --success-green: #059669;
-    --error-red: #ef4444;
-    --card-highlight: #f8fafc;
-    --card-shadow-hover: rgba(0, 0, 0, 0.12);
-    --skeleton-start: #f0f0f0;
-    --skeleton-mid: #e0e0e0;
-}
-
-[data-theme='dark'] {
-    --bg-light: #0f172a;
-    --bg-card: #1e293b;
-    --bg-card-hover: #2d394d;
-    --bg-navbar: #020617;
-    --bg-sidebar: #0f172a;
-    --bg-input: rgba(255, 255, 255, 0.1);
-    --bg-tag: #0f172a;
-    --border-color: #334155;
-    --text-main: #f1f5f9;
-    --text-muted: #94a3b8;
-    --card-highlight: #0f172a;
-    --card-shadow-hover: rgba(0, 0, 0, 0.5);
-    --skeleton-start: #1e293b;
-    --skeleton-mid: #334155;
-    --ucsc-blue: #bae6fd;
-    /* Native Google Dark UI Overrides */
-    --google-control-bg: #3c4043;
-    --google-control-hover: #4c5053;
-    --google-control-icon: #e8eaed;
-    --google-control-border: #5f6368;
-}
-
-/* --- Global Reset --- */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-body {
-    font-family: 'Inter', sans-serif;
-    background-color: var(--bg-light);
-    color: var(--text-main);
-    overflow: hidden;
-}
-
-/* --- Theme Toggle Icons --- */
-.sun-icon { display: block; }
-.moon-icon { display: none; }
-
-[data-theme='dark'] .sun-icon { display: none; }
-[data-theme='dark'] .moon-icon { display: block; }
-
-/* --- Navigation --- */
-.navbar {
-    height: var(--nav-height);
-    background-color: var(--bg-navbar);
-    display: flex;
-    align-items: center;
-    position: relative;
-    z-index: 1100;
-    padding: 0 1rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.nav-container {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 1600px;
-    margin: 0 auto;
-}
-
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding-right: 16px;
-}
-
+/* --- Components --- */
 .menu-btn {
     background: none;
     border: none;
@@ -182,7 +79,6 @@ body {
     justify-content: center;
 }
 
-/* --- Search Preview Dropdown --- */
 .search-preview-dropdown {
     display: none;
     position: absolute;
@@ -458,7 +354,6 @@ body {
     flex-shrink: 0;
 }
 
-/* --- Toast System --- */
 .toast-container {
     position: fixed;
     bottom: 24px;
@@ -495,83 +390,6 @@ body {
     animation: toast-out 0.4s ease-in forwards;
 }
 
-@keyframes toast-in {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes toast-out {
-    to { transform: translateY(-20px); opacity: 0; }
-}
-
-/* --- Layout --- */
-.app-container {
-    display: block;
-    position: relative;
-    height: calc(100vh - var(--nav-height));
-    width: 100vw;
-    overflow: hidden;
-}
-
-.sidebar {
-    position: fixed;
-    top: var(--nav-height);
-    left: 0;
-    width: 100%;
-    height: calc(100% - var(--nav-height));
-    background: var(--bg-sidebar);
-    overflow-y: auto;
-    z-index: 1000;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    box-shadow: 4px 0 15px rgba(0,0,0,0.1);
-}
-
-.sidebar.closed {
-    transform: translateX(-100%);
-}
-
-#map-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: var(--bg-light);
-    z-index: 1;
-}
-
-#map {
-    height: 100%;
-    width: 100%;
-    position: relative;
-}
-
-@media (min-width: 768px) {
-    :root {
-        --nav-height: 70px;
-        --sidebar-width: 350px;
-    }
-
-    .app-container {
-        display: block;
-    }
-
-    .sidebar {
-        position: fixed;
-        width: var(--sidebar-width);
-        transition: transform 0.3s ease;
-        border-right: 1px solid var(--border-color);
-        padding: 24px;
-        box-shadow: none;
-        top: var(--nav-height);
-        height: calc(100% - var(--nav-height));
-    }
-}
-
-/* --- Status Badges --- */
 .online-tag {
     color: var(--success-green);
     font-weight: 700;
@@ -602,7 +420,6 @@ body {
     border-radius: 4px;
 }
 
-/* --- Sidebar Section UI --- */
 .sidebar-section {
     margin-bottom: 32px;
 }
@@ -784,7 +601,6 @@ body {
     background-color: var(--bg-light);
 }
 
-/* --- Course Card Styling --- */
 .course-list {
     display: flex;
     flex-direction: column;
@@ -938,7 +754,6 @@ body {
     gap: 4px;
 }
 
-/* --- Meeting Tags (Sections) --- */
 .sidebar-tags-container {
     margin-top: 8px;
     display: flex;
@@ -1033,7 +848,6 @@ body {
     background: #fee2e2;
 }
 
-/* --- Control Buttons (44x44 Targets) --- */
 .result-remove {
     opacity: 1 !important;
 }
@@ -1073,7 +887,6 @@ body {
     border-radius: 12px;
 }
 
-/* --- Location Modal Styles --- */
 #location-modal {
     display: none;
     position: absolute;
@@ -1128,7 +941,6 @@ body {
     cursor: pointer;
 }
 
-/* --- Map / InfoWindow UI --- */
 .gm-style-iw-c {
     background-color: var(--bg-sidebar) !important;
     padding: 0 !important;
@@ -1144,14 +956,12 @@ body {
     background-color: var(--bg-sidebar) !important;
 }
 
-/* Apply dark shadow fix to the InfoWindow triangle pointer and shift it down 1px to allow border visibility */
 .gm-style-iw-tc {
     filter: drop-shadow(0 4px 12px var(--card-shadow-hover)) !important;
     -webkit-filter: drop-shadow(0 4px 12px var(--card-shadow-hover)) !important;
     top: 1px !important;
 }
 
-/* Remove default Google Maps InfoWindow header space */
 .gm-style-iw-ch {
     padding-top: 0 !important;
 }
@@ -1398,7 +1208,7 @@ body {
 
 [data-theme='dark'] .tag-remove-btn {
     color: var(--text-main) !important;
-    opacity: 0; /* Align with light mode hover behavior */
+    opacity: 0;
 }
 
 [data-theme='dark'] .tag-remove-btn:hover {
@@ -1419,57 +1229,6 @@ body {
     background-color: rgba(239, 68, 68, 0.1);
 }
 
-/* --- Utilities & Animations --- */
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
-
-.loading-skeleton {
-    width: 100%;
-    background: linear-gradient(90deg, var(--skeleton-start) 25%, var(--skeleton-mid) 50%, var(--skeleton-start) 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite linear;
-    border-radius: 12px;
-}
-
-.skeleton-preview {
-    margin: 16px;
-    height: 80px;
-    width: calc(100% - 32px);
-    margin-bottom: 8px;
-}
-
-/* --- Map Controls --- */
-.map-controls {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1000;
-    pointer-events: none;
-}
-
-.control-stack {
-    position: absolute;
-    bottom: 114px;
-    right: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    pointer-events: auto;
-}
-
-.map-btn-group {
-    display: flex;
-    flex-direction: column;
-    box-shadow: rgba(0, 0, 0, 0.3) 0px 1px 4px -1px;
-    border-radius: 2px;
-    overflow: hidden;
-    pointer-events: auto;
-}
-
 .map-btn {
     width: 44px;
     height: 44px;
@@ -1484,16 +1243,6 @@ body {
     color: var(--text-muted);
     transition: background 0.2s, color 0.2s, box-shadow 0.2s;
     pointer-events: auto;
-}
-
-.map-btn:hover {
-    background: var(--bg-light);
-    color: var(--ucsc-blue);
-}
-
-.map-btn:active {
-    background: var(--bg-tag);
-    box-shadow: rgba(0, 0, 0, 0.3) 0px 1px 4px -1px, inset 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 [data-theme='dark'] .map-btn {
@@ -1512,83 +1261,4 @@ body {
 
 [data-theme='dark'] .map-btn-group .map-btn:not(:last-child) {
     border-bottom: 1px solid var(--google-control-border);
-}
-
-.map-btn-group .map-btn {
-    box-shadow: none;
-    border-radius: 0;
-}
-
-.map-btn-group .map-btn:active {
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.map-btn-group .map-btn:first-child {
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-    border-bottom-left-radius: 0px;
-    border-bottom-right-radius: 0px;
-}
-
-.map-btn-group .map-btn:last-child {
-    border-top-left-radius: 0px;
-    border-top-right-radius: 0px;
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
-}
-
-.map-btn-group .map-btn:not(:last-child) {
-    border-bottom: 1px solid var(--border-color);
-}
-
-.map-btn svg {
-    width: 24px;
-    height: 24px;
-    fill: currentColor;
-}
-
-#recenter-ui-btn svg {
-    stroke: none;
-}
-
-#choose-location-btn.active {
-    color: #1a73e8;
-    background: #e8f0fe;
-}
-
-#choose-location-btn.active svg {
-    animation: pinBounce 0.5s infinite alternate;
-}
-
-@keyframes pinBounce {
-    from { transform: translateY(0); }
-    to { transform: translateY(-3px); }
-}
-
-/* --- Route Bubble Overlay --- */
-.route-bubble-container {
-    padding: 10px 14px;
-    text-align: center;
-    background: var(--bg-sidebar);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-}
-
-.route-bubble-time {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-main);
-    line-height: 1;
-}
-
-.route-bubble-dist {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--text-muted);
-    margin-top: 4px;
-    line-height: 1;
 }

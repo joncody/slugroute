@@ -316,11 +316,18 @@ func main() {
 		})
 	})
 
-	// Static assets (CSS, JS, Images)
-	r.StaticFile("/script.js", "../frontend/script.js")
-	r.StaticFile("/style.css", "../frontend/style.css")
-	r.StaticFile("/logo.png", "../frontend/logo.png")
+	// Test Route: Render tests.html
+	r.GET("/tests", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "tests.html", nil)
+	})
+
+	// Static assets
+	r.Static("/js", "../frontend/js")
+	r.Static("/style", "../frontend/style")
 	r.Static("/images", "../frontend/images")
+
+	// Legacy or Root-level static files
+	r.StaticFile("/logo.png", "../frontend/logo.png")
 
 	log.Println("SlugRoute live at http://localhost:8080")
 	r.Run(":8080")

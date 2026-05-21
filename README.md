@@ -80,7 +80,7 @@ chmod +x test_all.sh
 - **Backend (Go):** `cd backend && go test ./...`
 - **Scraper (Python):** `python3 scraper/test_scraper.py`
 - **Database Logic (Python):** `python3 database/test_import_coords.py`
-- **Frontend (JS):** Open `frontend/tests.html` in your browser.
+- **Frontend (JS):** Open `localhost:8080/tests` in your browser with the server running.
 
 ---
 

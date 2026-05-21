@@ -1,0 +1,126 @@
+/**
+ * SlugRoute | Layout & Sidebar
+ */
+
+.navbar {
+    height: var(--nav-height);
+    background-color: var(--bg-navbar);
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 1100;
+    padding: 0 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.nav-container {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-right: 16px;
+}
+
+.menu-btn {
+    background: none;
+    border: none;
+    color: var(--text-navbar);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 4px;
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-slug {
+    height: 40px;
+    width: auto;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    user-select: none;
+    pointer-events: none;
+}
+
+.logo-text {
+    color: var(--ucsc-gold);
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+@media (max-width: 480px) {
+    .logo-text {
+        display: none;
+    }
+}
+
+.app-container {
+    display: block;
+    position: relative;
+    height: calc(100vh - var(--nav-height));
+    width: 100vw;
+    overflow: hidden;
+}
+
+.sidebar {
+    position: fixed;
+    top: var(--nav-height);
+    left: 0;
+    width: 100%;
+    height: calc(100% - var(--nav-height));
+    background: var(--bg-sidebar);
+    overflow-y: auto;
+    z-index: 1000;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+}
+
+.sidebar.closed {
+    transform: translateX(-100%);
+}
+
+#map-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-light);
+    z-index: 1;
+}
+
+@media (min-width: 768px) {
+    :root {
+        --nav-height: 70px;
+        --sidebar-width: 350px;
+    }
+
+    .app-container {
+        display: block;
+    }
+
+    .sidebar {
+        position: fixed;
+        width: var(--sidebar-width);
+        transition: transform 0.3s ease;
+        border-right: 1px solid var(--border-color);
+        padding: 24px;
+        box-shadow: none;
+        top: var(--nav-height);
+        height: calc(100% - var(--nav-height));
+    }
+}
