@@ -14,8 +14,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
-
-	"slugroute/utils"
 )
 
 const (
@@ -267,8 +265,8 @@ func exportCalendarHandler() gin.HandlerFunc {
 
 		loc, _ := time.LoadLocation("America/Los_Angeles")
 
-		// Map term configurations using the utils struct namespace
-		config := utils.TermConfig{
+		// Map term configurations
+		config := TermConfig{
 			InstructionStart: time.Date(2026, 9, 24, 0, 0, 0, 0, loc),
 			InstructionEnd:   time.Date(2026, 12, 4, 0, 0, 0, 0, loc),
 			Holidays: []time.Time{
@@ -278,7 +276,7 @@ func exportCalendarHandler() gin.HandlerFunc {
 			},
 		}
 
-		var icalEvents []utils.Event // <-- Notice the utils namespace prefix
+		var icalEvents []Event
 
 		for _, off := range selectedSchedule {
 			for _, meet := range off.Meetings {
@@ -290,25 +288,32 @@ func exportCalendarHandler() gin.HandlerFunc {
 				dayPart := timeTokens[0]
 				rangePart := timeTokens[1]
 
-				// Use utils prefix to execute parsing operations
-				rruleDays, validWeekdays := utils.MapDaysToICal(dayPart)
+				rruleDays, validWeekdays := MapDaysToICal(dayPart)
 				if rruleDays == "" {
 					continue
 				}
 
-				startStr, endStr, err := utils.ParseTimeRange(rangePart)
+				startStr, endStr, err := ParseTimeRange(rangePart)
 				if err != nil {
 					continue
 				}
 
-				pStart, _ := time.Parse("3:04 PM", startStr)
-				pEnd, _ := time.Parse("3:04 PM", endStr)
+				// FIX: Parse times explicitly using the California timezone location
+				pStart, err := time.ParseInLocation("3:04 PM", startStr, loc)
+				if err != nil {
+					continue
+				}
+				pEnd, err := time.ParseInLocation("3:04 PM", endStr, loc)
+				if err != nil {
+					continue
+				}
 
 				var firstClassStart time.Time
 				foundFirst := false
 				for d := config.InstructionStart; d.Before(config.InstructionEnd.AddDate(0, 0, 1)); d = d.AddDate(0, 0, 1) {
 					for _, wd := range validWeekdays {
 						if d.Weekday() == wd {
+							// Combine calendar date with local hours and minutes safely
 							firstClassStart = time.Date(d.Year(), d.Month(), d.Day(), pStart.Hour(), pStart.Minute(), 0, 0, loc)
 							foundFirst = true
 							break
@@ -319,13 +324,20 @@ func exportCalendarHandler() gin.HandlerFunc {
 					}
 				}
 
+				if !foundFirst {
+					continue
+				}
+
+				// Derive the definitive end time using the same timezone context
 				firstClassEnd := time.Date(firstClassStart.Year(), firstClassStart.Month(), firstClassStart.Day(), pEnd.Hour(), pEnd.Minute(), 0, 0, loc)
+
+				// iCalendar RRULE specs strictly require UNTIL parameters to be in UTC
 				untilStr := config.InstructionEnd.UTC().Format("20060102T235959Z")
 
 				uidData := fmt.Sprintf("%s-%s-%s", off.ClassNumber, meet.Type, meet.Time)
 				uid := fmt.Sprintf("%x@slugroute.ucsc.edu", md5.Sum([]byte(uidData)))
 
-				icalEvents = append(icalEvents, utils.Event{
+				icalEvents = append(icalEvents, Event{
 					UID:         uid,
 					Summary:     fmt.Sprintf("%s (%s)", off.CourseCode, meet.Type),
 					Location:    fmt.Sprintf("%s, Room %s", meet.Building, meet.RoomNumber),
@@ -342,8 +354,7 @@ func exportCalendarHandler() gin.HandlerFunc {
 		c.Header("Content-Disposition", "attachment; filename=slugroute-schedule.ics")
 		c.Status(http.StatusOK)
 
-		// Direct streaming call output using the utils framework reference
-		if err := utils.MarshalICS(c.Writer, icalEvents); err != nil {
+		if err := MarshalICS(c.Writer, icalEvents); err != nil {
 			log.Println("Error generating calendar stream output:", err)
 		}
 	}
@@ -414,11 +425,18 @@ func main() {
 		})
 	})
 
-	// Static assets (CSS, JS, Images)
-	r.StaticFile("/script.js", "../frontend/script.js")
-	r.StaticFile("/style.css", "../frontend/style.css")
-	r.StaticFile("/logo.png", "../frontend/logo.png")
+	// Test Route: Render tests.html
+	r.GET("/tests", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "tests.html", nil)
+	})
+
+	// Static assets
+	r.Static("/js", "../frontend/js")
+	r.Static("/style", "../frontend/style")
 	r.Static("/images", "../frontend/images")
+
+	// Legacy or Root-level static files
+	r.StaticFile("/logo.png", "../frontend/logo.png")
 
 	log.Println("SlugRoute live at http://localhost:8080")
 	r.Run(":8080")

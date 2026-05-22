@@ -12,7 +12,7 @@
 
 - **Automated Sync:** GitHub Actions trigger `scraper.py` every 24 hours to keep course data fresh.
 - **Secure Integration:** Google Maps API keys are managed via environment variables and injected at runtime.
-- **Smart Mapping:** Distinguishes between Lectures (★), Labs (■), and Discussions (●).
+- **Smart Mapping:** Distinguishes between Lectures (★), Labs (■), and Discussions (▲).
 - **Interactive Sidebar:** Filter by course type, save classes for later, and toggle visibility.
 - **Route Finding:** Calculate walking directions via a secure Go proxy to the Google Routes API.
 - **Dark Mode:** Native support for both light and dark campus map themes.
@@ -80,7 +80,7 @@ chmod +x test_all.sh
 - **Backend (Go):** `cd backend && go test ./...`
 - **Scraper (Python):** `python3 scraper/test_scraper.py`
 - **Database Logic (Python):** `python3 database/test_import_coords.py`
-- **Frontend (JS):** Open `frontend/tests.html` in your browser.
+- **Frontend (JS):** Open `localhost:8080/tests` in your browser with the server running.
 
 ---
 
