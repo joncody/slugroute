@@ -107,6 +107,51 @@ export const utils = {
     },
 
     /**
+     * parseMeetingTime converts strings like "TuTh 10:40AM-11:45AM" to weekly sort values
+     */
+    parseMeetingTime: function(timeStr) {
+        if (!timeStr || timeStr === "TBA" || timeStr.includes("CANCELLED")) {
+            return null;
+        }
+
+        // Isolate the day prefix (e.g., "TuTh" or "MWF") to avoid matching letters in "AM" or "PM"
+        const daysPart = timeStr.split(' ')[0];
+
+        const dayWeights = { "M": 0, "Tu": 1, "W": 2, "Th": 3, "F": 4 };
+        let earliestDayWeight = 10;
+
+        Object.keys(dayWeights).forEach(day => {
+            if (daysPart.includes(day)) {
+                earliestDayWeight = Math.min(earliestDayWeight, dayWeights[day]);
+            }
+        });
+
+        const timeMatch = timeStr.match(/(\d+):(\d+)(AM|PM)/);
+        if (!timeMatch || earliestDayWeight === 10) {
+            return null;
+        }
+
+        let hour = parseInt(timeMatch[1]);
+        const min = parseInt(timeMatch[2]);
+        const ampm = timeMatch[3];
+
+        if (ampm === "PM" && hour !== 12) hour += 12;
+        if (ampm === "AM" && hour === 12) hour = 0;
+
+        return (earliestDayWeight * 1440) + (hour * 60 + min);
+    },
+
+    /**
+     * getEarliestMeetingSortVal finds the absolute earliest weekly minute for a course
+     */
+    getEarliestMeetingSortVal: function(meetings) {
+        const vals = meetings
+            .map(m => utils.parseMeetingTime(m.time))
+            .filter(v => v !== null && v !== undefined);
+        return vals.length > 0 ? Math.min(...vals) : 999999;
+    },
+
+    /**
      * getIcon returns an inline SVG string for common UI symbols
      */
     getIcon: function(name, size = 16, color = "currentColor") {

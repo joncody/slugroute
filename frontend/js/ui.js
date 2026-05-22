@@ -93,16 +93,35 @@ export function renderSearchList() {
         return;
     }
 
-    container.innerHTML = store.currentOfferings.map(function(course) {
+    // Sort active results by Quarter (Term), then Day and Time
+    const sortedOfferings = [...store.currentOfferings].sort((a, b) => {
+        if (a.term !== b.term) {
+            return parseInt(a.term) - parseInt(b.term);
+        }
+        return utils.getEarliestMeetingSortVal(a.meetings) - utils.getEarliestMeetingSortVal(b.meetings);
+    });
+
+    container.innerHTML = sortedOfferings.map(function(course) {
         const isSaved = store.savedCourses.some(function(s) {
             return s.class_number === course.class_number;
         });
         const color = ColorManager.getColor(course.class_number);
         const isVisible = course.visible !== false;
 
-        const meetingTagsHtml = course.meetings.map(function(m, index) {
-            return renderMeetingTag(course, m, index, color);
-        }).join("");
+        // Sort meetings chronologically within the card while preserving original index for functionality
+        const meetingTagsHtml = course.meetings
+            .map(function(m, idx) {
+                return { ...m, originalIndex: idx };
+            })
+            .sort(function(a, b) {
+                const valA = utils.parseMeetingTime(a.time) ?? 999999;
+                const valB = utils.parseMeetingTime(b.time) ?? 999999;
+                return valA - valB;
+            })
+            .map(function(m) {
+                return renderMeetingTag(course, m, m.originalIndex, color);
+            })
+            .join("");
 
         return `
             <div class="course-card ${!isVisible ? 'hidden-offering' : ''}" id="card-${course.class_number}" data-class="${course.class_number}" style="--accent-color: ${isVisible ? color : '#e2e8f0'}">
@@ -269,7 +288,7 @@ export function removeMeeting(classNum, meetingIndex) {
 }
 
 /**
- * renderSavedList updates the "Saved for Later" section
+ * renderSavedList updates the "Saved for Later" section with standard cards sorted by Quarter, Day, and Time
  */
 export function renderSavedList() {
     const container = document.getElementById("saved-classes");
@@ -279,12 +298,23 @@ export function renderSavedList() {
         return;
     }
 
-    container.innerHTML = store.savedCourses.map(function(course) {
+    // Sort saved courses by Quarter (Term), then Day and Time
+    const sortedCourses = [...store.savedCourses].sort((a, b) => {
+        if (a.term !== b.term) {
+            return parseInt(a.term) - parseInt(b.term);
+        }
+        return utils.getEarliestMeetingSortVal(a.meetings) - utils.getEarliestMeetingSortVal(b.meetings);
+    });
+
+    container.innerHTML = sortedCourses.map(function(course) {
         const color = ColorManager.getColor(course.class_number);
-        const lecMeet = course.meetings.find(function(m) {
-            return utils.getFilterCategory(m.type) === "LEC";
+
+        // Find the earliest available meeting time to display on the card
+        const sortedMeets = [...course.meetings].sort(function(a, b) {
+            return (utils.parseMeetingTime(a.time) ?? 999999) - (utils.parseMeetingTime(b.time) ?? 999999);
         });
-        const timeStr = lecMeet ? lecMeet.time : (course.meetings[0] ? course.meetings[0].time : "Time TBD");
+        const earliestMeet = sortedMeets[0];
+        const timeStr = earliestMeet && earliestMeet.time && earliestMeet.time.trim() !== "" ? earliestMeet.time : "Time TBD";
 
         return `
             <div class="course-card saved-item-card" data-class="${course.class_number}" style="--accent-color: ${color}">
@@ -440,10 +470,17 @@ export function renderSearchPreview() {
 
     container.innerHTML = store.lastSearchResults.map(function(offering) {
         const cn = offering.class_number;
-        const allMeets = offering.meetings;
-        const lecMeet = allMeets.find(m => utils.getFilterCategory(m.type) === 'LEC');
 
-        const displayableSections = allMeets.filter(meet => {
+        // Map meetings with their original indices and sort them chronologically
+        const sortedMeets = offering.meetings
+            .map(function(m, idx) { return { ...m, originalIndex: idx }; })
+            .sort(function(a, b) {
+                return (utils.parseMeetingTime(a.time) ?? 999999) - (utils.parseMeetingTime(b.time) ?? 999999);
+            });
+
+        const lecMeet = sortedMeets.find(m => utils.getFilterCategory(m.type) === 'LEC');
+
+        const displayableSections = sortedMeets.filter(meet => {
             const isLec = utils.getFilterCategory(meet.type) === 'LEC';
             return !isLec && meet.time && meet.time.trim() !== "";
         });
@@ -469,7 +506,7 @@ export function renderSearchPreview() {
                 ${displayableSections.length > 0 ? `
                     <div class="preview-sections-list">
                         <div class="preview-section-label">Available Sections</div>
-                        ${allMeets.map((meet, index) => renderPreviewSectionRow(meet, index, cn)).join('')}
+                        ${sortedMeets.map((meet) => renderPreviewSectionRow(meet, meet.originalIndex, cn)).join('')}
                     </div>
                 ` : ''}
             </div>
