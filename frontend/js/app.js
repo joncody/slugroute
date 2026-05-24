@@ -1,3 +1,4 @@
+//app.js
 import { CONFIG } from "./config.js";
 import { store } from "./state.js";
 import { utils, showToast } from "./utils.js";
@@ -8,7 +9,8 @@ import {
     smartFitBounds,
     clearResults,
     updateStartMarker,
-    displayRouteBubble
+    displayRouteBubble,
+    getDirections
 } from "./map.js";
 import {
     setupSidebarDelegation,
@@ -225,6 +227,30 @@ export function setupMapControls() {
 
     document.getElementById("deny-location-btn").onclick = function() {
         document.getElementById('location-modal').style.display = 'none';
+    };
+    document.getElementById("new-route-btn").onclick = function() {
+        document.getElementById("route-modal").style.display = "none";
+        if (store.pendingRouteDestination) {
+            store.lastRoute = null;
+            store.currentDestination = null;
+            getDirections(store.pendingRouteDestination.lat, store.pendingRouteDestination.lng);
+            store.pendingRouteDestination = null;
+        }
+    };
+
+    document.getElementById("continue-route-btn").onclick = function() {
+        document.getElementById("route-modal").style.display = "none";
+        if (store.pendingRouteDestination) {
+            const prevPath = store.directionsRenderer.getPath().getArray();
+            const originalPos = store.startMarker.position;
+            store.startMarker.position = store.currentDestination;
+            store.continueFromPath = prevPath;
+            store.lastRoute = null;
+            getDirections(store.pendingRouteDestination.lat, store.pendingRouteDestination.lng).then(function() {
+                store.startMarker.position = originalPos;
+            });
+            store.pendingRouteDestination = null;
+        }
     };
 }
 

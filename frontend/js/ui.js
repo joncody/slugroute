@@ -1,3 +1,4 @@
+//ui.js
 import { store } from "./state.js";
 import { utils, ColorManager, showToast } from "./utils.js";
 import { refreshMapAndUI, focusClass } from "./map.js";

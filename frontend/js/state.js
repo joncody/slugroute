@@ -1,3 +1,4 @@
+/*state.js*/
 /**
  * SlugRoute | Global State Store
  */
@@ -18,5 +19,7 @@ export const store = {
     lastRoute: null,
     isChoosingLocation: false,
     // directionsRenderer will now hold a google.maps.Polyline for compatibility with Routes API v2 results
-    directionsRenderer: null
+    directionsRenderer: null,
+    pendingRouteDestination: null,
+    continueFromPath: null
 };

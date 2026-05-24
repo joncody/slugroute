@@ -1,3 +1,4 @@
+/*map.js*/
 import { CONFIG } from "./config.js";
 import { store } from "./state.js";
 import { utils, showToast, ColorManager } from "./utils.js";
@@ -367,9 +368,8 @@ export function refreshMapAndUI(shouldFitBounds = true) {
             if (!content) {
                 return;
             }
-
-            store.activeInfoWindow.setContent(content);
-            store.activeInfoWindow.open({ map: store.map, anchor: marker });
+        store.activeInfoWindow.setContent(content);
+        store.activeInfoWindow.open({ map: store.map, anchor: marker });
         });
 
         store.markers.push(marker);
@@ -497,13 +497,17 @@ export function displayRouteBubble(path, durationSec, distanceMeters) {
  * getDirections calculates a walking route from startMarker to destination
  */
 export async function getDirections(lat, lng) {
+    if (store.lastRoute && store.currentDestination) {
+        store.pendingRouteDestination = { lat: parseFloat(lat), lng: parseFloat(lng) };
+        document.getElementById("route-modal").style.display = "block";
+        return;
+    }
     if (store.directionsRenderer) {
         store.directionsRenderer.setPath([]);
     }
     if (store.routeLabelWindow) {
         store.routeLabelWindow.close();
     }
-
     store.currentDestination = { lat: parseFloat(lat), lng: parseFloat(lng) };
 
     if (!store.startMarker) {
@@ -560,7 +564,12 @@ export async function getDirections(lat, lng) {
             ];
 
             // 3. Set the path
-            store.directionsRenderer.setPath(fullPath);
+            if (store.continueFromPath) {
+                store.directionsRenderer.setPath([...store.continueFromPath, ...snappedPath, store.currentDestination]);
+                store.continueFromPath = null;
+            } else {
+                store.directionsRenderer.setPath(fullPath);
+            }
 
             // 4. Handle stats
             const durationSec = parseInt(route.duration.replace('s', ''));
