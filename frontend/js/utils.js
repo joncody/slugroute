@@ -108,6 +108,15 @@ export const utils = {
     },
 
     /**
+     * coordsMatch compares two LatLng objects with an epsilon to handle precision
+     */
+    coordsMatch: function(a, b) {
+        if (!a || !b) return false;
+        const epsilon = 0.00001;
+        return Math.abs(a.lat - b.lat) < epsilon && Math.abs(a.lng - b.lng) < epsilon;
+    },
+
+    /**
      * parseMeetingTime converts strings like "TuTh 10:40AM-11:45AM" to weekly sort values
      */
     parseMeetingTime: function(timeStr) {
