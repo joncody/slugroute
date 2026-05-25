@@ -1,3 +1,4 @@
+//app.js
 import { CONFIG } from "./config.js";
 import { store } from "./state.js";
 import { utils, showToast } from "./utils.js";
@@ -8,7 +9,9 @@ import {
     smartFitBounds,
     clearResults,
     updateStartMarker,
-    displayRouteBubble
+    //displayLegBubbles,
+    //executeRouting,
+    getDirections
 } from "./map.js";
 import {
     setupSidebarDelegation,
@@ -105,7 +108,6 @@ export function setupMapControls() {
         const currentCenter = store.map.getCenter();
         const currentZoom = store.map.getZoom();
         const currentStartPos = store.startMarker ? store.startMarker.position : null;
-        const currentDestPos = store.currentDestination;
         const routeToRestore = store.lastRoute;
 
         const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -120,10 +122,8 @@ export function setupMapControls() {
                 store.activeInfoWindow.close();
                 store.activeInfoWindow = null;
             }
-            if (store.routeLabelWindow) {
-                store.routeLabelWindow.close();
-                store.routeLabelWindow = null;
-            }
+            store.routeLabelWindows.forEach(w => w.close());
+            store.routeLabelWindows = [];
 
             // Re-initialize the entire map instance to pull new styles from Map ID
             await initializeGoogleServices();
@@ -144,20 +144,22 @@ export function setupMapControls() {
                 });
             }
 
-            if (routeToRestore && currentDestPos && currentStartPos) {
+            if (routeToRestore && store.lastRouteOrigin && store.destinations.length > 0) {
                 store.lastRoute = routeToRestore;
-                store.currentDestination = currentDestPos;
-                const snappedPath = google.maps.geometry.encoding.decodePath(store.lastRoute.polyline.encodedPolyline);
-                const fullPath = [
-                    currentStartPos,
-                    ...snappedPath,
-                    currentDestPos
-                ];
-                store.directionsRenderer.setPath(fullPath);
 
-                const durationSec = parseInt(store.lastRoute.duration.replace('s', ''));
-                const distanceMeters = store.lastRoute.distanceMeters;
-                displayRouteBubble(snappedPath, durationSec, distanceMeters);
+                // Reconstruct multi-stop path using the specific saved origin to avoid straight-line bug
+                let fullPath = [store.lastRouteOrigin];
+                routeToRestore.legs.forEach((leg, index) => {
+                    const snappedLegPath = google.maps.geometry.encoding.decodePath(leg.polyline.encodedPolyline);
+                    fullPath.push(...snappedLegPath);
+
+                    if (index < store.destinations.length) {
+                        fullPath.push(store.destinations[index]);
+                    }
+                });
+
+                store.directionsRenderer.setPath(fullPath);
+                displayLegBubbles(routeToRestore.legs);
             }
 
             // Refresh UI and markers without force-fitting bounds to keep the exact view
@@ -191,11 +193,13 @@ export function setupMapControls() {
         if (store.directionsRenderer) {
             store.directionsRenderer.setPath([]);
         }
-        if (store.routeLabelWindow) {
-            store.routeLabelWindow.close();
-        }
+        store.routeLabelWindows.forEach(w => w.close());
+        store.routeLabelWindows = [];
         store.lastRoute = null;
         store.currentDestination = null;
+        store.destinations = [];
+        store.isLastRouteP2P = false;
+        store.lastRouteOrigin = null;
     };
 
     document.getElementById("grab-location-btn").onclick = function() {
@@ -206,17 +210,30 @@ export function setupMapControls() {
         toggleChooseLocationMode();
     };
 
+    document.getElementById("p2p-route-btn").onclick = function() {
+        store.isP2PMode = !store.isP2PMode;
+        if (store.isP2PMode) {
+            // Close active windows and clear routes to ensure a clean lookup
+            if (store.activeInfoWindow) store.activeInfoWindow.close();
+            if (store.directionsRenderer) store.directionsRenderer.setPath([]);
+            store.routeLabelWindows.forEach(w => w.close());
+            store.routeLabelWindows = [];
+            store.lastRoute = null;
+            store.destinations = [];
+            store.isLastRouteP2P = false;
+            store.lastRouteOrigin = null;
+
+            this.classList.add("active");
+            store.p2pOrigin = null;
+            showToast("Point-to-Point active. Click your origin marker.", "success");
+        } else {
+            this.classList.remove("active");
+            store.p2pOrigin = null;
+        }
+    };
+
     document.getElementById("allow-location-btn").onclick = function() {
         document.getElementById('location-modal').style.display = 'none';
-
-        // Clear existing route state before getting new location
-        if (store.directionsRenderer) {
-            store.directionsRenderer.setPath([]);
-            store.lastRoute = null;
-        }
-        if (store.routeLabelWindow) {
-            store.routeLabelWindow.close();
-        }
 
         navigator.geolocation.getCurrentPosition(function(position) {
             const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
@@ -227,6 +244,44 @@ export function setupMapControls() {
     document.getElementById("deny-location-btn").onclick = function() {
         document.getElementById('location-modal').style.display = 'none';
     };
+
+    // Routing Modal Button Handlers
+    document.getElementById("add-route-btn").onclick = function() {
+        if (store.pendingRoutingTarget) {
+            // Double check duplicate before push in case modal was open during state shift
+            const isDuplicate = store.destinations.some(d => utils.coordsMatch(d, store.pendingRoutingTarget));
+            if (!isDuplicate) {
+                store.destinations.push(store.pendingRoutingTarget);
+                executeRouting();
+            }
+        }
+        document.getElementById('routing-modal').style.display = 'none';
+    };
+
+    document.getElementById("replace-route-btn").onclick = function() {
+        if (store.pendingRoutingTarget) {
+            if (store.destinations.length > 0) {
+                store.destinations[store.destinations.length - 1] = store.pendingRoutingTarget;
+            } else {
+                store.destinations = [store.pendingRoutingTarget];
+            }
+            executeRouting();
+        }
+        document.getElementById('routing-modal').style.display = 'none';
+    };
+
+    document.getElementById("new-route-btn").onclick = function() {
+        if (store.pendingRoutingTarget) {
+            store.destinations = [store.pendingRoutingTarget];
+            executeRouting();
+        }
+        document.getElementById('routing-modal').style.display = 'none';
+    };
+
+    document.getElementById("cancel-route-btn").onclick = function() {
+        document.getElementById('routing-modal').style.display = 'none';
+        store.pendingRoutingTarget = null;
+    };
 }
 
 /**
@@ -236,14 +291,6 @@ export function toggleChooseLocationMode() {
     store.isChoosingLocation = !store.isChoosingLocation;
     const btn = document.getElementById("choose-location-btn");
     if (store.isChoosingLocation) {
-        // Clear existing route state when starting manual pin
-        if (store.directionsRenderer) {
-            store.directionsRenderer.setPath([]);
-            store.lastRoute = null;
-        }
-        if (store.routeLabelWindow) {
-            store.routeLabelWindow.close();
-        }
         btn.classList.add("active");
         store.map.setOptions({ draggableCursor: 'crosshair' });
         showToast("Click anywhere on the map to set your starting point.", "success");
@@ -271,8 +318,8 @@ export async function initMap() {
     setupMapControls();
     await initializeGoogleServices();
     setupSidebarDelegation();
-    refreshMapAndUI();
     setupCalendarExport();
+    refreshMapAndUI();
 }
 
 // Attach to window as the global callback for Google Maps API script

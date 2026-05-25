@@ -549,8 +549,8 @@
     border-radius: 12px;
 }
 
-/* --- Location Modal Styles --- */
-#location-modal {
+/* --- Modal Styles --- */
+.custom-modal {
     display: none;
     position: absolute;
     top: 50%;
@@ -560,12 +560,13 @@
     padding: 24px;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
+    z-index: 2000;
     max-width: 300px;
+    width: 90%;
     text-align: center;
 }
 
-#location-modal h3 {
+.custom-modal h3 {
     margin-bottom: 8px;
     display: flex;
     align-items: center;
@@ -574,7 +575,7 @@
     color: var(--text-main);
 }
 
-#location-modal p {
+.custom-modal p {
     color: var(--text-muted);
     font-size: 0.9rem;
     margin-bottom: 16px;
@@ -586,22 +587,104 @@
     justify-content: center;
 }
 
+.modal-actions-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .modal-btn-secondary {
-    padding: 8px 16px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 10px 16px;
     border-radius: 6px;
     border: 1px solid var(--border-color);
     cursor: pointer;
     background: var(--bg-card);
     color: var(--text-main);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.modal-btn-secondary:hover {
+    background-color: var(--bg-light);
+    border-color: var(--ucsc-blue);
 }
 
 .modal-btn-primary {
-    padding: 8px 16px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 10px 16px;
     border-radius: 6px;
     background: #003C6C;
     color: white;
     border: none;
     cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s, filter 0.2s;
+}
+
+.modal-btn-primary:hover {
+    filter: brightness(1.1);
+}
+
+.modal-btn-text {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.modal-btn-text:hover {
+    color: var(--text-main);
+}
+
+/* --- Sidebar Footer & Primary Action --- */
+.sidebar-footer {
+    margin-top: auto;
+    padding-top: 24px;
+    display: flex;
+    justify-content: center;
+}
+
+.primary-action-btn {
+    width: calc(100% - 4px);
+    min-height: 44px;
+    background-color: var(--ucsc-blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.2s, opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.primary-action-btn:hover:not(:disabled) {
+    filter: brightness(1.15);
+}
+
+.primary-action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: var(--text-muted);
 }
 
 /* --- Dark Mode Overrides --- */
@@ -639,63 +722,6 @@
     background-color: rgba(239, 68, 68, 0.1);
 }
 
-
-/* --- Calendar Export Button Styles --- */
-.calendar-export-panel {
-    margin-top: 16px;
-    width: 100%;
-}
-
-.btn-sync {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    min-height: 44px; /* Matches your interactive element heights */
-    padding: 10px 16px;
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 10px; /* Consistent corner rounding with your course cards */
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ucsc-blue);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    user-select: none;
-}
-
-.btn-sync .btn-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-sync:hover {
-    border-color: var(--ucsc-blue);
-    background-color: var(--bg-light);
-}
-
-.btn-sync:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    background-color: var(--bg-light);
-    color: var(--text-muted);
-    border-color: var(--border-color);
-}
-
-/* Dark Mode support overrides */
-[data-theme='dark'] .btn-sync {
-    background-color: var(--bg-card);
-    color: var(--text-main);
-}
-
-[data-theme='dark'] .btn-sync:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-color: var(--text-muted);
-}
-
-[data-theme='dark'] .btn-sync:disabled {
-    background-color: rgba(0, 0, 0, 0.2);
-    color: rgba(255, 255, 255, 0.3);
+[data-theme='dark'] .primary-action-btn {
+    background-color: #0ea5e9; /* Light blue for visibility in dark mode */
 }

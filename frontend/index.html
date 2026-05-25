@@ -90,17 +90,9 @@
                     <!-- Saved items populated by JS -->
                 </div>
             </div>
-            <div class="sidebar-section calendar-export-panel">
-                <button id="syncCalendarBtn" class="btn-sync" title="Export schedule to your device calendar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 8px;">
-                        <path d="M11 6.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z"/>
-                        <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
-                    </svg>
-                    Sync to Calendar
-                </button>
+            <div class="sidebar-footer">
+                <button id="syncCalendarBtn" class="primary-action-btn" disabled>Sync to Calendar</button>
             </div>
-
-
         </aside>
         <!-- Map Container -->
         <main id="map-container">
@@ -124,6 +116,16 @@
                         </svg>
                     </button>
                     <div class="map-btn-group">
+                        <button id="p2p-route-btn" class="map-btn" title="Path Between Two Markers">
+                            <svg version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 16 16" style="enable-background:new 0 0 16 16;" xml:space="preserve">
+                                <g>
+                                    <path fill="currentColor" d="M14,11c-0.737,0-1.375,0.405-1.722,1H3.5C2.673,12,2,11.327,2,10.5S2.673,9,3.5,9h9C14.43,9,16,7.43,16,5.5S14.43,2,12.5,2
+                                        H3.722C3.375,1.405,2.737,1,2,1C0.897,1,0,1.897,0,3s0.897,2,2,2c0.737,0,1.375-0.405,1.722-1H12.5C13.327,4,14,4.673,14,5.5
+                                        S13.327,7,12.5,7h-9C1.57,7,0,8.57,0,10.5S1.57,14,3.5,14h8.778c0.347,0.595,0.985,1,1.722,1c1.103,0,2-0.897,2-2S15.103,11,14,11z
+                                        "/>
+                                </g>
+                            </svg>
+                        </button>
                         <button id="choose-location-btn" class="map-btn" title="Set Start Point Manually">
                             <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
                         </button>
@@ -133,12 +135,22 @@
                     </div>
                 </div>
             </div>
-            <div id="location-modal">
+            <div id="location-modal" class="custom-modal">
                 <h3 id="modal-title">Enable Location</h3>
                 <p>Please allow SlugRoute to access your location so that it can help you navigate around campus.</p>
                 <div class="modal-actions">
                     <button id="deny-location-btn" class="modal-btn-secondary">Not Now</button>
                     <button id="allow-location-btn" class="modal-btn-primary">Allow</button>
+                </div>
+            </div>
+            <div id="routing-modal" class="custom-modal">
+                <h3>Update Route</h3>
+                <p>A route is already drawn. How would you like to update it?</p>
+                <div class="modal-actions-vertical">
+                    <button id="add-route-btn" class="modal-btn-primary">Add Route</button>
+                    <button id="replace-route-btn" class="modal-btn-secondary">Replace Destination</button>
+                    <button id="new-route-btn" class="modal-btn-secondary">New Route</button>
+                    <button id="cancel-route-btn" class="modal-btn-text">Cancel</button>
                 </div>
             </div>
         </main>
