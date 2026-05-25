@@ -133,6 +133,33 @@ export function buildInfoWindowHtml(locationGroup, activeFilters) {
 }
 
 /**
+ * createMarkerElement builds the SVG icon for map pins
+ */
+function createMarkerElement(type, color, count = 1) {
+    const category = utils.getFilterCategory(type);
+    const div = document.createElement('div');
+    div.className = 'marker-wrapper';
+
+    if (count > 1) {
+        div.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 34" width="38" height="38" class="marker-svg">
+                <circle cx="17" cy="17" r="15" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+                <text x="17" y="17" font-family="Inter, sans-serif" font-weight="800" font-size="14" fill="white" text-anchor="middle" dominant-baseline="central" class="marker-text">${count}</text>
+            </svg>
+        `;
+        return div;
+    }
+
+    const path = utils.getIconPath(category);
+    div.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="34" height="34" class="marker-svg">
+            <path d="${path}" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+        </svg>
+    `;
+    return div;
+}
+
+/**
  * smartFitBounds: Centers the map. Now that the map container width adjusts,
  * centering is handled automatically by the map engine.
  */
@@ -156,7 +183,7 @@ export function smartFitBounds(bounds) {
         store.map.panTo(center);
 
         // Re-apply restriction after pan
-        setTimeout(() => {
+        setTimeout(function() {
             store.map.setOptions({
                 restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false }
             });
@@ -272,7 +299,9 @@ export function updateMarkers() {
             if (store.directionsRenderer) {
                 store.directionsRenderer.setPath([]);
             }
-            store.routeLabelWindows.forEach(w => w.close());
+            store.routeLabelWindows.forEach(function(w) {
+                w.close();
+            });
             store.routeLabelWindows = [];
             store.lastRoute = null;
             store.currentDestination = null;
@@ -329,7 +358,9 @@ export function refreshMapAndUI(shouldFitBounds = true) {
             if (store.directionsRenderer) {
                 store.directionsRenderer.setPath([]);
             }
-            store.routeLabelWindows.forEach(w => w.close());
+            store.routeLabelWindows.forEach(function(w) {
+                w.close();
+            });
             store.routeLabelWindows = [];
             store.lastRoute = null;
             store.currentDestination = null;
@@ -390,40 +421,15 @@ export function refreshMapAndUI(shouldFitBounds = true) {
 }
 
 /**
- * createMarkerElement builds the SVG icon for map pins
- */
-function createMarkerElement(type, color, count = 1) {
-    const category = utils.getFilterCategory(type);
-    const div = document.createElement('div');
-    div.className = 'marker-wrapper';
-
-    if (count > 1) {
-        div.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 34" width="38" height="38" class="marker-svg">
-                <circle cx="17" cy="17" r="15" fill="${color}" stroke="#ffffff" stroke-width="2"/>
-                <text x="17" y="17" font-family="Inter, sans-serif" font-weight="800" font-size="14" fill="white" text-anchor="middle" dominant-baseline="central" class="marker-text">${count}</text>
-            </svg>
-        `;
-        return div;
-    }
-
-    const path = utils.getIconPath(category);
-    div.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="34" height="34" class="marker-svg">
-            <path d="${path}" fill="${color}" stroke="#ffffff" stroke-width="2"/>
-        </svg>
-    `;
-    return div;
-}
-
-/**
  * clearResults empties current results and map
  */
 export function clearResults() {
     if (store.activeInfoWindow) {
         store.activeInfoWindow.close();
     }
-    store.routeLabelWindows.forEach(w => w.close());
+    store.routeLabelWindows.forEach(function(w) {
+        w.close();
+    });
     store.routeLabelWindows = [];
     if (store.directionsRenderer) {
         store.directionsRenderer.setPath([]);
@@ -440,47 +446,19 @@ export function clearResults() {
 }
 
 /**
- * updateStartMarker handles the blue user location pin
- */
-export function updateStartMarker(position, title) {
-    if (store.activeInfoWindow) {
-        store.activeInfoWindow.close();
-    }
-
-    if (store.startMarker) {
-        store.startMarker.position = position;
-        store.startMarker.map = store.map;
-    } else {
-        const youAreHereDiv = document.createElement('div');
-        youAreHereDiv.style.transform = 'translateY(50%)';
-        youAreHereDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`;
-        store.startMarker = new store.AdvancedMarkerElement({
-            map: store.map,
-            position: position,
-            content: youAreHereDiv,
-            title: title
-        });
-    }
-
-    // Feature implementation: If a standard route exists, automatically recalculate from new position
-    if (store.lastRoute && !store.isLastRouteP2P && store.destinations.length > 0) {
-        executeRouting();
-    }
-
-    store.map.panTo(position);
-    store.map.setZoom(18);
-}
-
-/**
  * displayLegBubbles places a stat bubble at 95% of the length of each leg
  */
 export function displayLegBubbles(legs) {
-    store.routeLabelWindows.forEach(w => w.close());
+    store.routeLabelWindows.forEach(function(w) {
+        w.close();
+    });
     store.routeLabelWindows = [];
 
     legs.forEach(function(leg) {
         const snappedPath = google.maps.geometry.encoding.decodePath(leg.polyline.encodedPolyline);
-        if (snappedPath.length === 0) return;
+        if (snappedPath.length === 0) {
+            return;
+        }
 
         // Place bubble 95% down the leg for better clarity near destination
         const posIdx = Math.max(0, Math.floor(snappedPath.length * 0.95) - 1);
@@ -514,76 +492,20 @@ export function displayLegBubbles(legs) {
 }
 
 /**
- * getDirections determines whether to calculate a new route or show extension options
- */
-export async function getDirections(lat, lng) {
-    const targetPos = { lat: parseFloat(lat), lng: parseFloat(lng) };
-
-    // Mode Intercept: Point-to-Point routing
-    if (store.isP2PMode) {
-        if (!store.p2pOrigin) {
-            store.p2pOrigin = targetPos;
-            showToast("Origin set. Now select your destination marker.", "success");
-        } else {
-            if (utils.coordsMatch(store.p2pOrigin, targetPos)) {
-                showToast("Origin and destination cannot be the same building.", "error");
-                return;
-            }
-            const destination = targetPos;
-            store.destinations = [destination];
-            executeRouting(store.p2pOrigin);
-
-            // Exit P2P mode after successful setup
-            store.isP2PMode = false;
-            store.p2pOrigin = null;
-            document.getElementById("p2p-route-btn").classList.remove("active");
-        }
-        return;
-    }
-
-    if (!store.startMarker) {
-        showToast("Please set your starting location first using the GPS or Pin buttons.", "error");
-        return;
-    }
-
-    // Bypass check: If the existing route is a Point-to-Point lookup,
-    // we clear it first to avoid coordinate duplicate conflicts.
-    if (store.isLastRouteP2P && store.lastRoute) {
-        store.destinations = [targetPos];
-        executeRouting();
-        return;
-    }
-
-    // Strict duplicate check: ensure building isn't already part of the path
-    const isDuplicate = store.destinations.some(d => utils.coordsMatch(d, targetPos));
-    if (isDuplicate) {
-        showToast("This building is already part of your route.", "success");
-        return;
-    }
-
-    // Standard Modal check: Only show if a standard route already exists and the click is on a different marker
-    const isNewTarget = !store.currentDestination || (store.currentDestination.lat !== targetPos.lat || store.currentDestination.lng !== targetPos.lng);
-
-    if (store.lastRoute && isNewTarget) {
-        store.pendingRoutingTarget = targetPos;
-        document.getElementById('routing-modal').style.display = 'block';
-    } else {
-        store.destinations = [targetPos];
-        executeRouting();
-    }
-}
-
-/**
  * executeRouting calculates the actual walking route via proxy using intermediates
  */
 export async function executeRouting(overrideOrigin = null) {
     if (store.directionsRenderer) {
         store.directionsRenderer.setPath([]);
     }
-    store.routeLabelWindows.forEach(w => w.close());
+    store.routeLabelWindows.forEach(function(w) {
+        w.close();
+    });
     store.routeLabelWindows = [];
 
-    if (store.destinations.length === 0) return;
+    if (store.destinations.length === 0) {
+        return;
+    }
 
     // Track if this is a Point-to-Point route to prevent future standard prompts
     store.isLastRouteP2P = !!overrideOrigin;
@@ -594,14 +516,16 @@ export async function executeRouting(overrideOrigin = null) {
     const startPos = overrideOrigin || store.startMarker.position;
     store.lastRouteOrigin = startPos;
 
-    const intermediates = store.destinations.slice(0, -1).map(d => ({
-        location: {
-            latLng: {
-                latitude: d.lat,
-                longitude: d.lng
+    const intermediates = store.destinations.slice(0, -1).map(function(d) {
+        return {
+            location: {
+                latLng: {
+                    latitude: d.lat,
+                    longitude: d.lng
+                }
             }
-        }
-    }));
+        };
+    });
 
     const requestBody = {
         origin: {
@@ -648,7 +572,7 @@ export async function executeRouting(overrideOrigin = null) {
             // Build fullPath leg-by-leg to ensure no gaps between snapped roads and markers
             let fullPath = [startPos];
 
-            route.legs.forEach((leg, index) => {
+            route.legs.forEach(function(leg, index) {
                 const snappedLegPath = google.maps.geometry.encoding.decodePath(leg.polyline.encodedPolyline);
                 fullPath.push(...snappedLegPath);
 
@@ -679,6 +603,100 @@ export async function executeRouting(overrideOrigin = null) {
     } catch (err) {
         console.error("Routes API Error:", err);
         showToast("Error connecting to the routing service.", "error");
+    }
+}
+
+/**
+ * updateStartMarker handles the blue user location pin
+ */
+export function updateStartMarker(position, title) {
+    if (store.activeInfoWindow) {
+        store.activeInfoWindow.close();
+    }
+
+    if (store.startMarker) {
+        store.startMarker.position = position;
+        store.startMarker.map = store.map;
+    } else {
+        const youAreHereDiv = document.createElement('div');
+        youAreHereDiv.style.transform = 'translateY(50%)';
+        youAreHereDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`;
+        store.startMarker = new store.AdvancedMarkerElement({
+            map: store.map,
+            position: position,
+            content: youAreHereDiv,
+            title: title
+        });
+    }
+
+    // Feature implementation: If a standard route exists, automatically recalculate from new position
+    if (store.lastRoute && !store.isLastRouteP2P && store.destinations.length > 0) {
+        executeRouting();
+    }
+
+    store.map.panTo(position);
+    store.map.setZoom(18);
+}
+
+/**
+ * getDirections determines whether to calculate a new route or show extension options
+ */
+export async function getDirections(lat, lng) {
+    const targetPos = { lat: parseFloat(lat), lng: parseFloat(lng) };
+
+    // Mode Intercept: Point-to-Point routing
+    if (store.isP2PMode) {
+        if (!store.p2pOrigin) {
+            store.p2pOrigin = targetPos;
+            showToast("Origin set. Now select your destination marker.", "success");
+        } else {
+            if (utils.coordsMatch(store.p2pOrigin, targetPos)) {
+                showToast("Origin and destination cannot be the same building.", "error");
+                return;
+            }
+            const destination = targetPos;
+            store.destinations = [destination];
+            executeRouting(store.p2pOrigin);
+
+            // Exit P2P mode after successful setup
+            store.isP2PMode = false;
+            store.p2pOrigin = null;
+            document.getElementById("p2p-route-btn").classList.remove("active");
+        }
+        return;
+    }
+
+    if (!store.startMarker) {
+        showToast("Please set your starting location first using the GPS or Pin buttons.", "error");
+        return;
+    }
+
+    // Bypass check: If the existing route is a Point-to-Point lookup,
+    // we clear it first to avoid coordinate duplicate conflicts.
+    if (store.isLastRouteP2P && store.lastRoute) {
+        store.destinations = [targetPos];
+        executeRouting();
+        return;
+    }
+
+    // Strict duplicate check: ensure building isn't already part of the path
+    const isDuplicate = store.destinations.some(function(d) {
+        return utils.coordsMatch(d, targetPos);
+    });
+    if (isDuplicate) {
+        showToast("This building is already part of your route.", "success");
+        return;
+    }
+
+    // Standard Modal check: Only show if a standard route already exists and the click is on a different marker
+    const isNewTarget = !store.currentDestination || (store.currentDestination.lat !== targetPos.lat || store.currentDestination.lng !== targetPos.lng);
+
+    if (store.lastRoute && isNewTarget) {
+        store.pendingRoutingTarget = targetPos;
+        document.getElementById('routing-modal').style.display = 'block';
+    } else {
+        store.destinations = [targetPos];
+        executeRouting();
     }
 }
 

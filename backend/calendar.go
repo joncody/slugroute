@@ -9,9 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// vTimezone defines the America/Los_Angeles timezone rules.
+// VTimezone defines the America/Los_Angeles timezone rules.
 // Note: We use \n here and replace it with \r\n at runtime for RFC 5545 compliance.
-const vTimezone = `BEGIN:VTIMEZONE
+const VTimezone = `BEGIN:VTIMEZONE
 TZID:America/Los_Angeles
 X-LIC-LOCATION:America/Los_Angeles
 BEGIN:DAYLIGHT
@@ -31,41 +31,96 @@ END:STANDARD
 END:VTIMEZONE
 `
 
-// exportCalendarHandler processes the schedule into an iCalendar (.ics) format.
-func exportCalendarHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var schedule []Offering
-		if err := c.ShouldBindJSON(&schedule); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid schedule data"})
-			return
-		}
+// splitTime separates a time string into days and times parts.
+func splitTime(tStr string) (string, string) {
+	parts := strings.Split(tStr, " ")
+	if len(parts) < 2 {
+		return "", ""
+	}
+	return parts[0], parts[1]
+}
 
-		var ics strings.Builder
-		ics.WriteString("BEGIN:VCALENDAR\r\n")
-		ics.WriteString("VERSION:2.0\r\n")
-		ics.WriteString("PRODID:-//SlugRoute//Campus Map//EN\r\n")
-		ics.WriteString("CALSCALE:GREGORIAN\r\n")
-		ics.WriteString("METHOD:PUBLISH\r\n")
+// formatTime converts a 12-hour time string to a 24-hour ICal format.
+func formatTime(t string) string {
+	parsed, err := time.Parse("3:04PM", t)
+	if err != nil {
+		return "000000"
+	}
+	return parsed.Format("150405")
+}
 
-		// Inject the VTIMEZONE component, ensuring CRLF line endings
-		ics.WriteString(strings.ReplaceAll(vTimezone, "\n", "\r\n"))
+// parseICalTimes extracts start and end times from a range string.
+func parseICalTimes(times string) (string, string) {
+	rangeParts := strings.Split(times, "-")
+	if len(rangeParts) < 2 {
+		return "000000", "000000"
+	}
+	return formatTime(rangeParts[0]), formatTime(rangeParts[1])
+}
 
-		for _, course := range schedule {
-			for _, m := range course.Meetings {
-				if m.Time == "" || strings.Contains(strings.ToUpper(m.Time), "TBA") || strings.Contains(strings.ToUpper(m.Time), "CANCELLED") {
-					continue
-				}
+// parseICalDays converts UCSC day abbreviations to ICal day codes.
+func parseICalDays(days string) string {
+	var res []string
+	if strings.Contains(days, "M") {
+		res = append(res, "MO")
+	}
+	if strings.Contains(days, "Tu") {
+		res = append(res, "TU")
+	}
+	if strings.Contains(days, "W") {
+		res = append(res, "WE")
+	}
+	if strings.Contains(days, "Th") {
+		res = append(res, "TH")
+	}
+	if strings.Contains(days, "F") {
+		res = append(res, "FR")
+	}
+	return strings.Join(res, ",")
+}
 
-				addEvent(&ics, course, m)
+// getTermDates returns the hardcoded start and end dates for a UCSC term.
+func getTermDates(term string) (string, string) {
+	year := "20" + term[1:3]
+	suffix := term[3]
+	var start, end string
+
+	switch suffix {
+	case '0': // Winter
+		start, end = year+"0105", year+"0320"
+	case '2': // Spring
+		start, end = year+"0330", year+"0612"
+	case '4': // Summer
+		start, end = year+"0622", year+"0830"
+	case '8': // Fall
+		start, end = year+"0923", year+"1215"
+	default:
+		start, end = year+"0101", year+"1231"
+	}
+	return start, end + "T235959Z"
+}
+
+// calculateFirstOccurrence finds the first date a class meets based on the term start.
+func calculateFirstOccurrence(termStart, days, timeStr string) string {
+	t, _ := time.Parse("20060102", termStart)
+	dayMap := map[string]time.Weekday{
+		"M":  time.Monday,
+		"Tu": time.Tuesday,
+		"W":  time.Wednesday,
+		"Th": time.Thursday,
+		"F":  time.Friday,
+	}
+
+	earliest := 7
+	for code, wd := range dayMap {
+		if strings.Contains(days, code) {
+			diff := (int(wd) - int(t.Weekday()) + 7) % 7
+			if diff < earliest {
+				earliest = diff
 			}
 		}
-
-		ics.WriteString("END:VCALENDAR\r\n")
-
-		c.Header("Content-Type", "text/calendar")
-		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=slugroute-schedule-%d.ics", time.Now().Year()))
-		c.String(http.StatusOK, ics.String())
 	}
+	return t.AddDate(0, 0, earliest).Format("20060102") + "T" + timeStr
 }
 
 // addEvent appends a VEVENT block to the ics builder.
@@ -97,74 +152,39 @@ func addEvent(ics *strings.Builder, course Offering, m Meeting) {
 	ics.WriteString("END:VEVENT\r\n")
 }
 
-func splitTime(tStr string) (string, string) {
-	parts := strings.Split(tStr, " ")
-	if len(parts) < 2 {
-		return "", ""
-	}
-	return parts[0], parts[1]
-}
+// exportCalendarHandler processes the schedule into an iCalendar (.ics) format.
+func exportCalendarHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var schedule []Offering
+		if err := c.ShouldBindJSON(&schedule); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid schedule data"})
+			return
+		}
 
-func parseICalTimes(times string) (string, string) {
-	rangeParts := strings.Split(times, "-")
-	if len(rangeParts) < 2 {
-		return "000000", "000000"
-	}
-	return formatTime(rangeParts[0]), formatTime(rangeParts[1])
-}
+		var ics strings.Builder
+		ics.WriteString("BEGIN:VCALENDAR\r\n")
+		ics.WriteString("VERSION:2.0\r\n")
+		ics.WriteString("PRODID:-//SlugRoute//Campus Map//EN\r\n")
+		ics.WriteString("CALSCALE:GREGORIAN\r\n")
+		ics.WriteString("METHOD:PUBLISH\r\n")
 
-func formatTime(t string) string {
-	parsed, err := time.Parse("3:04PM", t)
-	if err != nil {
-		return "000000"
-	}
-	return parsed.Format("150405")
-}
+		// Inject the VTIMEZONE component, ensuring CRLF line endings
+		ics.WriteString(strings.ReplaceAll(VTimezone, "\n", "\r\n"))
 
-func parseICalDays(days string) string {
-	var res []string
-	if strings.Contains(days, "M") { res = append(res, "MO") }
-	if strings.Contains(days, "Tu") { res = append(res, "TU") }
-	if strings.Contains(days, "W") { res = append(res, "WE") }
-	if strings.Contains(days, "Th") { res = append(res, "TH") }
-	if strings.Contains(days, "F") { res = append(res, "FR") }
-	return strings.Join(res, ",")
-}
+		for _, course := range schedule {
+			for _, m := range course.Meetings {
+				if m.Time == "" || strings.Contains(strings.ToUpper(m.Time), "TBA") || strings.Contains(strings.ToUpper(m.Time), "CANCELLED") {
+					continue
+				}
 
-func getTermDates(term string) (string, string) {
-	year := "20" + term[1:3]
-	suffix := term[3]
-	var start, end string
-
-	switch suffix {
-	case '0': // Winter
-		start, end = year+"0105", year+"0320"
-	case '2': // Spring
-		start, end = year+"0330", year+"0612"
-	case '4': // Summer
-		start, end = year+"0622", year+"0830"
-	case '8': // Fall
-		start, end = year+"0923", year+"1215"
-	default:
-		start, end = year+"0101", year+"1231"
-	}
-	return start, end + "T235959Z"
-}
-
-func calculateFirstOccurrence(termStart, days, timeStr string) string {
-	t, _ := time.Parse("20060102", termStart)
-	dayMap := map[string]time.Weekday{
-		"M": time.Monday, "Tu": time.Tuesday, "W": time.Wednesday, "Th": time.Thursday, "F": time.Friday,
-	}
-
-	earliest := 7
-	for code, wd := range dayMap {
-		if strings.Contains(days, code) {
-			diff := (int(wd) - int(t.Weekday()) + 7) % 7
-			if diff < earliest {
-				earliest = diff
+				addEvent(&ics, course, m)
 			}
 		}
+
+		ics.WriteString("END:VCALENDAR\r\n")
+
+		c.Header("Content-Type", "text/calendar")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=slugroute-schedule-%d.ics", time.Now().Year()))
+		c.String(http.StatusOK, ics.String())
 	}
-	return t.AddDate(0, 0, earliest).Format("20060102") + "T" + timeStr
 }

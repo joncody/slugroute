@@ -167,14 +167,14 @@ func getCourseHandler(db *sql.DB) gin.HandlerFunc {
 		offeringsMap, err := fetchOfferings(db, term, code)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to fetch lectures",
+				"error": "failed to fetch lectures",
 			})
 			return
 		}
 
 		if err := attachSections(db, term, offeringsMap); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to fetch sections",
+				"error": "failed to fetch sections",
 			})
 			return
 		}
@@ -194,7 +194,7 @@ func getTermsHandler(db *sql.DB) gin.HandlerFunc {
 		rows, err := db.Query(query)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to query terms",
+				"error": "failed to query terms",
 			})
 			return
 		}
@@ -234,7 +234,7 @@ func getSuggestionsHandler(db *sql.DB) gin.HandlerFunc {
 		rows, err := db.Query(query, likeQuery, likeQuery, term)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Suggestion query failed",
+				"error": "suggestion query failed",
 			})
 			return
 		}
@@ -257,19 +257,19 @@ func getRoutesProxyHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		apiKey := os.Getenv("GOOGLE_MAPS_API_KEY")
 		if apiKey == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Map API key not configured on server"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "map API key not configured on server"})
 			return
 		}
 
 		body, err := io.ReadAll(c.Request.Body)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 			return
 		}
 
 		req, err := http.NewRequest("POST", "https://routes.googleapis.com/directions/v2:computeRoutes", bytes.NewBuffer(body))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create proxy request"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create proxy request"})
 			return
 		}
 
@@ -280,7 +280,7 @@ func getRoutesProxyHandler() gin.HandlerFunc {
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			c.JSON(http.StatusBadGateway, gin.H{"error": "Google API unreachable"})
+			c.JSON(http.StatusBadGateway, gin.H{"error": "google API unreachable"})
 			return
 		}
 		defer resp.Body.Close()
@@ -290,6 +290,7 @@ func getRoutesProxyHandler() gin.HandlerFunc {
 	}
 }
 
+// main initializes the database connection and defines server routes.
 func main() {
 	db, err := sql.Open("sqlite3", "../database/slugroute.db")
 	if err != nil {

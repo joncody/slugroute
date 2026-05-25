@@ -8,7 +8,9 @@ import { refreshMapAndUI, focusClass } from "./map.js";
  */
 export function updateSyncBtnState() {
     const syncBtn = document.getElementById('syncCalendarBtn');
-    if (!syncBtn) return;
+    if (!syncBtn) {
+        return;
+    }
 
     const totalCourses = (store.currentOfferings || []).length + (store.savedCourses || []).length;
     syncBtn.disabled = (totalCourses === 0);
@@ -21,8 +23,10 @@ export function highlightSidebarCard(classNumber, active, meetingIndex = null) {
     const sidebarEl = document.getElementById(`card-${classNumber}`);
     const iwEl = document.querySelector(`.iw-offering[data-class="${classNumber}"]`);
 
-    const updateElement = (el) => {
-        if (!el) return;
+    const updateElement = function(el) {
+        if (!el) {
+            return;
+        }
 
         if (meetingIndex === null) {
             // Course-level toggle
@@ -31,7 +35,9 @@ export function highlightSidebarCard(classNumber, active, meetingIndex = null) {
             } else {
                 el.classList.remove('highlight');
                 // Cleanup child meeting highlights if we are deactivating the whole card
-                el.querySelectorAll('.highlight').forEach(node => node.classList.remove('highlight'));
+                el.querySelectorAll('.highlight').forEach(function(node) {
+                    node.classList.remove('highlight');
+                });
             }
         } else {
             // Subsection-level toggle
@@ -107,7 +113,7 @@ export function renderSearchList() {
     }
 
     // Sort active results by Quarter (Term), then Day and Time
-    const sortedOfferings = [...store.currentOfferings].sort((a, b) => {
+    const sortedOfferings = [...store.currentOfferings].sort(function(a, b) {
         if (a.term !== b.term) {
             return parseInt(a.term) - parseInt(b.term);
         }
@@ -168,6 +174,125 @@ export function renderSearchList() {
         `;
     }).join("");
     updateSyncBtnState();
+}
+
+/**
+ * toggleVisibility switches the visible flag for a course on the map
+ */
+export function toggleVisibility(classNum) {
+    const offering = store.currentOfferings.find(function(o) {
+        return o.class_number === classNum;
+    });
+
+    if (offering) {
+        offering.visible = (offering.visible === false);
+        refreshMapAndUI();
+    }
+}
+
+/**
+ * removeResult removes a single course card from the results
+ */
+export function removeResult(classNum) {
+    if (store.activeInfoWindow) {
+        store.activeInfoWindow.close();
+    }
+    ColorManager.releaseColor(classNum);
+    store.currentOfferings = store.currentOfferings.filter(function(c) {
+        return c.class_number !== classNum;
+    });
+    refreshMapAndUI();
+}
+
+/**
+ * removeMeeting deletes a specific section from a course result
+ */
+export function removeMeeting(classNum, meetingIndex) {
+    const offering = store.currentOfferings.find(function(o) {
+        return o.class_number === classNum;
+    });
+
+    if (offering && offering.meetings.length > 1) {
+        const removedCategory = utils.getFilterCategory(offering.meetings[meetingIndex].type);
+
+        offering.meetings.splice(meetingIndex, 1);
+
+        const savedIdx = store.savedCourses.findIndex(function(s) {
+            return s.class_number === classNum;
+        });
+
+        if (savedIdx > -1) {
+            store.savedCourses[savedIdx] = offering;
+            localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
+        }
+
+        const categoryStillExists = offering.meetings.some(function(m) {
+            return utils.getFilterCategory(m.type) === removedCategory;
+        });
+
+        // Refocus the map only if the removed section was the last one of its category (LEC, LAB, or DIS)
+        refreshMapAndUI(!categoryStillExists);
+    } else {
+        removeResult(classNum);
+    }
+}
+
+/**
+ * addSavedToResults adds a single saved course to the map
+ */
+export async function addSavedToResults(classNum) {
+    const course = store.savedCourses.find(function(c) {
+        return c.class_number === classNum;
+    });
+    if (course) {
+        const alreadyIn = store.currentOfferings.find(function(c) {
+            return c.class_number === classNum;
+        });
+        if (!alreadyIn) {
+            store.currentOfferings.push({ ...course, visible: true });
+            refreshMapAndUI();
+        }
+    }
+    focusClass(classNum);
+}
+
+/**
+ * handleSearchResultsClick focuses on the selected course
+ */
+function handleSearchResultsClick(classNum) {
+    focusClass(classNum);
+}
+
+/**
+ * handleSavedClassesClick adds a saved course to active results
+ */
+function handleSavedClassesClick(classNum) {
+    addSavedToResults(classNum);
+}
+
+/**
+ * toggleSaveCourse handles persistence to localStorage
+ */
+export function toggleSaveCourse(classNum) {
+    const offering = store.currentOfferings.find(function(o) {
+        return o.class_number === classNum;
+    }) || store.savedCourses.find(function(o) {
+        return o.class_number === classNum;
+    });
+
+    const index = store.savedCourses.findIndex(function(o) {
+        return o.class_number === classNum;
+    });
+
+    if (index > -1) {
+        store.savedCourses.splice(index, 1);
+    } else if (offering) {
+        store.savedCourses.push(offering);
+    }
+
+    localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
+    renderSavedList();
+    renderSearchList();
 }
 
 /**
@@ -246,61 +371,6 @@ export function setupSidebarDelegation() {
     });
 }
 
-function handleSearchResultsClick(classNum) {
-    focusClass(classNum);
-}
-
-function handleSavedClassesClick(classNum) {
-    addSavedToResults(classNum);
-}
-
-/**
- * toggleVisibility switches the visible flag for a course on the map
- */
-export function toggleVisibility(classNum) {
-    const offering = store.currentOfferings.find(function(o) {
-        return o.class_number === classNum;
-    });
-
-    if (offering) {
-        offering.visible = (offering.visible === false);
-        refreshMapAndUI();
-    }
-}
-
-/**
- * removeMeeting deletes a specific section from a course result
- */
-export function removeMeeting(classNum, meetingIndex) {
-    const offering = store.currentOfferings.find(function(o) {
-        return o.class_number === classNum;
-    });
-
-    if (offering && offering.meetings.length > 1) {
-        const removedCategory = utils.getFilterCategory(offering.meetings[meetingIndex].type);
-
-        offering.meetings.splice(meetingIndex, 1);
-
-        const savedIdx = store.savedCourses.findIndex(function(s) {
-            return s.class_number === classNum;
-        });
-
-        if (savedIdx > -1) {
-            store.savedCourses[savedIdx] = offering;
-            localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
-        }
-
-        const categoryStillExists = offering.meetings.some(function(m) {
-            return utils.getFilterCategory(m.type) === removedCategory;
-        });
-
-        // Refocus the map only if the removed section was the last one of its category (LEC, LAB, or DIS)
-        refreshMapAndUI(!categoryStillExists);
-    } else {
-        removeResult(classNum);
-    }
-}
-
 /**
  * renderSavedList updates the "Saved for Later" section with standard cards sorted by Quarter, Day, and Time
  */
@@ -314,7 +384,7 @@ export function renderSavedList() {
     }
 
     // Sort saved courses by Quarter (Term), then Day and Time
-    const sortedCourses = [...store.savedCourses].sort((a, b) => {
+    const sortedCourses = [...store.savedCourses].sort(function(a, b) {
         if (a.term !== b.term) {
             return parseInt(a.term) - parseInt(b.term);
         }
@@ -353,6 +423,218 @@ export function renderSavedList() {
         `;
     }).join("");
     updateSyncBtnState();
+}
+
+/**
+ * renderPreviewSectionRow handles the checkboxes inside search results dropdown
+ */
+export function renderPreviewSectionRow(meet, index, cn) {
+    const isLec = utils.getFilterCategory(meet.type) === 'LEC';
+    const status = utils.getClassStatus(meet);
+
+    if (isLec || !meet.time || meet.time.trim() === "") {
+        return '';
+    }
+
+    const isSelected = store.pendingSelections[cn].includes(index);
+    const rowClass = isSelected ? 'preview-section-item selected' : 'preview-section-item';
+
+    return `
+        <div class="${rowClass} preview-sec-row" data-class="${cn}" data-index="${index}">
+            <div class="checkbox-wrapper">
+                <div class="custom-checkbox ${isSelected ? 'checked' : ''}"></div>
+            </div>
+            <div class="preview-item-info">
+                <div class="sec-time-row">
+                    <span class="sec-type">${meet.type}</span>
+                    <span class="sec-time">${meet.time}</span>
+                </div>
+                <div class="sec-meta-row">
+                    <span class="sec-instructor" title="${meet.instructor || 'Staff'}">${meet.instructor || 'Staff'}</span>
+                    ${status !== 'PHYSICAL' ? `<span class="status-mini-tag ${status.toLowerCase()}">${status}</span>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * togglePendingSection handles checklist behavior in the search preview
+ */
+export function togglePendingSection(classNum, index) {
+    const list = store.pendingSelections[classNum];
+    const idx = list.indexOf(index);
+    if (idx > -1) {
+        list.splice(idx, 1);
+    } else {
+        list.push(index);
+    }
+    renderSearchPreview();
+}
+
+/**
+ * toggleAllSections handles the "Add All" shortcut in search preview
+ */
+export function toggleAllSections(classNum) {
+    const offering = store.lastSearchResults.find(function(o) {
+        return o.class_number === classNum;
+    });
+    if (!offering) {
+        return;
+    }
+    store.pendingSelections[classNum] = offering.meetings.map(function(m, idx) {
+        return idx;
+    }).filter(function(idx) {
+        return offering.meetings[idx].time && offering.meetings[idx].time.trim() !== "";
+    });
+    renderSearchPreview();
+}
+
+/**
+ * commitSelection handles validation and mapping of selected sections
+ */
+export function commitSelection(classNum) {
+    const original = store.lastSearchResults.find(function(o) {
+        return o.class_number === classNum;
+    });
+    const indices = store.pendingSelections[classNum];
+    const filteredMeetings = original.meetings.filter(function(m, idx) {
+        return indices.includes(idx);
+    });
+
+    for (let i = 0; i < filteredMeetings.length; i++) {
+        const m = filteredMeetings[i];
+        const status = utils.getClassStatus(m);
+
+        if (status === "CANCELLED") {
+            showToast(`The ${m.type} for this course is Cancelled and cannot be mapped.`);
+            return;
+        }
+        if (status === "TBD") {
+            showToast(`The location for this ${m.type} is TBA. Please check back later.`);
+            return;
+        }
+    }
+
+    let active = store.currentOfferings.find(function(o) {
+        return o.class_number === classNum;
+    });
+
+    if (active) {
+        active.meetings = filteredMeetings;
+    } else {
+        store.currentOfferings.push({ ...original, meetings: filteredMeetings, visible: true });
+    }
+
+    const sIdx = store.savedCourses.findIndex(function(s) {
+        return s.class_number === classNum;
+    });
+
+    if (sIdx > -1) {
+        store.savedCourses[sIdx] = store.currentOfferings.find(function(o) {
+            return o.class_number === classNum;
+        });
+        localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
+    }
+
+    document.getElementById("course-input").value = "";
+    document.getElementById("search-preview").style.display = "none";
+    refreshMapAndUI();
+    focusClass(classNum);
+}
+
+/**
+ * attachPreviewListeners attaches listeners to dropdown elements
+ */
+export function attachPreviewListeners() {
+    document.querySelectorAll(".preview-sec-row").forEach(function(row) {
+        row.onclick = function(e) {
+            e.stopPropagation();
+            togglePendingSection(this.dataset.class, parseInt(this.dataset.index));
+        };
+    });
+
+    document.querySelectorAll(".commit-select-btn").forEach(function(btn) {
+        btn.onclick = function(e) {
+            e.stopPropagation();
+            commitSelection(this.dataset.class);
+        };
+    });
+
+    document.querySelectorAll(".toggle-all-btn").forEach(function(btn) {
+        btn.onclick = function(e) {
+            e.stopPropagation();
+            toggleAllSections(this.dataset.class);
+        };
+    });
+
+    document.querySelectorAll(".preview-offering").forEach(function(o) {
+        o.onclick = function(e) {
+            e.stopPropagation();
+        };
+    });
+}
+
+/**
+ * renderSearchPreview populates the dropdown with a "Schedule Builder" layout
+ */
+export function renderSearchPreview() {
+    const container = document.getElementById("search-preview");
+
+    container.innerHTML = store.lastSearchResults.map(function(offering) {
+        const cn = offering.class_number;
+
+        // Map meetings with their original indices and sort them chronologically
+        const sortedMeets = offering.meetings
+            .map(function(m, idx) {
+                return { ...m, originalIndex: idx };
+            })
+            .sort(function(a, b) {
+                return (utils.parseMeetingTime(a.time) ?? 999999) - (utils.parseMeetingTime(b.time) ?? 999999);
+            });
+
+        const lecMeet = sortedMeets.find(function(m) {
+            return utils.getFilterCategory(m.type) === 'LEC';
+        });
+
+        const displayableSections = sortedMeets.filter(function(meet) {
+            const isLec = utils.getFilterCategory(meet.type) === 'LEC';
+            return !isLec && meet.time && meet.time.trim() !== "";
+        });
+
+        const showAddAll = displayableSections.some(function(meet) {
+            return utils.getClassStatus(meet) === 'PHYSICAL';
+        });
+
+        return `
+            <div class="preview-offering" id="preview-offering-${cn}">
+                <div class="preview-header">
+                    <div class="preview-header-info">
+                        <div class="preview-course-title" title="${offering.course_code}">${offering.course_code}</div>
+                        <div class="preview-course-meta">
+                            <span class="preview-course-instructor" title="${offering.instructor}">${offering.instructor}</span>
+                            <span class="preview-course-id">#${cn}</span>
+                        </div>
+                        <div class="preview-sub-meta">${utils.getIcon('clock', 12)} ${lecMeet ? lecMeet.time : "TBA"}</div>
+                    </div>
+                    <div class="header-action-container">
+                        <button class="preview-commit-btn commit-select-btn" data-class="${cn}">Add to Map</button>
+                        ${showAddAll ? `<button class="preview-add-all-btn toggle-all-btn" data-class="${cn}">+ All</button>` : ''}
+                    </div>
+                </div>
+                ${displayableSections.length > 0 ? `
+                    <div class="preview-sections-list">
+                        <div class="preview-section-label">Available Sections</div>
+                        ${sortedMeets.map(function(meet) {
+                            return renderPreviewSectionRow(meet, meet.originalIndex, cn);
+                        }).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+
+    attachPreviewListeners();
 }
 
 /**
@@ -442,274 +724,13 @@ export async function searchCourse() {
     }
 }
 
-// Attach searchCourse to window for inline onclick handlers in suggestions
-window.searchCourse = searchCourse;
-
-/**
- * renderPreviewSectionRow handles the checkboxes inside search results dropdown
- */
-export function renderPreviewSectionRow(meet, index, cn) {
-    const isLec = utils.getFilterCategory(meet.type) === 'LEC';
-    const status = utils.getClassStatus(meet);
-
-    if (isLec || !meet.time || meet.time.trim() === "") {
-        return '';
-    }
-
-    const isSelected = store.pendingSelections[cn].includes(index);
-    const rowClass = isSelected ? 'preview-section-item selected' : 'preview-section-item';
-
-    return `
-        <div class="${rowClass} preview-sec-row" data-class="${cn}" data-index="${index}">
-            <div class="checkbox-wrapper">
-                <div class="custom-checkbox ${isSelected ? 'checked' : ''}"></div>
-            </div>
-            <div class="preview-item-info">
-                <div class="sec-time-row">
-                    <span class="sec-type">${meet.type}</span>
-                    <span class="sec-time">${meet.time}</span>
-                </div>
-                <div class="sec-meta-row">
-                    <span class="sec-instructor" title="${meet.instructor || 'Staff'}">${meet.instructor || 'Staff'}</span>
-                    ${status !== 'PHYSICAL' ? `<span class="status-mini-tag ${status.toLowerCase()}">${status}</span>` : ''}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * renderSearchPreview populates the dropdown with a "Schedule Builder" layout
- */
-export function renderSearchPreview() {
-    const container = document.getElementById("search-preview");
-
-    container.innerHTML = store.lastSearchResults.map(function(offering) {
-        const cn = offering.class_number;
-
-        // Map meetings with their original indices and sort them chronologically
-        const sortedMeets = offering.meetings
-            .map(function(m, idx) { return { ...m, originalIndex: idx }; })
-            .sort(function(a, b) {
-                return (utils.parseMeetingTime(a.time) ?? 999999) - (utils.parseMeetingTime(b.time) ?? 999999);
-            });
-
-        const lecMeet = sortedMeets.find(m => utils.getFilterCategory(m.type) === 'LEC');
-
-        const displayableSections = sortedMeets.filter(meet => {
-            const isLec = utils.getFilterCategory(meet.type) === 'LEC';
-            return !isLec && meet.time && meet.time.trim() !== "";
-        });
-
-        const showAddAll = displayableSections.some(meet => utils.getClassStatus(meet) === 'PHYSICAL');
-
-        return `
-            <div class="preview-offering" id="preview-offering-${cn}">
-                <div class="preview-header">
-                    <div class="preview-header-info">
-                        <div class="preview-course-title" title="${offering.course_code}">${offering.course_code}</div>
-                        <div class="preview-course-meta">
-                            <span class="preview-course-instructor" title="${offering.instructor}">${offering.instructor}</span>
-                            <span class="preview-course-id">#${cn}</span>
-                        </div>
-                        <div class="preview-sub-meta">${utils.getIcon('clock', 12)} ${lecMeet ? lecMeet.time : "TBA"}</div>
-                    </div>
-                    <div class="header-action-container">
-                        <button class="preview-commit-btn commit-select-btn" data-class="${cn}">Add to Map</button>
-                        ${showAddAll ? `<button class="preview-add-all-btn toggle-all-btn" data-class="${cn}">+ All</button>` : ''}
-                    </div>
-                </div>
-                ${displayableSections.length > 0 ? `
-                    <div class="preview-sections-list">
-                        <div class="preview-section-label">Available Sections</div>
-                        ${sortedMeets.map((meet) => renderPreviewSectionRow(meet, meet.originalIndex, cn)).join('')}
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }).join('');
-
-    attachPreviewListeners();
-}
-
-/**
- * attachPreviewListeners attaches listeners to dropdown elements
- */
-export function attachPreviewListeners() {
-    document.querySelectorAll(".preview-sec-row").forEach(function(row) {
-        row.onclick = function(e) {
-            e.stopPropagation();
-            togglePendingSection(this.dataset.class, parseInt(this.dataset.index));
-        };
-    });
-
-    document.querySelectorAll(".commit-select-btn").forEach(function(btn) {
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            commitSelection(this.dataset.class);
-        };
-    });
-
-    document.querySelectorAll(".toggle-all-btn").forEach(function(btn) {
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            toggleAllSections(this.dataset.class);
-        };
-    });
-
-    document.querySelectorAll(".preview-offering").forEach(function(o) {
-        o.onclick = function(e) {
-            e.stopPropagation();
-        };
-    });
-}
-
-/**
- * togglePendingSection handles checklist behavior in the search preview
- */
-export function togglePendingSection(classNum, index) {
-    const list = store.pendingSelections[classNum];
-    const idx = list.indexOf(index);
-    if (idx > -1) {
-        list.splice(idx, 1);
-    } else {
-        list.push(index);
-    }
-    renderSearchPreview();
-}
-
-/**
- * toggleAllSections handles the "Add All" shortcut in search preview
- */
-export function toggleAllSections(classNum) {
-    const offering = store.lastSearchResults.find(function(o) {
-        return o.class_number === classNum;
-    });
-    if (!offering) return;
-    store.pendingSelections[classNum] = offering.meetings.map((m, idx) => idx).filter(function(idx) {
-        return offering.meetings[idx].time && offering.meetings[idx].time.trim() !== "";
-    });
-    renderSearchPreview();
-}
-
-/**
- * commitSelection handles validation and mapping of selected sections
- */
-export function commitSelection(classNum) {
-    const original = store.lastSearchResults.find(function(o) {
-        return o.class_number === classNum;
-    });
-    const indices = store.pendingSelections[classNum];
-    const filteredMeetings = original.meetings.filter(function(m, idx) {
-        return indices.includes(idx);
-    });
-
-    for (let i = 0; i < filteredMeetings.length; i++) {
-        const m = filteredMeetings[i];
-        const status = utils.getClassStatus(m);
-
-        if (status === "CANCELLED") {
-            showToast(`The ${m.type} for this course is Cancelled and cannot be mapped.`);
-            return;
-        }
-        if (status === "TBD") {
-            showToast(`The location for this ${m.type} is TBA. Please check back later.`);
-            return;
-        }
-    }
-
-    let active = store.currentOfferings.find(function(o) {
-        return o.class_number === classNum;
-    });
-
-    if (active) {
-        active.meetings = filteredMeetings;
-    } else {
-        store.currentOfferings.push({ ...original, meetings: filteredMeetings, visible: true });
-    }
-
-    const sIdx = store.savedCourses.findIndex(function(s) {
-        return s.class_number === classNum;
-    });
-
-    if (sIdx > -1) {
-        store.savedCourses[sIdx] = store.currentOfferings.find(function(o) {
-            return o.class_number === classNum;
-        });
-        localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
-    }
-
-    document.getElementById("course-input").value = "";
-    document.getElementById("search-preview").style.display = "none";
-    refreshMapAndUI();
-    focusClass(classNum);
-}
-
-/**
- * removeResult removes a single course card from the results
- */
-export function removeResult(classNum) {
-    if (store.activeInfoWindow) {
-        store.activeInfoWindow.close();
-    }
-    ColorManager.releaseColor(classNum);
-    store.currentOfferings = store.currentOfferings.filter(function(c) {
-        return c.class_number !== classNum;
-    });
-    refreshMapAndUI();
-}
-
-/**
- * toggleSaveCourse handles persistence to localStorage
- */
-export function toggleSaveCourse(classNum) {
-    const offering = store.currentOfferings.find(function(o) {
-        return o.class_number === classNum;
-    }) || store.savedCourses.find(function(o) {
-        return o.class_number === classNum;
-    });
-
-    const index = store.savedCourses.findIndex(function(o) {
-        return o.class_number === classNum;
-    });
-
-    if (index > -1) {
-        store.savedCourses.splice(index, 1);
-    } else if (offering) {
-        store.savedCourses.push(offering);
-    }
-
-    localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
-    renderSavedList();
-    renderSearchList();
-}
-
-/**
- * addSavedToResults adds a single saved course to the map
- */
-export async function addSavedToResults(classNum) {
-    const course = store.savedCourses.find(function(c) {
-        return c.class_number === classNum;
-    });
-    if (course) {
-        const alreadyIn = store.currentOfferings.find(function(c) {
-            return c.class_number === classNum;
-        });
-        if (!alreadyIn) {
-            store.currentOfferings.push({ ...course, visible: true });
-            refreshMapAndUI();
-        }
-    }
-    focusClass(classNum);
-}
-
 /**
  * addAllSavedToResults batches saved items into the results sidebar
  */
 export function addAllSavedToResults() {
     store.savedCourses.forEach(function(course) {
-        const alreadyIn = store.currentOfferings.find(function(c) {
-            return c.class_number === course.class_number;
+        const alreadyIn = store.currentOfferings.find(function(o) {
+            return o.class_number === course.class_number;
         });
         if (!alreadyIn) {
             store.currentOfferings.push({ ...course, visible: true });
@@ -724,12 +745,14 @@ export function addAllSavedToResults() {
  */
 export function setupCalendarExport() {
     const syncBtn = document.getElementById('syncCalendarBtn');
-    if (!syncBtn) return;
+    if (!syncBtn) {
+        return;
+    }
 
     // Set initial state
     updateSyncBtnState();
 
-    syncBtn.addEventListener('click', async () => {
+    syncBtn.addEventListener('click', async function() {
         // 1. Gather sections from both the active map and the saved sidebar list using store
         const activeClasses = store.currentOfferings || [];
         const savedClasses = store.savedCourses || [];
@@ -738,9 +761,11 @@ export function setupCalendarExport() {
         const combinedList = [...activeClasses, ...savedClasses];
 
         // 3. Remove exact duplicates based on the correct property name: class_number
-        const finalSchedule = combinedList.filter((offering, index, self) =>
-            index === self.findIndex((o) => o.class_number === offering.class_number)
-        );
+        const finalSchedule = combinedList.filter(function(offering, index, self) {
+            return index === self.findIndex(function(o) {
+                return o.class_number === offering.class_number;
+            });
+        });
 
         // 4. Double check for safety
         if (finalSchedule.length === 0) {

@@ -22,6 +22,25 @@ import {
 } from "./ui.js";
 
 /**
+ * toggleChooseLocationMode switches the crosshair cursor for pinning location
+ */
+export function toggleChooseLocationMode() {
+    store.isChoosingLocation = !store.isChoosingLocation;
+    const btn = document.getElementById("choose-location-btn");
+    if (store.isChoosingLocation) {
+        btn.classList.add("active");
+        store.map.setOptions({ draggableCursor: 'crosshair' });
+        showToast("Click anywhere on the map to set your starting point.", "success");
+    } else {
+        btn.classList.remove("active");
+        store.map.setOptions({ draggableCursor: null });
+    }
+}
+
+// Attach to window to support initializeGoogleServices map click logic
+window.toggleChooseLocationMode = toggleChooseLocationMode;
+
+/**
  * populateTerms fetches available academic terms and selects the ideal one
  */
 export async function populateTerms() {
@@ -122,7 +141,9 @@ export function setupMapControls() {
                 store.activeInfoWindow.close();
                 store.activeInfoWindow = null;
             }
-            store.routeLabelWindows.forEach(w => w.close());
+            store.routeLabelWindows.forEach(function(w) {
+                w.close();
+            });
             store.routeLabelWindows = [];
 
             // Re-initialize the entire map instance to pull new styles from Map ID
@@ -149,7 +170,7 @@ export function setupMapControls() {
 
                 // Reconstruct multi-stop path using the specific saved origin to avoid straight-line bug
                 let fullPath = [store.lastRouteOrigin];
-                routeToRestore.legs.forEach((leg, index) => {
+                routeToRestore.legs.forEach(function(leg, index) {
                     const snappedLegPath = google.maps.geometry.encoding.decodePath(leg.polyline.encodedPolyline);
                     fullPath.push(...snappedLegPath);
 
@@ -193,7 +214,9 @@ export function setupMapControls() {
         if (store.directionsRenderer) {
             store.directionsRenderer.setPath([]);
         }
-        store.routeLabelWindows.forEach(w => w.close());
+        store.routeLabelWindows.forEach(function(w) {
+            w.close();
+        });
         store.routeLabelWindows = [];
         store.lastRoute = null;
         store.currentDestination = null;
@@ -214,9 +237,15 @@ export function setupMapControls() {
         store.isP2PMode = !store.isP2PMode;
         if (store.isP2PMode) {
             // Close active windows and clear routes to ensure a clean lookup
-            if (store.activeInfoWindow) store.activeInfoWindow.close();
-            if (store.directionsRenderer) store.directionsRenderer.setPath([]);
-            store.routeLabelWindows.forEach(w => w.close());
+            if (store.activeInfoWindow) {
+                store.activeInfoWindow.close();
+            }
+            if (store.directionsRenderer) {
+                store.directionsRenderer.setPath([]);
+            }
+            store.routeLabelWindows.forEach(function(w) {
+                w.close();
+            });
             store.routeLabelWindows = [];
             store.lastRoute = null;
             store.destinations = [];
@@ -249,7 +278,9 @@ export function setupMapControls() {
     document.getElementById("add-route-btn").onclick = function() {
         if (store.pendingRoutingTarget) {
             // Double check duplicate before push in case modal was open during state shift
-            const isDuplicate = store.destinations.some(d => utils.coordsMatch(d, store.pendingRoutingTarget));
+            const isDuplicate = store.destinations.some(function(d) {
+                return utils.coordsMatch(d, store.pendingRoutingTarget);
+            });
             if (!isDuplicate) {
                 store.destinations.push(store.pendingRoutingTarget);
                 executeRouting();
@@ -283,25 +314,6 @@ export function setupMapControls() {
         store.pendingRoutingTarget = null;
     };
 }
-
-/**
- * toggleChooseLocationMode switches the crosshair cursor for pinning location
- */
-export function toggleChooseLocationMode() {
-    store.isChoosingLocation = !store.isChoosingLocation;
-    const btn = document.getElementById("choose-location-btn");
-    if (store.isChoosingLocation) {
-        btn.classList.add("active");
-        store.map.setOptions({ draggableCursor: 'crosshair' });
-        showToast("Click anywhere on the map to set your starting point.", "success");
-    } else {
-        btn.classList.remove("active");
-        store.map.setOptions({ draggableCursor: null });
-    }
-}
-
-// Attach to window to support initializeGoogleServices map click logic
-window.toggleChooseLocationMode = toggleChooseLocationMode;
 
 /**
  * initMap entry point for Google Maps API
