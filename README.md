@@ -15,6 +15,7 @@
 - **Smart Mapping:** Distinguishes between Lectures (★), Labs (■), and Discussions (▲).
 - **Interactive Sidebar:** Filter by course type, save classes for later, and toggle visibility.
 - **Route Finding:** Calculate walking directions via a secure Go proxy to the Google Routes API.
+- **Calendar Sync:** Export your mapped and saved schedule directly to an iCalendar (.ics) file.
 - **Dark Mode:** Native support for both light and dark campus map themes.
 
 ---
@@ -60,7 +61,7 @@ cd database && python import_coords.py && cd ..
 ```bash
 cd backend
 export CGO_ENABLED=1 # Required for SQLite
-go run main.go
+go run .
 ```
 The app will be live at **`http://localhost:8080`**.
 
