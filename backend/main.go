@@ -2,15 +2,12 @@ package main
 
 import (
 	"bytes"
-	"crypto/md5"
 	"database/sql"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
@@ -255,111 +252,6 @@ func getSuggestionsHandler(db *sql.DB) gin.HandlerFunc {
 	}
 }
 
-func exportCalendarHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var selectedSchedule []Offering
-		if err := c.ShouldBindJSON(&selectedSchedule); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid schedule payload"})
-			return
-		}
-
-		loc, _ := time.LoadLocation("America/Los_Angeles")
-
-		// Map term configurations
-		config := TermConfig{
-			InstructionStart: time.Date(2026, 9, 24, 0, 0, 0, 0, loc),
-			InstructionEnd:   time.Date(2026, 12, 4, 0, 0, 0, 0, loc),
-			Holidays: []time.Time{
-				time.Date(2026, 11, 11, 0, 0, 0, 0, loc),
-				time.Date(2026, 11, 26, 0, 0, 0, 0, loc),
-				time.Date(2026, 11, 27, 0, 0, 0, 0, loc),
-			},
-		}
-
-		var icalEvents []Event
-
-		for _, off := range selectedSchedule {
-			for _, meet := range off.Meetings {
-				timeTokens := strings.SplitN(meet.Time, " ", 2)
-				if len(timeTokens) < 2 {
-					continue
-				}
-
-				dayPart := timeTokens[0]
-				rangePart := timeTokens[1]
-
-				rruleDays, validWeekdays := MapDaysToICal(dayPart)
-				if rruleDays == "" {
-					continue
-				}
-
-				startStr, endStr, err := ParseTimeRange(rangePart)
-				if err != nil {
-					continue
-				}
-
-				// FIX: Parse times explicitly using the California timezone location
-				pStart, err := time.ParseInLocation("3:04 PM", startStr, loc)
-				if err != nil {
-					continue
-				}
-				pEnd, err := time.ParseInLocation("3:04 PM", endStr, loc)
-				if err != nil {
-					continue
-				}
-
-				var firstClassStart time.Time
-				foundFirst := false
-				for d := config.InstructionStart; d.Before(config.InstructionEnd.AddDate(0, 0, 1)); d = d.AddDate(0, 0, 1) {
-					for _, wd := range validWeekdays {
-						if d.Weekday() == wd {
-							// Combine calendar date with local hours and minutes safely
-							firstClassStart = time.Date(d.Year(), d.Month(), d.Day(), pStart.Hour(), pStart.Minute(), 0, 0, loc)
-							foundFirst = true
-							break
-						}
-					}
-					if foundFirst {
-						break
-					}
-				}
-
-				if !foundFirst {
-					continue
-				}
-
-				// Derive the definitive end time using the same timezone context
-				firstClassEnd := time.Date(firstClassStart.Year(), firstClassStart.Month(), firstClassStart.Day(), pEnd.Hour(), pEnd.Minute(), 0, 0, loc)
-
-				// iCalendar RRULE specs strictly require UNTIL parameters to be in UTC
-				untilStr := config.InstructionEnd.UTC().Format("20060102T235959Z")
-
-				uidData := fmt.Sprintf("%s-%s-%s", off.ClassNumber, meet.Type, meet.Time)
-				uid := fmt.Sprintf("%x@slugroute.ucsc.edu", md5.Sum([]byte(uidData)))
-
-				icalEvents = append(icalEvents, Event{
-					UID:         uid,
-					Summary:     fmt.Sprintf("%s (%s)", off.CourseCode, meet.Type),
-					Location:    fmt.Sprintf("%s, Room %s", meet.Building, meet.RoomNumber),
-					Description: fmt.Sprintf("Instructor: %s\nClass Number: %s", meet.Instructor, off.ClassNumber),
-					DTStart:     firstClassStart,
-					DTEnd:       firstClassEnd,
-					RRule:       fmt.Sprintf("FREQ=WEEKLY;BYDAY=%s;UNTIL=%s", rruleDays, untilStr),
-					ExDates:     config.Holidays,
-				})
-			}
-		}
-
-		c.Header("Content-Type", "text/calendar; charset=utf-8")
-		c.Header("Content-Disposition", "attachment; filename=slugroute-schedule.ics")
-		c.Status(http.StatusOK)
-
-		if err := MarshalICS(c.Writer, icalEvents); err != nil {
-			log.Println("Error generating calendar stream output:", err)
-		}
-	}
-}
-
 // getRoutesProxyHandler proxies navigation requests to Google Routes API v2.
 func getRoutesProxyHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -414,8 +306,8 @@ func main() {
 	r.GET("/api/course/:term/:code", getCourseHandler(db))
 	r.GET("/api/terms", getTermsHandler(db))
 	r.GET("/api/suggest", getSuggestionsHandler(db))
-	r.POST("/api/schedule/export", exportCalendarHandler())
 	r.POST("/api/routes-proxy", getRoutesProxyHandler())
+	r.POST("/api/schedule/export", exportCalendarHandler())
 
 	// Root Route: Render index.html with injected API key
 	r.GET("/", func(c *gin.Context) {
