@@ -9,13 +9,8 @@ import {
     smartFitBounds,
     clearResults,
     updateStartMarker,
-<<<<<<< HEAD
-    //displayLegBubbles,
-    //executeRouting,
-=======
     displayLegBubbles,
     executeRouting,
->>>>>>> 9c3b84bc7ab99cecb2faeb7e9997a8d60554006d
     getDirections
 } from "./map.js";
 import {
