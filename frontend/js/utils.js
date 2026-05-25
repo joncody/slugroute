@@ -1,3 +1,4 @@
+//utils.js
 import { CONFIG } from "./config.js";
 
 /**
@@ -104,6 +105,60 @@ export const utils = {
             return "M3 3h18v18H3z";
         }
         return "M12 2L2 21H22L12 2Z";
+    },
+
+    /**
+     * coordsMatch compares two LatLng objects with an epsilon to handle precision
+     */
+    coordsMatch: function(a, b) {
+        if (!a || !b) return false;
+        const epsilon = 0.00001;
+        return Math.abs(a.lat - b.lat) < epsilon && Math.abs(a.lng - b.lng) < epsilon;
+    },
+
+    /**
+     * parseMeetingTime converts strings like "TuTh 10:40AM-11:45AM" to weekly sort values
+     */
+    parseMeetingTime: function(timeStr) {
+        if (!timeStr || timeStr === "TBA" || timeStr.includes("CANCELLED")) {
+            return null;
+        }
+
+        // Isolate the day prefix (e.g., "TuTh" or "MWF") to avoid matching letters in "AM" or "PM"
+        const daysPart = timeStr.split(' ')[0];
+
+        const dayWeights = { "M": 0, "Tu": 1, "W": 2, "Th": 3, "F": 4 };
+        let earliestDayWeight = 10;
+
+        Object.keys(dayWeights).forEach(day => {
+            if (daysPart.includes(day)) {
+                earliestDayWeight = Math.min(earliestDayWeight, dayWeights[day]);
+            }
+        });
+
+        const timeMatch = timeStr.match(/(\d+):(\d+)(AM|PM)/);
+        if (!timeMatch || earliestDayWeight === 10) {
+            return null;
+        }
+
+        let hour = parseInt(timeMatch[1]);
+        const min = parseInt(timeMatch[2]);
+        const ampm = timeMatch[3];
+
+        if (ampm === "PM" && hour !== 12) hour += 12;
+        if (ampm === "AM" && hour === 12) hour = 0;
+
+        return (earliestDayWeight * 1440) + (hour * 60 + min);
+    },
+
+    /**
+     * getEarliestMeetingSortVal finds the absolute earliest weekly minute for a course
+     */
+    getEarliestMeetingSortVal: function(meetings) {
+        const vals = meetings
+            .map(m => utils.parseMeetingTime(m.time))
+            .filter(v => v !== null && v !== undefined);
+        return vals.length > 0 ? Math.min(...vals) : 999999;
     },
 
     /**

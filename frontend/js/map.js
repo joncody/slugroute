@@ -1,3 +1,4 @@
+//map.js
 import { CONFIG } from "./config.js";
 import { store } from "./state.js";
 import { utils, showToast, ColorManager } from "./utils.js";
@@ -132,8 +133,8 @@ export function buildInfoWindowHtml(locationGroup, activeFilters) {
 }
 
 /**
- * smartFitBounds: Centers the map, handling the offset for the sidebar
- * and providing special logic for single-location courses.
+ * smartFitBounds: Centers the map. Now that the map container width adjusts,
+ * centering is handled automatically by the map engine.
  */
 export function smartFitBounds(bounds) {
     if (bounds.isEmpty()) {
@@ -143,9 +144,6 @@ export function smartFitBounds(bounds) {
     if (store.activeInfoWindow) {
         store.activeInfoWindow.close();
     }
-
-    const isSidebarOpen = !document.getElementById("sidebar").classList.contains("closed");
-    const isMobile = window.innerWidth < 768;
 
     // Check if bounds represent a single point (NE equals SW)
     const isSinglePoint = bounds.getNorthEast().equals(bounds.getSouthWest());
@@ -157,13 +155,6 @@ export function smartFitBounds(bounds) {
         store.map.setZoom(CONFIG.ZOOM.BUILDING); // Use your constant (18)
         store.map.panTo(center);
 
-        // If sidebar is open, shift the map center so the pin appears in the visible area
-        if (isSidebarOpen && !isMobile) {
-            // Shift the map left by half the sidebar width to push the pin right
-            // 350px sidebar / 2 = 175px shift
-            store.map.panBy(-175, 0);
-        }
-
         // Re-apply restriction after pan
         setTimeout(() => {
             store.map.setOptions({
@@ -173,11 +164,12 @@ export function smartFitBounds(bounds) {
 
     } else {
         // Standard logic for multiple meetings (e.g. CSE 30)
+        // With the map DOM element shifted/resized, we only need normal padding.
         const padding = {
             top: 100,
             right: 100,
             bottom: 50,
-            left: (isSidebarOpen && !isMobile) ? 550 : 50
+            left: 100
         };
 
         store.map.setOptions({ restriction: null });
@@ -280,11 +272,12 @@ export function updateMarkers() {
             if (store.directionsRenderer) {
                 store.directionsRenderer.setPath([]);
             }
-            if (store.routeLabelWindow) {
-                store.routeLabelWindow.close();
-            }
+            store.routeLabelWindows.forEach(w => w.close());
+            store.routeLabelWindows = [];
             store.lastRoute = null;
             store.currentDestination = null;
+            store.destinations = [];
+            store.lastRouteOrigin = null;
         }
     }
 
@@ -336,11 +329,12 @@ export function refreshMapAndUI(shouldFitBounds = true) {
             if (store.directionsRenderer) {
                 store.directionsRenderer.setPath([]);
             }
-            if (store.routeLabelWindow) {
-                store.routeLabelWindow.close();
-            }
+            store.routeLabelWindows.forEach(w => w.close());
+            store.routeLabelWindows = [];
             store.lastRoute = null;
             store.currentDestination = null;
+            store.destinations = [];
+            store.lastRouteOrigin = null;
         }
     }
 
@@ -359,17 +353,24 @@ export function refreshMapAndUI(shouldFitBounds = true) {
 
         marker.categories = group.filterCategories;
         marker.locationGroup = group;
-        marker.addListener("click", function() {
-            const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
-                return cb.value;
-            });
-            const content = buildInfoWindowHtml(group, activeFilters);
-            if (!content) {
-                return;
-            }
 
-            store.activeInfoWindow.setContent(content);
-            store.activeInfoWindow.open({ map: store.map, anchor: marker });
+        // Fix console warnings and implement intuitive P2P selection
+        marker.addListener("gmp-click", function() {
+            if (store.isP2PMode) {
+                // Clicking the marker selects it directly for routing without an info window
+                getDirections(group.lat, group.lng);
+            } else {
+                const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
+                    return cb.value;
+                });
+                const content = buildInfoWindowHtml(group, activeFilters);
+                if (!content) {
+                    return;
+                }
+
+                store.activeInfoWindow.setContent(content);
+                store.activeInfoWindow.open({ map: store.map, anchor: marker });
+            }
         });
 
         store.markers.push(marker);
@@ -422,14 +423,15 @@ export function clearResults() {
     if (store.activeInfoWindow) {
         store.activeInfoWindow.close();
     }
-    if (store.routeLabelWindow) {
-        store.routeLabelWindow.close();
-    }
+    store.routeLabelWindows.forEach(w => w.close());
+    store.routeLabelWindows = [];
     if (store.directionsRenderer) {
         store.directionsRenderer.setPath([]);
     }
     store.lastRoute = null;
     store.currentDestination = null;
+    store.destinations = [];
+    store.lastRouteOrigin = null;
     store.currentOfferings.forEach(function(c) {
         ColorManager.releaseColor(c.class_number);
     });
@@ -444,6 +446,7 @@ export function updateStartMarker(position, title) {
     if (store.activeInfoWindow) {
         store.activeInfoWindow.close();
     }
+
     if (store.startMarker) {
         store.startMarker.position = position;
         store.startMarker.map = store.map;
@@ -458,73 +461,162 @@ export function updateStartMarker(position, title) {
             title: title
         });
     }
+
+    // Feature implementation: If a standard route exists, automatically recalculate from new position
+    if (store.lastRoute && !store.isLastRouteP2P && store.destinations.length > 0) {
+        executeRouting();
+    }
+
     store.map.panTo(position);
     store.map.setZoom(18);
 }
 
 /**
- * displayRouteBubble places a stat bubble at the midpoint of the route path
+ * displayLegBubbles places a stat bubble at 95% of the length of each leg
  */
-export function displayRouteBubble(path, durationSec, distanceMeters) {
-    if (!store.routeLabelWindow) {
-        store.routeLabelWindow = new google.maps.InfoWindow({
+export function displayLegBubbles(legs) {
+    store.routeLabelWindows.forEach(w => w.close());
+    store.routeLabelWindows = [];
+
+    legs.forEach(function(leg) {
+        const snappedPath = google.maps.geometry.encoding.decodePath(leg.polyline.encodedPolyline);
+        if (snappedPath.length === 0) return;
+
+        // Place bubble 95% down the leg for better clarity near destination
+        const posIdx = Math.max(0, Math.floor(snappedPath.length * 0.95) - 1);
+        const bubblePoint = snappedPath[posIdx];
+
+        const durationStr = leg.duration || "0s";
+        const durationSec = parseInt(durationStr.replace('s', ''));
+        const distanceMeters = leg.distanceMeters || 0;
+
+        const minutes = Math.round(durationSec / 60);
+        const miles = (distanceMeters / 1609.34).toFixed(1);
+
+        const iw = new google.maps.InfoWindow({
             disableAutoPan: true,
-            headerDisabled: true
+            headerDisabled: true,
+            position: bubblePoint,
+            zIndex: 100, // Stacking order: bubbles sit below main building details
+            content: `
+                <div class="route-bubble-container">
+                    <div class="route-bubble-time">
+                        ${utils.getIcon('walk', 14, 'currentColor')}
+                        <span>${minutes} min</span>
+                    </div>
+                    <div class="route-bubble-dist">${miles} miles</div>
+                </div>
+            `
         });
-    }
-
-    const midIdx = Math.floor(path.length / 2);
-    const midPoint = path[midIdx];
-    const minutes = Math.round(durationSec / 60);
-    const miles = (distanceMeters / 1609.34).toFixed(1);
-
-    const content = `
-        <div class="route-bubble-container">
-            <div class="route-bubble-time">
-                ${utils.getIcon('walk', 14, 'currentColor')}
-                <span>${minutes} min</span>
-            </div>
-            <div class="route-bubble-dist">${miles} miles</div>
-        </div>
-    `;
-
-    store.routeLabelWindow.setContent(content);
-    store.routeLabelWindow.setPosition(midPoint);
-    store.routeLabelWindow.open(store.map);
+        iw.open(store.map);
+        store.routeLabelWindows.push(iw);
+    });
 }
 
 /**
- * getDirections calculates a walking route from startMarker to destination
+ * getDirections determines whether to calculate a new route or show extension options
  */
 export async function getDirections(lat, lng) {
-    if (store.directionsRenderer) {
-        store.directionsRenderer.setPath([]);
-    }
-    if (store.routeLabelWindow) {
-        store.routeLabelWindow.close();
-    }
+    const targetPos = { lat: parseFloat(lat), lng: parseFloat(lng) };
 
-    store.currentDestination = { lat: parseFloat(lat), lng: parseFloat(lng) };
+    // Mode Intercept: Point-to-Point routing
+    if (store.isP2PMode) {
+        if (!store.p2pOrigin) {
+            store.p2pOrigin = targetPos;
+            showToast("Origin set. Now select your destination marker.", "success");
+        } else {
+            if (utils.coordsMatch(store.p2pOrigin, targetPos)) {
+                showToast("Origin and destination cannot be the same building.", "error");
+                return;
+            }
+            const destination = targetPos;
+            store.destinations = [destination];
+            executeRouting(store.p2pOrigin);
+
+            // Exit P2P mode after successful setup
+            store.isP2PMode = false;
+            store.p2pOrigin = null;
+            document.getElementById("p2p-route-btn").classList.remove("active");
+        }
+        return;
+    }
 
     if (!store.startMarker) {
         showToast("Please set your starting location first using the GPS or Pin buttons.", "error");
         return;
     }
 
+    // Bypass check: If the existing route is a Point-to-Point lookup,
+    // we clear it first to avoid coordinate duplicate conflicts.
+    if (store.isLastRouteP2P && store.lastRoute) {
+        store.destinations = [targetPos];
+        executeRouting();
+        return;
+    }
+
+    // Strict duplicate check: ensure building isn't already part of the path
+    const isDuplicate = store.destinations.some(d => utils.coordsMatch(d, targetPos));
+    if (isDuplicate) {
+        showToast("This building is already part of your route.", "success");
+        return;
+    }
+
+    // Standard Modal check: Only show if a standard route already exists and the click is on a different marker
+    const isNewTarget = !store.currentDestination || (store.currentDestination.lat !== targetPos.lat || store.currentDestination.lng !== targetPos.lng);
+
+    if (store.lastRoute && isNewTarget) {
+        store.pendingRoutingTarget = targetPos;
+        document.getElementById('routing-modal').style.display = 'block';
+    } else {
+        store.destinations = [targetPos];
+        executeRouting();
+    }
+}
+
+/**
+ * executeRouting calculates the actual walking route via proxy using intermediates
+ */
+export async function executeRouting(overrideOrigin = null) {
+    if (store.directionsRenderer) {
+        store.directionsRenderer.setPath([]);
+    }
+    store.routeLabelWindows.forEach(w => w.close());
+    store.routeLabelWindows = [];
+
+    if (store.destinations.length === 0) return;
+
+    // Track if this is a Point-to-Point route to prevent future standard prompts
+    store.isLastRouteP2P = !!overrideOrigin;
+
+    const finalTarget = store.destinations[store.destinations.length - 1];
+    store.currentDestination = finalTarget;
+
+    const startPos = overrideOrigin || store.startMarker.position;
+    store.lastRouteOrigin = startPos;
+
+    const intermediates = store.destinations.slice(0, -1).map(d => ({
+        location: {
+            latLng: {
+                latitude: d.lat,
+                longitude: d.lng
+            }
+        }
+    }));
+
     const requestBody = {
         origin: {
             location: {
                 latLng: {
-                    latitude: store.startMarker.position.lat,
-                    longitude: store.startMarker.position.lng
+                    latitude: startPos.lat,
+                    longitude: startPos.lng
                 }
             }
         },
         destination: {
             location: {
                 latLng: {
-                    latitude: store.currentDestination.lat,
-                    longitude: store.currentDestination.lng
+                    latitude: finalTarget.lat,
+                    longitude: finalTarget.lng
                 }
             }
         },
@@ -536,6 +628,10 @@ export async function getDirections(lat, lng) {
             avoidFerries: false
         }
     };
+
+    if (intermediates.length > 0) {
+        requestBody.intermediates = intermediates;
+    }
 
     try {
         const response = await fetch('/api/routes-proxy', {
@@ -549,24 +645,22 @@ export async function getDirections(lat, lng) {
             const route = data.routes[0];
             store.lastRoute = route;
 
-            // 1. Decode the snapped path from Google
-            const snappedPath = google.maps.geometry.encoding.decodePath(route.polyline.encodedPolyline);
+            // Build fullPath leg-by-leg to ensure no gaps between snapped roads and markers
+            let fullPath = [startPos];
 
-            // 2. Prepend the marker and append the destination
-            const fullPath = [
-                store.startMarker.position,
-                ...snappedPath,
-                store.currentDestination
-            ];
+            route.legs.forEach((leg, index) => {
+                const snappedLegPath = google.maps.geometry.encoding.decodePath(leg.polyline.encodedPolyline);
+                fullPath.push(...snappedLegPath);
 
-            // 3. Set the path
+                // Anchors the end of this leg to the exact waypoint coordinate
+                if (index < store.destinations.length) {
+                    fullPath.push(store.destinations[index]);
+                }
+            });
+
             store.directionsRenderer.setPath(fullPath);
 
-            // 4. Handle stats
-            const durationSec = parseInt(route.duration.replace('s', ''));
-            const distanceMeters = route.distanceMeters;
-
-            displayRouteBubble(snappedPath, durationSec, distanceMeters);
+            displayLegBubbles(route.legs);
 
             const viewport = route.viewport;
             const bounds = new google.maps.LatLngBounds(
@@ -580,7 +674,7 @@ export async function getDirections(lat, lng) {
                 document.getElementById("sidebar").classList.add("closed");
             }
         } else {
-            showToast("Could not find a walking route to this building.", "error");
+            showToast("Could not find a walking route to these locations.", "error");
         }
     } catch (err) {
         console.error("Routes API Error:", err);
@@ -634,7 +728,9 @@ export async function initializeGoogleServices() {
 
     // Setup Singleton InfoWindow
     if (!store.activeInfoWindow) {
-        store.activeInfoWindow = new google.maps.InfoWindow();
+        store.activeInfoWindow = new google.maps.InfoWindow({
+            zIndex: 200 // Higher zIndex ensures InfoWindow is always on top of time bubbles
+        });
 
         // Re-attach highlighting listeners whenever content is injected
         store.activeInfoWindow.addListener('domready', function() {

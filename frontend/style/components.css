@@ -651,6 +651,7 @@
 
 .modal-btn-text:hover {
     color: var(--text-main);
+<<<<<<< HEAD
 }
 
 /* --- Sidebar Footer & Primary Action --- */
@@ -685,6 +686,8 @@
     opacity: 0.4;
     cursor: not-allowed;
     background-color: var(--text-muted);
+=======
+>>>>>>> 9c3b84bc7ab99cecb2faeb7e9997a8d60554006d
 }
 
 /* --- Dark Mode Overrides --- */
