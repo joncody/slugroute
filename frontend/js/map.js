@@ -65,74 +65,6 @@ export function groupDataByLocation(offerings) {
 }
 
 /**
- * buildInfoWindowHtml creates the content for Google Maps info windows
- */
-export function buildInfoWindowHtml(locationGroup, activeFilters) {
-    let offeringsHtml = "";
-    let visibleCount = 0;
-
-    Object.entries(locationGroup.offerings).forEach(function([classNum, off]) {
-        const visibleMeetings = off.meetings.filter(function(m) {
-            return activeFilters.includes(utils.getFilterCategory(m.type));
-        });
-
-        if (visibleMeetings.length > 0) {
-            visibleCount++;
-            offeringsHtml += `<div class="iw-offering" style="--accent-color: ${off.color}" data-class="${classNum}">
-                <div class="course-code iw-course-code" title="${off.courseCode}">
-                    ${off.courseCode} <i class="iw-term-label">(${utils.getTermName(off.term)})</i>
-                </div>
-                <div class="meetings-list">`;
-
-            visibleMeetings.forEach(function(m) {
-                const type = m.type.toUpperCase();
-                const cat = utils.getFilterCategory(type);
-                const iconPath = utils.getIconPath(cat);
-                const roomStr = m.room_number ? `${m.room_number}` : "TBA";
-                const timeStr = m.time || "TBA";
-
-                offeringsHtml += `<div class="meeting-card iw-meeting-card" data-class="${classNum}" data-index="${m.originalIndex}">
-                    <div class="meeting-row-top">
-                        <div class="meeting-identity">
-                            <span class="type-badge">
-                                <svg width="10" height="10" viewBox="0 0 24 24" class="iw-badge-icon">
-                                    <path d="${iconPath}" fill="white"/>
-                                </svg>${type}
-                            </span>
-                            <span class="instructor-name" title="${m.instructor || 'Staff'}">${m.instructor || "Staff"}</span>
-                        </div>
-                        <div class="room-number-badge">Rm ${roomStr}</div>
-                    </div>
-                    <div class="meeting-row-bottom">
-                        <span class="meeting-time-text">${utils.getIcon('clock', 12)} ${timeStr}</span>
-                    </div>
-                </div>`;
-            });
-            offeringsHtml += `</div></div>`;
-        }
-    });
-
-    if (visibleCount === 0) {
-        return "";
-    }
-
-    return `<div class="iw-container">
-        <div class="iw-header">
-            <div class="iw-title-row">
-                <h3 title="${locationGroup.building}">${utils.getIcon('pin', 16, 'var(--ucsc-blue)')} ${locationGroup.building}</h3>
-                <button class="iw-directions-btn" onclick="getDirections(${locationGroup.lat}, ${locationGroup.lng})" title="Get Directions">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                        <path d="M4.5,20 v-11 c0-1.1,0.9-2,2-2 h9 v-3 l6,5 l-6,5 v-3 h-7.5 v6.5 H4.5 z"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-        ${locationGroup.imageUrl ? `<img src="${locationGroup.imageUrl}" class="iw-image" onerror="this.style.display='none'">` : ''}
-        ${offeringsHtml}
-    </div>`;
-}
-
-/**
  * createMarkerElement builds the SVG icon for map pins
  */
 function createMarkerElement(type, color, count = 1) {
@@ -212,237 +144,6 @@ export function smartFitBounds(bounds) {
             google.maps.event.removeListener(listener);
         });
     }
-}
-
-/**
- * focusClass centers the map on a specific course or meeting
- */
-export function focusClass(classNumber, meetingIndex = null) {
-    const offering = store.currentOfferings.find(function(o) {
-        return o.class_number === classNumber;
-    });
-
-    if (!offering) {
-        return;
-    }
-
-    if (offering.visible === false) {
-        offering.visible = true;
-        refreshMapAndUI();
-    }
-
-    const bounds = new google.maps.LatLngBounds();
-    let validMeetings = offering.meetings.filter(function(m) {
-        return m.lat && m.lat !== 0;
-    });
-
-    if (validMeetings.length === 0) {
-        return;
-    }
-
-    // Zoom in on one particular section if specified
-    if (meetingIndex !== null && offering.meetings[meetingIndex]) {
-        const m = offering.meetings[meetingIndex];
-        if (m.lat && m.lat !== 0) {
-            bounds.extend({ lat: m.lat, lng: m.lng });
-        } else {
-            // Fallback to all sections if that specific one is online/TBA
-            validMeetings.forEach(function(m) {
-                bounds.extend({ lat: m.lat, lng: m.lng });
-            });
-        }
-    } else {
-        // Default: fit all sections for the card
-        validMeetings.forEach(function(m) {
-            bounds.extend({ lat: m.lat, lng: m.lng });
-        });
-    }
-
-    smartFitBounds(bounds);
-
-    const sidebarElement = document.getElementById(`card-${classNumber}`);
-    if (sidebarElement) {
-        sidebarElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        highlightSidebarCard(classNumber, true, meetingIndex);
-        setTimeout(function() {
-            highlightSidebarCard(classNumber, false, meetingIndex);
-        }, 2000);
-    }
-
-    if (window.innerWidth < 768) {
-        document.getElementById("sidebar").classList.add("closed");
-    }
-}
-
-/**
- * updateMarkers toggles marker visibility based on sidebar filters
- */
-export function updateMarkers() {
-    const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
-        return cb.value;
-    });
-
-    store.markers.forEach(function(m) {
-        const isVisible = m.categories.some(function(cat) {
-            return activeFilters.includes(cat);
-        });
-        m.map = isVisible ? store.map : null;
-    });
-
-    // If the current route destination is now hidden by filters, remove the route
-    if (store.currentDestination) {
-        const destMarker = store.markers.find(function(m) {
-            return m.position.lat === store.currentDestination.lat && m.position.lng === store.currentDestination.lng;
-        });
-
-        if (destMarker && !destMarker.map) {
-            if (store.directionsRenderer) {
-                store.directionsRenderer.setPath([]);
-            }
-            store.routeLabelWindows.forEach(function(w) {
-                w.close();
-            });
-            store.routeLabelWindows = [];
-            store.lastRoute = null;
-            store.currentDestination = null;
-            store.destinations = [];
-            store.lastRouteOrigin = null;
-        }
-    }
-
-    // Refresh existing InfoWindow content if it's open
-    if (store.activeInfoWindow && store.activeInfoWindow.getMap()) {
-        const anchor = store.activeInfoWindow.getAnchor();
-        if (anchor) {
-            // If the anchor marker was hidden by filters, close the window
-            if (!anchor.map) {
-                store.activeInfoWindow.close();
-            } else {
-                const content = buildInfoWindowHtml(anchor.locationGroup, activeFilters);
-                if (!content) {
-                    store.activeInfoWindow.close();
-                } else {
-                    store.activeInfoWindow.setContent(content);
-                }
-            }
-        }
-    }
-}
-
-/**
- * refreshMapAndUI triggers a complete redraw of map pins and sidebars
- */
-export function refreshMapAndUI(shouldFitBounds = true) {
-    store.markers.forEach(function(m) {
-        m.map = null;
-    });
-    store.markers = [];
-
-    if (store.activeInfoWindow) {
-        store.activeInfoWindow.close();
-    }
-
-    renderSearchList();
-    renderSavedList();
-
-    if (store.currentOfferings.length === 0) {
-        return;
-    }
-
-    const locationGroups = groupDataByLocation(store.currentOfferings);
-
-    // If a route is drawn to a destination that is removed, remove the route
-    if (store.currentDestination) {
-        const destKey = `${store.currentDestination.lat},${store.currentDestination.lng}`;
-        if (!locationGroups[destKey]) {
-            if (store.directionsRenderer) {
-                store.directionsRenderer.setPath([]);
-            }
-            store.routeLabelWindows.forEach(function(w) {
-                w.close();
-            });
-            store.routeLabelWindows = [];
-            store.lastRoute = null;
-            store.currentDestination = null;
-            store.destinations = [];
-            store.lastRouteOrigin = null;
-        }
-    }
-
-    const bounds = new google.maps.LatLngBounds();
-
-    for (const key in locationGroups) {
-        const group = locationGroups[key];
-        const uniqueCourseIDs = Object.keys(group.offerings);
-        const markerColor = uniqueCourseIDs.length > 1 ? "#232323" : group.offerings[uniqueCourseIDs[0]].color;
-
-        const marker = new store.AdvancedMarkerElement({
-            map: store.map,
-            position: { lat: group.lat, lng: group.lng },
-            content: createMarkerElement(group.highestPriorityType, markerColor, group.totalMeetings)
-        });
-
-        marker.categories = group.filterCategories;
-        marker.locationGroup = group;
-
-        // Fix console warnings and implement intuitive P2P selection
-        marker.addListener("gmp-click", function() {
-            if (store.isP2PMode) {
-                // Clicking the marker selects it directly for routing without an info window
-                getDirections(group.lat, group.lng);
-            } else {
-                const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
-                    return cb.value;
-                });
-                const content = buildInfoWindowHtml(group, activeFilters);
-                if (!content) {
-                    return;
-                }
-
-                store.activeInfoWindow.setContent(content);
-                store.activeInfoWindow.open({ map: store.map, anchor: marker });
-            }
-        });
-
-        store.markers.push(marker);
-    }
-
-    updateMarkers();
-
-    store.markers.forEach(function(m) {
-        if (m.map) {
-            bounds.extend(m.position);
-        }
-    });
-
-    if (shouldFitBounds && !bounds.isEmpty()) {
-        smartFitBounds(bounds);
-    }
-}
-
-/**
- * clearResults empties current results and map
- */
-export function clearResults() {
-    if (store.activeInfoWindow) {
-        store.activeInfoWindow.close();
-    }
-    store.routeLabelWindows.forEach(function(w) {
-        w.close();
-    });
-    store.routeLabelWindows = [];
-    if (store.directionsRenderer) {
-        store.directionsRenderer.setPath([]);
-    }
-    store.lastRoute = null;
-    store.currentDestination = null;
-    store.destinations = [];
-    store.lastRouteOrigin = null;
-    store.currentOfferings.forEach(function(c) {
-        ColorManager.releaseColor(c.class_number);
-    });
-    store.currentOfferings = [];
-    refreshMapAndUI();
 }
 
 /**
@@ -702,6 +403,305 @@ export async function getDirections(lat, lng) {
 
 // Attach getDirections to window for inline onclick handlers in info windows
 window.getDirections = getDirections;
+
+/**
+ * buildInfoWindowHtml creates the content for Google Maps info windows
+ */
+export function buildInfoWindowHtml(locationGroup, activeFilters) {
+    let offeringsHtml = "";
+    let visibleCount = 0;
+
+    Object.entries(locationGroup.offerings).forEach(function([classNum, off]) {
+        const visibleMeetings = off.meetings.filter(function(m) {
+            return activeFilters.includes(utils.getFilterCategory(m.type));
+        });
+
+        if (visibleMeetings.length > 0) {
+            visibleCount++;
+            offeringsHtml += `<div class="iw-offering" style="--accent-color: ${off.color}" data-class="${classNum}">
+                <div class="course-code iw-course-code" title="${off.courseCode}">
+                    ${off.courseCode} <i class="iw-term-label">(${utils.getTermName(off.term)})</i>
+                </div>
+                <div class="meetings-list">`;
+
+            visibleMeetings.forEach(function(m) {
+                const type = m.type.toUpperCase();
+                const cat = utils.getFilterCategory(type);
+                const iconPath = utils.getIconPath(cat);
+                const roomStr = m.room_number ? `${m.room_number}` : "TBA";
+                const timeStr = m.time || "TBA";
+
+                offeringsHtml += `<div class="meeting-card iw-meeting-card" data-class="${classNum}" data-index="${m.originalIndex}">
+                    <div class="meeting-row-top">
+                        <div class="meeting-identity">
+                            <span class="type-badge">
+                                <svg width="10" height="10" viewBox="0 0 24 24" class="iw-badge-icon">
+                                    <path d="${iconPath}" fill="white"/>
+                                </svg>${type}
+                            </span>
+                            <span class="instructor-name" title="${m.instructor || 'Staff'}">${m.instructor || "Staff"}</span>
+                        </div>
+                        <div class="room-number-badge">Rm ${roomStr}</div>
+                    </div>
+                    <div class="meeting-row-bottom">
+                        <span class="meeting-time-text">${utils.getIcon('clock', 12)} ${timeStr}</span>
+                    </div>
+                </div>`;
+            });
+            offeringsHtml += `</div></div>`;
+        }
+    });
+
+    if (visibleCount === 0) {
+        return "";
+    }
+
+    return `<div class="iw-container">
+        <div class="iw-header">
+            <div class="iw-title-row">
+                <h3 title="${locationGroup.building}">${utils.getIcon('pin', 16, 'var(--ucsc-blue)')} ${locationGroup.building}</h3>
+                <button class="iw-directions-btn" onclick="getDirections(${locationGroup.lat}, ${locationGroup.lng})" title="Get Directions">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                        <path d="M4.5,20 v-11 c0-1.1,0.9-2,2-2 h9 v-3 l6,5 l-6,5 v-3 h-7.5 v6.5 H4.5 z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        ${locationGroup.imageUrl ? `<img src="${locationGroup.imageUrl}" class="iw-image" onerror="this.style.display='none'">` : ''}
+        ${offeringsHtml}
+    </div>`;
+}
+
+/**
+ * updateMarkers toggles marker visibility based on sidebar filters
+ */
+export function updateMarkers() {
+    const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
+        return cb.value;
+    });
+
+    store.markers.forEach(function(m) {
+        const isVisible = m.categories.some(function(cat) {
+            return activeFilters.includes(cat);
+        });
+        m.map = isVisible ? store.map : null;
+    });
+
+    // If the current route destination is now hidden by filters, remove the route
+    if (store.currentDestination) {
+        const destMarker = store.markers.find(function(m) {
+            return m.position.lat === store.currentDestination.lat && m.position.lng === store.currentDestination.lng;
+        });
+
+        if (destMarker && !destMarker.map) {
+            if (store.directionsRenderer) {
+                store.directionsRenderer.setPath([]);
+            }
+            store.routeLabelWindows.forEach(function(w) {
+                w.close();
+            });
+            store.routeLabelWindows = [];
+            store.lastRoute = null;
+            store.currentDestination = null;
+            store.destinations = [];
+            store.lastRouteOrigin = null;
+        }
+    }
+
+    // Refresh existing InfoWindow content if it's open
+    if (store.activeInfoWindow && store.activeInfoWindow.getMap()) {
+        const anchor = store.activeInfoWindow.getAnchor();
+        if (anchor) {
+            // If the anchor marker was hidden by filters, close the window
+            if (!anchor.map) {
+                store.activeInfoWindow.close();
+            } else {
+                const content = buildInfoWindowHtml(anchor.locationGroup, activeFilters);
+                if (!content) {
+                    store.activeInfoWindow.close();
+                } else {
+                    store.activeInfoWindow.setContent(content);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * refreshMapAndUI triggers a complete redraw of map pins and sidebars
+ */
+export function refreshMapAndUI(shouldFitBounds = true) {
+    store.markers.forEach(function(m) {
+        m.map = null;
+    });
+    store.markers = [];
+
+    if (store.activeInfoWindow) {
+        store.activeInfoWindow.close();
+    }
+
+    renderSearchList();
+    renderSavedList();
+
+    if (store.currentOfferings.length === 0) {
+        return;
+    }
+
+    const locationGroups = groupDataByLocation(store.currentOfferings);
+
+    // If a route is drawn to a destination that is removed, remove the route
+    if (store.currentDestination) {
+        const destKey = `${store.currentDestination.lat},${store.currentDestination.lng}`;
+        if (!locationGroups[destKey]) {
+            if (store.directionsRenderer) {
+                store.directionsRenderer.setPath([]);
+            }
+            store.routeLabelWindows.forEach(function(w) {
+                w.close();
+            });
+            store.routeLabelWindows = [];
+            store.lastRoute = null;
+            store.currentDestination = null;
+            store.destinations = [];
+            store.lastRouteOrigin = null;
+        }
+    }
+
+    const bounds = new google.maps.LatLngBounds();
+
+    for (const key in locationGroups) {
+        const group = locationGroups[key];
+        const uniqueCourseIDs = Object.keys(group.offerings);
+        const markerColor = uniqueCourseIDs.length > 1 ? "#232323" : group.offerings[uniqueCourseIDs[0]].color;
+
+        const marker = new store.AdvancedMarkerElement({
+            map: store.map,
+            position: { lat: group.lat, lng: group.lng },
+            content: createMarkerElement(group.highestPriorityType, markerColor, group.totalMeetings)
+        });
+
+        marker.categories = group.filterCategories;
+        marker.locationGroup = group;
+
+        // Fix console warnings and implement intuitive P2P selection
+        marker.addListener("gmp-click", function() {
+            if (store.isP2PMode) {
+                // Clicking the marker selects it directly for routing without an info window
+                getDirections(group.lat, group.lng);
+            } else {
+                const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
+                    return cb.value;
+                });
+                const content = buildInfoWindowHtml(group, activeFilters);
+                if (!content) {
+                    return;
+                }
+
+                store.activeInfoWindow.setContent(content);
+                store.activeInfoWindow.open({ map: store.map, anchor: marker });
+            }
+        });
+
+        store.markers.push(marker);
+    }
+
+    updateMarkers();
+
+    store.markers.forEach(function(m) {
+        if (m.map) {
+            bounds.extend(m.position);
+        }
+    });
+
+    if (shouldFitBounds && !bounds.isEmpty()) {
+        smartFitBounds(bounds);
+    }
+}
+
+/**
+ * focusClass centers the map on a specific course or meeting
+ */
+export function focusClass(classNumber, meetingIndex = null) {
+    const offering = store.currentOfferings.find(function(o) {
+        return o.class_number === classNumber;
+    });
+
+    if (!offering) {
+        return;
+    }
+
+    if (offering.visible === false) {
+        offering.visible = true;
+        refreshMapAndUI();
+    }
+
+    const bounds = new google.maps.LatLngBounds();
+    let validMeetings = offering.meetings.filter(function(m) {
+        return m.lat && m.lat !== 0;
+    });
+
+    if (validMeetings.length === 0) {
+        return;
+    }
+
+    // Zoom in on one particular section if specified
+    if (meetingIndex !== null && offering.meetings[meetingIndex]) {
+        const m = offering.meetings[meetingIndex];
+        if (m.lat && m.lat !== 0) {
+            bounds.extend({ lat: m.lat, lng: m.lng });
+        } else {
+            // Fallback to all sections if that specific one is online/TBA
+            validMeetings.forEach(function(m) {
+                bounds.extend({ lat: m.lat, lng: m.lng });
+            });
+        }
+    } else {
+        // Default: fit all sections for the card
+        validMeetings.forEach(function(m) {
+            bounds.extend({ lat: m.lat, lng: m.lng });
+        });
+    }
+
+    smartFitBounds(bounds);
+
+    const sidebarElement = document.getElementById(`card-${classNumber}`);
+    if (sidebarElement) {
+        sidebarElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        highlightSidebarCard(classNumber, true, meetingIndex);
+        setTimeout(function() {
+            highlightSidebarCard(classNumber, false, meetingIndex);
+        }, 2000);
+    }
+
+    if (window.innerWidth < 768) {
+        document.getElementById("sidebar").classList.add("closed");
+    }
+}
+
+/**
+ * clearResults empties current results and map
+ */
+export function clearResults() {
+    if (store.activeInfoWindow) {
+        store.activeInfoWindow.close();
+    }
+    store.routeLabelWindows.forEach(function(w) {
+        w.close();
+    });
+    store.routeLabelWindows = [];
+    if (store.directionsRenderer) {
+        store.directionsRenderer.setPath([]);
+    }
+    store.lastRoute = null;
+    store.currentDestination = null;
+    store.destinations = [];
+    store.lastRouteOrigin = null;
+    store.currentOfferings.forEach(function(c) {
+        ColorManager.releaseColor(c.class_number);
+    });
+    store.currentOfferings = [];
+    refreshMapAndUI();
+}
 
 /**
  * initializeGoogleServices loads Google Maps libraries and setups map object

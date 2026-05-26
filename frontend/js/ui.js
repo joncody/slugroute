@@ -177,6 +177,60 @@ export function renderSearchList() {
 }
 
 /**
+ * renderSavedList updates the "Saved for Later" section with standard cards sorted by Quarter, Day, and Time
+ */
+export function renderSavedList() {
+    const container = document.getElementById("saved-classes");
+
+    if (store.savedCourses.length === 0) {
+        container.innerHTML = "<p class=\"empty-msg\">No saved classes.</p>";
+        updateSyncBtnState();
+        return;
+    }
+
+    // Sort saved courses by Quarter (Term), then Day and Time
+    const sortedCourses = [...store.savedCourses].sort(function(a, b) {
+        if (a.term !== b.term) {
+            return parseInt(a.term) - parseInt(b.term);
+        }
+        return utils.getEarliestMeetingSortVal(a.meetings) - utils.getEarliestMeetingSortVal(b.meetings);
+    });
+
+    container.innerHTML = sortedCourses.map(function(course) {
+        const color = ColorManager.getColor(course.class_number);
+
+        // Find the earliest available meeting time to display on the card
+        const sortedMeets = [...course.meetings].sort(function(a, b) {
+            return (utils.parseMeetingTime(a.time) ?? 999999) - (utils.parseMeetingTime(b.time) ?? 999999);
+        });
+        const earliestMeet = sortedMeets[0];
+        const timeStr = earliestMeet && earliestMeet.time && earliestMeet.time.trim() !== "" ? earliestMeet.time : "Time TBD";
+
+        return `
+            <div class="course-card saved-item-card" data-class="${course.class_number}" style="--accent-color: ${color}">
+                <div class="card-header">
+                    <div class="card-info-group">
+                        <div class="card-title-row" title="${course.course_code}, #${course.class_number}">
+                            <h4>${course.course_code}</h4>
+                            <span class="course-id-tag">#${course.class_number}</span>
+                        </div>
+                        <div class="course-instructor" title="${course.instructor}">${course.instructor}</div>
+                        <div class="course-term-tag">${utils.getTermName(course.term)}</div>
+                        <div class="course-card-time">${utils.getIcon('clock', 12)} ${timeStr}</div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="save-btn save-toggle" data-class="${course.class_number}">
+                            ${utils.getHeartSvg(true)}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+    updateSyncBtnState();
+}
+
+/**
  * toggleVisibility switches the visible flag for a course on the map
  */
 export function toggleVisibility(classNum) {
@@ -238,39 +292,6 @@ export function removeMeeting(classNum, meetingIndex) {
 }
 
 /**
- * addSavedToResults adds a single saved course to the map
- */
-export async function addSavedToResults(classNum) {
-    const course = store.savedCourses.find(function(c) {
-        return c.class_number === classNum;
-    });
-    if (course) {
-        const alreadyIn = store.currentOfferings.find(function(c) {
-            return c.class_number === classNum;
-        });
-        if (!alreadyIn) {
-            store.currentOfferings.push({ ...course, visible: true });
-            refreshMapAndUI();
-        }
-    }
-    focusClass(classNum);
-}
-
-/**
- * handleSearchResultsClick focuses on the selected course
- */
-function handleSearchResultsClick(classNum) {
-    focusClass(classNum);
-}
-
-/**
- * handleSavedClassesClick adds a saved course to active results
- */
-function handleSavedClassesClick(classNum) {
-    addSavedToResults(classNum);
-}
-
-/**
  * toggleSaveCourse handles persistence to localStorage
  */
 export function toggleSaveCourse(classNum) {
@@ -293,6 +314,39 @@ export function toggleSaveCourse(classNum) {
     localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
     renderSavedList();
     renderSearchList();
+}
+
+/**
+ * addSavedToResults adds a single saved course to the map
+ */
+export async function addSavedToResults(classNum) {
+    const course = store.savedCourses.find(function(c) {
+        return c.class_number === classNum;
+    });
+    if (course) {
+        const alreadyIn = store.currentOfferings.find(function(c) {
+            return c.class_number === classNum;
+        });
+        if (!alreadyIn) {
+            store.currentOfferings.push({ ...course, visible: true });
+            refreshMapAndUI();
+        }
+    }
+    focusClass(classNum);
+}
+
+/**
+ * handleSearchResultsClick focuses on the selected course in search results
+ */
+function handleSearchResultsClick(classNum) {
+    focusClass(classNum);
+}
+
+/**
+ * handleSavedClassesClick adds a saved course to active results and maps it
+ */
+function handleSavedClassesClick(classNum) {
+    addSavedToResults(classNum);
 }
 
 /**
@@ -369,60 +423,6 @@ export function setupSidebarDelegation() {
             }
         };
     });
-}
-
-/**
- * renderSavedList updates the "Saved for Later" section with standard cards sorted by Quarter, Day, and Time
- */
-export function renderSavedList() {
-    const container = document.getElementById("saved-classes");
-
-    if (store.savedCourses.length === 0) {
-        container.innerHTML = "<p class=\"empty-msg\">No saved classes.</p>";
-        updateSyncBtnState();
-        return;
-    }
-
-    // Sort saved courses by Quarter (Term), then Day and Time
-    const sortedCourses = [...store.savedCourses].sort(function(a, b) {
-        if (a.term !== b.term) {
-            return parseInt(a.term) - parseInt(b.term);
-        }
-        return utils.getEarliestMeetingSortVal(a.meetings) - utils.getEarliestMeetingSortVal(b.meetings);
-    });
-
-    container.innerHTML = sortedCourses.map(function(course) {
-        const color = ColorManager.getColor(course.class_number);
-
-        // Find the earliest available meeting time to display on the card
-        const sortedMeets = [...course.meetings].sort(function(a, b) {
-            return (utils.parseMeetingTime(a.time) ?? 999999) - (utils.parseMeetingTime(b.time) ?? 999999);
-        });
-        const earliestMeet = sortedMeets[0];
-        const timeStr = earliestMeet && earliestMeet.time && earliestMeet.time.trim() !== "" ? earliestMeet.time : "Time TBD";
-
-        return `
-            <div class="course-card saved-item-card" data-class="${course.class_number}" style="--accent-color: ${color}">
-                <div class="card-header">
-                    <div class="card-info-group">
-                        <div class="card-title-row" title="${course.course_code}, #${course.class_number}">
-                            <h4>${course.course_code}</h4>
-                            <span class="course-id-tag">#${course.class_number}</span>
-                        </div>
-                        <div class="course-instructor" title="${course.instructor}">${course.instructor}</div>
-                        <div class="course-term-tag">${utils.getTermName(course.term)}</div>
-                        <div class="course-card-time">${utils.getIcon('clock', 12)} ${timeStr}</div>
-                    </div>
-                    <div class="card-actions">
-                        <button class="save-btn save-toggle" data-class="${course.class_number}">
-                            ${utils.getHeartSvg(true)}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join("");
-    updateSyncBtnState();
 }
 
 /**
@@ -638,43 +638,6 @@ export function renderSearchPreview() {
 }
 
 /**
- * fetchSuggestions handles autocomplete logic for the search bar
- */
-export async function fetchSuggestions(query) {
-    const term = document.getElementById("term-select").value;
-    const preview = document.getElementById("search-preview");
-
-    if (query.length < 2) {
-        preview.style.display = "none";
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/suggest?q=${encodeURIComponent(query)}&term=${term}`);
-        const data = await response.json();
-
-        if (data && data.length > 0) {
-            preview.innerHTML = `<div class="suggestion-header">Suggestions</div>` +
-                data.map(function(s) {
-                    return `<div class="suggestion-item" data-val="${s}" title="${s}">${s}</div>`;
-                }).join("");
-
-            document.querySelectorAll(".suggestion-item").forEach(function(item) {
-                item.onclick = function(e) {
-                    e.stopPropagation();
-                    const val = this.dataset.val;
-                    document.getElementById("course-input").value = val;
-                    searchCourse();
-                };
-            });
-            preview.style.display = "block";
-        }
-    } catch (err) {
-        console.error("Suggestion fetch failed");
-    }
-}
-
-/**
  * searchCourse handles API call for course sections
  */
 export async function searchCourse() {
@@ -721,6 +684,43 @@ export async function searchCourse() {
     } catch (err) {
         console.error("Search failed:", err);
         preview.innerHTML = "<p class=\"empty-msg no-border\">Error fetching results.</p>";
+    }
+}
+
+/**
+ * fetchSuggestions handles autocomplete logic for the search bar
+ */
+export async function fetchSuggestions(query) {
+    const term = document.getElementById("term-select").value;
+    const preview = document.getElementById("search-preview");
+
+    if (query.length < 2) {
+        preview.style.display = "none";
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/suggest?q=${encodeURIComponent(query)}&term=${term}`);
+        const data = await response.json();
+
+        if (data && data.length > 0) {
+            preview.innerHTML = `<div class="suggestion-header">Suggestions</div>` +
+                data.map(function(s) {
+                    return `<div class="suggestion-item" data-val="${s}" title="${s}">${s}</div>`;
+                }).join("");
+
+            document.querySelectorAll(".suggestion-item").forEach(function(item) {
+                item.onclick = function(e) {
+                    e.stopPropagation();
+                    const val = this.dataset.val;
+                    document.getElementById("course-input").value = val;
+                    searchCourse();
+                };
+            });
+            preview.style.display = "block";
+        }
+    } catch (err) {
+        console.error("Suggestion fetch failed");
     }
 }
 
