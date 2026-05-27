@@ -349,7 +349,7 @@ export async function getDirections(lat, lng) {
     if (store.isP2PMode) {
         if (!store.p2pOrigin) {
             store.p2pOrigin = targetPos;
-            showToast("Origin set. Now select your destination marker.", "success");
+            showToast("Origin set. Now select your destination class marker.", "success");
         } else {
             if (utils.coordsMatch(store.p2pOrigin, targetPos)) {
                 showToast("Origin and destination cannot be the same building.", "error");

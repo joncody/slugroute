@@ -254,7 +254,7 @@ export function setupMapControls() {
 
             this.classList.add("active");
             store.p2pOrigin = null;
-            showToast("Point-to-Point active. Click your origin marker.", "success");
+            showToast("Point-to-Point active. Click your origin class marker.", "success");
         } else {
             this.classList.remove("active");
             store.p2pOrigin = null;

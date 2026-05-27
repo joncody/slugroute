@@ -61,7 +61,8 @@ cd database && python import_coords.py && cd ..
 ```bash
 cd backend
 export CGO_ENABLED=1 # Required for SQLite
-go run .
+go build -o slugroute
+./slugroute
 ```
 The app will be live at **`http://localhost:8080`**.
 
@@ -87,11 +88,13 @@ chmod +x test_all.sh
 
 ## 📁 Project Structure
 
-- `.github/workflows/` - Automated daily PISA data synchronization.
+- `.github/workflows/` - Automated daily PISA data synchronization configs.
 - `backend/` - Go Gin server, API proxy logic, and template injection.
-- `database/` - SQLite storage and building coordinate mapping.
-- `frontend/` - UI, Map logic, and asset storage.
+- `database/` - SQLite storage and building coordinate mapping utilities.
+- `docs/` - Architecture, guidelines, Definition of Done, and coding standards.
+- `frontend/` - UI, Map logic, style sheets, and local asset storage.
 - `scraper/` - Python engine for UCSC PISA data extraction.
+- `screenshots/` - Visual previews, feature walkthroughs, and UI assets.
 
 ---
 
