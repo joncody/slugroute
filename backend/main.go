@@ -328,9 +328,6 @@ func main() {
 	r.Static("/style", "../frontend/style")
 	r.Static("/images", "../frontend/images")
 
-	// Legacy or Root-level static files
-	r.StaticFile("/logo.png", "../frontend/logo.png")
-
 	log.Println("SlugRoute live at http://localhost:8080")
 	r.Run(":8080")
 }

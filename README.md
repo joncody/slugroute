@@ -1,4 +1,4 @@
-# <img src="frontend/logo.png" alt="UCSC" height="32" valign="middle"> SlugRoute
+# <img src="frontend/images/logo.png" alt="UCSC" height="32" valign="middle"> SlugRoute
 
 **SlugRoute** is a comprehensive campus mapping tool for UC Santa Cruz. It helps students visualize their class schedules by scraping PISA (Schedule of Classes) data and projecting lecture, lab, and discussion locations onto an interactive Google Map with smart routing capabilities.
 

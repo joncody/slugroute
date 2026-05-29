@@ -8,7 +8,7 @@ import sqlite3
 
 # Global Configuration
 DB_PATH = "./slugroute.db"
-COORDS_FILE = "./bulding-coordinates.txt"
+COORDS_FILE = "./coords.txt"
 
 
 def read_coordinates_file(file_path):
