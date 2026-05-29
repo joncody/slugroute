@@ -60,6 +60,7 @@
         let passed = 0;
         let total = 0;
 
+        // assert checks a condition and updates the test list GUI.
         function assert(name, condition) {
             total++;
             const div = document.createElement('div');
@@ -69,6 +70,7 @@
             if (condition) passed++;
         }
 
+        // runTests coordinates test cases.
         function runTests() {
             try {
                 // --- Global Export Tests ---
@@ -79,6 +81,13 @@
                 assert("getFilterCategory LBS -> LAB", utils.getFilterCategory("LBS") === "LAB");
                 assert("getClassStatus detects Online", utils.getClassStatus({building: "Online Instruction"}) === "ONLINE");
                 assert("getTermName Winter 2026", utils.getTermName("2260") === "Winter 2026");
+
+                // --- Additional Utils Coverage Tests ---
+                assert("coordsMatch matches coordinates within epsilon", utils.coordsMatch({lat: 36.99726, lng: -122.05189}, {lat: 36.997264, lng: -122.051896}));
+                assert("coordsMatch handles distinct coordinates correctly", !utils.coordsMatch({lat: 36.99726, lng: -122.05189}, {lat: 37.0, lng: -122.0}));
+                assert("parseMeetingTime TuTh 10:40AM-11:45AM", utils.parseMeetingTime("TuTh 10:40AM-11:45AM") === (1 * 1440) + (10 * 60 + 40));
+                assert("parseMeetingTime with invalid schedule string returns null", utils.parseMeetingTime("TBA") === null);
+                assert("getEarliestMeetingSortVal returns correct early sort code", utils.getEarliestMeetingSortVal([{time: "MWF 10:40AM-11:45AM"}, {time: "TuTh 12:00PM-01:00PM"}]) === (0 * 1440) + (10 * 60 + 40));
 
                 // --- ColorManager Tests ---
                 const c1 = ColorManager.getColor("10001");

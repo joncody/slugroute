@@ -3,15 +3,27 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// setupTestDB creates an in-memory SQLite database and initializes the schema.
+// errReader is a mock io.Reader that always returns an error on Read,
+// allowing us to test handler behavior when request bodies are unreadable.
+type errReader struct{}
+
+func (errReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("mock read error")
+}
+
+// setupTestDB creates an temporary in-memory SQLite database and initializes
+// the mock schemas for courses, lectures, sections, and buildings.
 func setupTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
@@ -64,6 +76,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
+// TestGetTermsHandler verifies that getTermsHandler queries the database and
+// returns a sorted, unique list of active quarter terms.
 func TestGetTermsHandler(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
@@ -93,6 +107,8 @@ func TestGetTermsHandler(t *testing.T) {
 	}
 }
 
+// TestGetSuggestionsHandler validates that course code autocomplete searches
+// return matched results and enforce a minimum character limit.
 func TestGetSuggestionsHandler(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
@@ -103,7 +119,7 @@ func TestGetSuggestionsHandler(t *testing.T) {
 	r := gin.New()
 	r.GET("/api/suggest", getSuggestionsHandler(db))
 
-	// Test valid suggestion
+	// Test case: valid query search parameter
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/suggest?q=CSE&term=2262", nil)
 	r.ServeHTTP(w, req)
@@ -115,7 +131,7 @@ func TestGetSuggestionsHandler(t *testing.T) {
 		t.Errorf("expected ['CSE 101'], got %v", suggestions)
 	}
 
-	// Test query too short
+	// Test case: search query too short (character limit check)
 	w = httptest.NewRecorder()
 	req, _ = http.NewRequest("GET", "/api/suggest?q=C&term=2262", nil)
 	r.ServeHTTP(w, req)
@@ -126,16 +142,18 @@ func TestGetSuggestionsHandler(t *testing.T) {
 	}
 }
 
+// TestGetCourseHandler verifies that course lookup queries join lecture times,
+// locations, instructor details, and related discussion sections correctly.
 func TestGetCourseHandler(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	// Seed lecture and building data
+	// Seed mock lecture and building parameters
 	db.Exec("INSERT INTO courses (class_number, course_code, term, title) VALUES (?, ?, ?, ?)", "10001", "CSE 120", "2262", "Computer Architecture")
 	db.Exec("INSERT INTO lectures (class_number, term, instructor, days, times, building, room_number) VALUES (?, ?, ?, ?, ?, ?, ?)", "10001", "2262", "Miller", "MWF", "10:40AM-11:45AM", "Baskin Engr", "101")
 	db.Exec("INSERT INTO buildings (name, lat, lng, image_url) VALUES (?, ?, ?, ?)", "BASKIN ENGR", 37.0002, -122.0630, "img.jpg")
 
-	// Seed DIS section
+	// Seed associated discussion section
 	db.Exec("INSERT INTO sections (class_number, term, parent_class_number, section_type, instructor, days, times, building, room_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", "10002", "2262", "10001", "DIS", "TAs", "Tu", "12:00PM-01:00PM", "Baskin Engr", "102")
 
 	gin.SetMode(gin.TestMode)
@@ -163,18 +181,19 @@ func TestGetCourseHandler(t *testing.T) {
 		t.Errorf("expected 2 meetings (LEC + DIS), got %d", len(result[0].Meetings))
 	}
 
-	// Verify coordinate join
+	// Confirm relational coordinate mapping checks
 	if result[0].Meetings[0].Lat == 0 {
 		t.Error("expected non-zero latitude from building join")
 	}
 }
 
+// TestAttachSections_Isolation asserts that discussion and lab sections are
+// joined exclusively with their assigned parent lecture records.
 func TestAttachSections_Isolation(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	// Seed 2 lectures but only 1 has a section
-	// Note: We leave optional columns NULL to verify IFNULL handling in queries
+	// Seed sections table leaving optional columns empty to test NULL safety handlers
 	db.Exec("INSERT INTO sections (class_number, term, parent_class_number, section_type) VALUES (?, ?, ?, ?)", "201", "2262", "101", "LAB")
 
 	offerings := map[string]*Offering{
@@ -192,5 +211,48 @@ func TestAttachSections_Isolation(t *testing.T) {
 	}
 	if len(offerings["102"].Meetings) != 0 {
 		t.Errorf("expected 0 meetings for 102, got %d", len(offerings["102"].Meetings))
+	}
+}
+
+// TestGetRoutesProxyHandler_MissingKey asserts that the proxy endpoint rejects
+// routing navigation requests with a 500 status code if the Google API key environment is missing.
+func TestGetRoutesProxyHandler_MissingKey(t *testing.T) {
+	// Temporarily backup and clear the environment API key
+	origKey := os.Getenv("GOOGLE_MAPS_API_KEY")
+	os.Setenv("GOOGLE_MAPS_API_KEY", "")
+	defer os.Setenv("GOOGLE_MAPS_API_KEY", origKey)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/api/routes-proxy", getRoutesProxyHandler())
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/api/routes-proxy", strings.NewReader(`{}`))
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 Internal Server Error when API key is missing, got %d", w.Code)
+	}
+}
+
+// TestGetRoutesProxyHandler_InvalidBody verifies that the proxy endpoint handles
+// unreadable or corrupt request bodies gracefully by returning a 400 Bad Request.
+func TestGetRoutesProxyHandler_InvalidBody(t *testing.T) {
+	// Set dummy key to satisfy the initialization checks
+	origKey := os.Getenv("GOOGLE_MAPS_API_KEY")
+	os.Setenv("GOOGLE_MAPS_API_KEY", "dummy_key")
+	defer os.Setenv("GOOGLE_MAPS_API_KEY", origKey)
+
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/api/routes-proxy", getRoutesProxyHandler())
+
+	w := httptest.NewRecorder()
+	// Pass our custom errReader to trigger an io.ReadAll read error
+	req, _ := http.NewRequest("POST", "/api/routes-proxy", errReader{})
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 Bad Request for unreadable body, got %d", w.Code)
 	}
 }
