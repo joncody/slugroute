@@ -132,8 +132,4 @@
         left: var(--sidebar-width);
         width: calc(100% - var(--sidebar-width));
     }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 9c3b84bc7ab99cecb2faeb7e9997a8d60554006d

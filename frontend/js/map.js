@@ -72,11 +72,22 @@ function createMarkerElement(type, color, count = 1) {
     const div = document.createElement('div');
     div.className = 'marker-wrapper';
 
+    // Sammy the Slug brand gold accent
+    const slugGold = "#F1B82D";
+
     if (count > 1) {
         div.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 34" width="38" height="38" class="marker-svg">
-                <circle cx="17" cy="17" r="15" fill="${color}" stroke="#ffffff" stroke-width="2"/>
-                <text x="17" y="17" font-family="Inter, sans-serif" font-weight="800" font-size="14" fill="white" text-anchor="middle" dominant-baseline="central" class="marker-text">${count}</text>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 46" width="40" height="50" class="marker-svg">
+                <!-- Sammy the Slug Eyestalks -->
+                <path d="M14 14 C12 8, 9 8, 9 3" stroke="${slugGold}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                <circle cx="9" cy="3" r="2" fill="${slugGold}"/>
+                <path d="M22 14 C24 8, 27 8, 27 3" stroke="${slugGold}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                <circle cx="27" cy="3" r="2" fill="${slugGold}"/>
+
+                <!-- Main Pin Body -->
+                <path d="M18 12c-6.6 0-12 5.4-12 12 0 9 12 20 12 20s12-11 12-20c0-6.6-5.4-12-12-12z" fill="${slugGold}" stroke="#ffffff" stroke-width="2"/>
+                <circle cx="18" cy="24" r="9" fill="#232323"/>
+                <text x="18" y="24" font-family="Inter, sans-serif" font-weight="800" font-size="11" fill="white" text-anchor="middle" dominant-baseline="central" class="marker-text">${count}</text>
             </svg>
         `;
         return div;
@@ -84,8 +95,23 @@ function createMarkerElement(type, color, count = 1) {
 
     const path = utils.getIconPath(category);
     div.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="34" height="34" class="marker-svg">
-            <path d="${path}" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 46" width="40" height="50" class="marker-svg">
+            <!-- Sammy the Slug Eyestalks -->
+            <path d="M14 14 C12 8, 9 8, 9 3" stroke="${slugGold}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <circle cx="9" cy="3" r="2" fill="${slugGold}"/>
+            <path d="M22 14 C24 8, 27 8, 27 3" stroke="${slugGold}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <circle cx="27" cy="3" r="2" fill="${slugGold}"/>
+
+            <!-- Main Pin Body -->
+            <path d="M18 12c-6.6 0-12 5.4-12 12 0 9 12 20 12 20s12-11 12-20c0-6.6-5.4-12-12-12z" fill="${slugGold}" stroke="#ffffff" stroke-width="2"/>
+
+            <!-- Category Symbol Container -->
+            <circle cx="18" cy="24" r="9" fill="#ffffff" stroke="${color}" stroke-width="1"/>
+
+            <!-- Category Icon -->
+            <g transform="translate(10.5, 16.5) scale(0.625)">
+                <path d="${path}" fill="${color}"/>
+            </g>
         </svg>
     `;
     return div;
@@ -349,7 +375,7 @@ export async function getDirections(lat, lng) {
     if (store.isP2PMode) {
         if (!store.p2pOrigin) {
             store.p2pOrigin = targetPos;
-            showToast("Origin set. Now select your destination class marker.", "success");
+            showToast("Origin set. Now select your destination marker.", "success");
         } else {
             if (utils.coordsMatch(store.p2pOrigin, targetPos)) {
                 showToast("Origin and destination cannot be the same building.", "error");
@@ -700,6 +726,14 @@ export function clearResults() {
         ColorManager.releaseColor(c.class_number);
     });
     store.currentOfferings = [];
+
+    // State Hardening write-back
+    try {
+        localStorage.setItem("slugroute_current", JSON.stringify([]));
+    } catch (e) {
+        console.error("LocalStorage sync failed during clearResults", e);
+    }
+
     refreshMapAndUI();
 }
 

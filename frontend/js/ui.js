@@ -4,6 +4,18 @@ import { utils, ColorManager, showToast } from "./utils.js";
 import { refreshMapAndUI, focusClass } from "./map.js";
 
 /**
+ * saveState persists currentOfferings and savedCourses to LocalStorage
+ */
+export function saveState() {
+    try {
+        localStorage.setItem("slugroute_current", JSON.stringify(store.currentOfferings));
+        localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
+    } catch (e) {
+        console.error("LocalStorage write failed during saveState", e);
+    }
+}
+
+/**
  * updateSyncBtnState toggles the enabled/disabled status of the calendar export button
  */
 export function updateSyncBtnState() {
@@ -240,6 +252,7 @@ export function toggleVisibility(classNum) {
 
     if (offering) {
         offering.visible = (offering.visible === false);
+        saveState();
         refreshMapAndUI();
     }
 }
@@ -255,6 +268,7 @@ export function removeResult(classNum) {
     store.currentOfferings = store.currentOfferings.filter(function(c) {
         return c.class_number !== classNum;
     });
+    saveState();
     refreshMapAndUI();
 }
 
@@ -277,9 +291,9 @@ export function removeMeeting(classNum, meetingIndex) {
 
         if (savedIdx > -1) {
             store.savedCourses[savedIdx] = offering;
-            localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
         }
 
+        saveState();
         const categoryStillExists = offering.meetings.some(function(m) {
             return utils.getFilterCategory(m.type) === removedCategory;
         });
@@ -311,7 +325,7 @@ export function toggleSaveCourse(classNum) {
         store.savedCourses.push(offering);
     }
 
-    localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
+    saveState();
     renderSavedList();
     renderSearchList();
 }
@@ -329,6 +343,7 @@ export async function addSavedToResults(classNum) {
         });
         if (!alreadyIn) {
             store.currentOfferings.push({ ...course, visible: true });
+            saveState();
             refreshMapAndUI();
         }
     }
@@ -534,9 +549,9 @@ export function commitSelection(classNum) {
         store.savedCourses[sIdx] = store.currentOfferings.find(function(o) {
             return o.class_number === classNum;
         });
-        localStorage.setItem("slugroute_saved", JSON.stringify(store.savedCourses));
     }
 
+    saveState();
     document.getElementById("course-input").value = "";
     document.getElementById("search-preview").style.display = "none";
     refreshMapAndUI();
@@ -736,6 +751,7 @@ export function addAllSavedToResults() {
             store.currentOfferings.push({ ...course, visible: true });
         }
     });
+    saveState();
     refreshMapAndUI();
 }
 
@@ -777,7 +793,7 @@ export function setupCalendarExport() {
 
         try {
             syncBtn.disabled = true;
-            syncBtn.innerText = "Generating File...";
+            syncBtn.text = "Generating File...";
 
             const response = await fetch('/api/schedule/export', {
                 method: 'POST',

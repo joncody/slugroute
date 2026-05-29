@@ -322,3 +322,9 @@
     align-items: center;
     flex-shrink: 0;
 }
+
+/* --- Dark Mode Specific Overrides --- */
+[data-theme='dark'] .status-mini-tag.cancelled {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}

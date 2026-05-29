@@ -3,15 +3,33 @@
  * SlugRoute | Global State Store
  */
 
+let savedCoursesParsed = [];
+try {
+    const saved = localStorage.getItem("slugroute_saved");
+    savedCoursesParsed = saved ? JSON.parse(saved) : [];
+} catch (e) {
+    console.error("Failed to parse saved courses from LocalStorage", e);
+    savedCoursesParsed = [];
+}
+
+let currentOfferingsParsed = [];
+try {
+    const current = localStorage.getItem("slugroute_current");
+    currentOfferingsParsed = current ? JSON.parse(current) : [];
+} catch (e) {
+    console.error("Failed to parse current offerings from LocalStorage", e);
+    currentOfferingsParsed = [];
+}
+
 export const store = {
     map: null,
     markers: [],
     activeInfoWindow: null,
     routeLabelWindows: [],
-    currentOfferings: [],
+    currentOfferings: currentOfferingsParsed,
     lastSearchResults: [],
     pendingSelections: {},
-    savedCourses: JSON.parse(localStorage.getItem("slugroute_saved")) || [],
+    savedCourses: savedCoursesParsed,
     AdvancedMarkerElement: null,
     suggestionTimeout: null,
     startMarker: null,

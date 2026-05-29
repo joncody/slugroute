@@ -172,6 +172,7 @@
     text-transform: uppercase;
     color: var(--text-muted);
     user-select: none;
+    min-height: 44px; /* Audited: minimum 44px touch target on all viewports */
 }
 
 .filter-item input {
@@ -631,7 +632,7 @@
 }
 
 .modal-btn-primary:hover {
-    filter: brightness(1.1);
+    filter: brightness(1.15);
 }
 
 .modal-btn-text {
@@ -651,7 +652,6 @@
 
 .modal-btn-text:hover {
     color: var(--text-main);
-<<<<<<< HEAD
 }
 
 /* --- Sidebar Footer & Primary Action --- */
@@ -686,8 +686,6 @@
     opacity: 0.4;
     cursor: not-allowed;
     background-color: var(--text-muted);
-=======
->>>>>>> 9c3b84bc7ab99cecb2faeb7e9997a8d60554006d
 }
 
 /* --- Dark Mode Overrides --- */
@@ -727,4 +725,16 @@
 
 [data-theme='dark'] .primary-action-btn {
     background-color: #0ea5e9; /* Light blue for visibility in dark mode */
+}
+
+[data-theme='dark'] .online-tag {
+    background: rgba(5, 150, 105, 0.2);
+}
+
+[data-theme='dark'] .cancelled-tag {
+    background: rgba(220, 38, 38, 0.2);
+}
+
+[data-theme='dark'] .tbd-tag {
+    background: rgba(100, 116, 139, 0.2);
 }
