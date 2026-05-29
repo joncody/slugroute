@@ -95,7 +95,7 @@ Detailed documentation of every internal function, endpoint, and logic block can
 - `.github/workflows/` - Automated daily PISA data synchronization configs.
 - `backend/` - Go Gin server, API proxy logic, and template injection.
 - `database/` - SQLite storage and building coordinate mapping utilities.
-- `docs/` - Architecture, [API Reference](./docs/api.md), and [Style Guides](./docs/) for Go, JS, Python, HTML, and CSS.
+- `docs/` - Architecture, [API Reference](./docs/api.md), and [Style Guides](./docs/style-guides/) for Go, JS, Python, HTML, and CSS.
 - `frontend/` - UI, Map logic, style sheets, and local asset storage.
 - `scraper/` - Python engine for UCSC PISA data extraction.
 - `screenshots/` - Visual previews, feature walkthroughs, and UI assets.
