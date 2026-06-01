@@ -24,6 +24,7 @@ export function updateSyncBtnState() {
         return;
     }
 
+    // Determine total elements tracked in our state lists
     const totalCourses = (store.currentOfferings || []).length + (store.savedCourses || []).length;
     syncBtn.disabled = (totalCourses === 0);
 }
@@ -87,6 +88,8 @@ export function renderMeetingTag(course, m, index, color) {
     const displayTime = m.time && m.time.trim() !== "" ? m.time : "TBA";
 
     let locationHtml = `<span class="loc-text" title="${m.building}">${m.building}</span>`;
+
+    // Assign special layout parameters for abnormal statuses
     if (status === "ONLINE") {
         locationHtml = `<span class="online-tag">Online Instruction</span>`;
     } else if (status === "CANCELLED") {
@@ -517,6 +520,7 @@ export function commitSelection(classNum) {
         return indices.includes(idx);
     });
 
+    // Enforce schedule validations: reject cancelled classes or incomplete locations
     for (let i = 0; i < filteredMeetings.length; i++) {
         const m = filteredMeetings[i];
         const status = utils.getClassStatus(m);
@@ -669,6 +673,7 @@ export async function searchCourse() {
     preview.style.display = "block";
 
     try {
+        // Fetch matching course catalog lists based on selected academic term
         const [response] = await Promise.all([
             fetch(`/api/course/${term}/${encodeURIComponent(courseCode)}`),
             new Promise(function(resolve) {
@@ -686,6 +691,7 @@ export async function searchCourse() {
         store.lastSearchResults = results;
         store.pendingSelections = {};
 
+        // Auto-select the lecture (LEC) sections by default inside the pendingSelections lookup
         results.forEach(function(offering) {
             store.pendingSelections[offering.class_number] = [];
             offering.meetings.forEach(function(m, idx) {
@@ -718,6 +724,7 @@ export async function fetchSuggestions(query) {
         const response = await fetch(`/api/suggest?q=${encodeURIComponent(query)}&term=${term}`);
         const data = await response.json();
 
+        // Dynamically build suggestions dropdown elements
         if (data && data.length > 0) {
             preview.innerHTML = `<div class="suggestion-header">Suggestions</div>` +
                 data.map(function(s) {
@@ -795,6 +802,7 @@ export function setupCalendarExport() {
             syncBtn.disabled = true;
             syncBtn.text = "Generating File...";
 
+            // Post schedule list to export endpoint to produce an iCalendar .ics format
             const response = await fetch('/api/schedule/export', {
                 method: 'POST',
                 headers: {
@@ -808,6 +816,7 @@ export function setupCalendarExport() {
                 throw new Error(`Server returned status code: ${response.status}`);
             }
 
+            // Generate downloadable blob from stream payload responses
             const blob = await response.blob();
             const downloadUrl = window.URL.createObjectURL(blob);
 

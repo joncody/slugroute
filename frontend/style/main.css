@@ -2,6 +2,10 @@
  * SlugRoute | Style Entry Point
  */
 
+/* ==========================================================================
+   STYLING SHEETS IMPORTS BLOCK
+   ========================================================================== */
+
 @import url("./base.css");
 @import url("./layout.css");
 @import url("./search.css");

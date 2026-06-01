@@ -2,7 +2,9 @@
  * SlugRoute | UI Components (Cards, Tags, Toasts, Modals)
  */
 
-/* --- Toast System --- */
+/* ==========================================================================
+   1. TOAST NOTIFICATION SYSTEM
+   ========================================================================== */
 .toast-container {
     position: fixed;
     bottom: 24px;
@@ -48,7 +50,9 @@
     to { transform: translateY(-20px); opacity: 0; }
 }
 
-/* --- Status Badges --- */
+/* ==========================================================================
+   2. STATUS BADGES
+   ========================================================================== */
 .online-tag {
     color: var(--success-green);
     font-weight: 700;
@@ -79,7 +83,9 @@
     border-radius: 4px;
 }
 
-/* --- Sidebar Section UI --- */
+/* ==========================================================================
+   3. SIDEBAR SECTION HEADER & TEXT BUTTONS
+   ========================================================================== */
 .sidebar-section {
     margin-bottom: 32px;
 }
@@ -149,6 +155,9 @@
     border-radius: 6px;
 }
 
+/* ==========================================================================
+   4. LEGEND & FILTER GROUP CONTROLS
+   ========================================================================== */
 .filter-group {
     display: flex;
     gap: 6px;
@@ -229,6 +238,9 @@
     transform: scale(1.1);
 }
 
+/* ==========================================================================
+   5. TERM SELECTION DROPDOWN
+   ========================================================================== */
 .term-dropdown {
     width: 100%;
     padding: 10px 12px;
@@ -262,7 +274,9 @@
     background-color: var(--bg-light);
 }
 
-/* --- Course Card Styling --- */
+/* ==========================================================================
+   6. COURSE CARD SHELLS & CONTAINERS
+   ========================================================================== */
 .course-list {
     display: flex;
     flex-direction: column;
@@ -416,7 +430,9 @@
     gap: 4px;
 }
 
-/* --- Meeting Tags (Sections) --- */
+/* ==========================================================================
+   7. SECTIONS & MEETING LABELS
+   ========================================================================== */
 .sidebar-tags-container {
     margin-top: 8px;
     display: flex;
@@ -511,6 +527,9 @@
     background: #fee2e2;
 }
 
+/* ==========================================================================
+   8. CARD ACTION INTERFACES & HOVER ANIMATIONS
+   ========================================================================== */
 .result-remove {
     opacity: 1 !important;
 }
@@ -550,7 +569,9 @@
     border-radius: 12px;
 }
 
-/* --- Modal Styles --- */
+/* ==========================================================================
+   9. POPUP DIALOGS & MODAL BOXES
+   ========================================================================== */
 .custom-modal {
     display: none;
     position: absolute;
@@ -654,7 +675,9 @@
     color: var(--text-main);
 }
 
-/* --- Sidebar Footer & Primary Action --- */
+/* ==========================================================================
+   10. SIDEBAR FOOTER & PRIMARY ACTION BUTTON
+   ========================================================================== */
 .sidebar-footer {
     margin-top: auto;
     padding-top: 24px;
@@ -688,7 +711,9 @@
     background-color: var(--text-muted);
 }
 
-/* --- Dark Mode Overrides --- */
+/* ==========================================================================
+   11. DARK THEME SPECIFIC OVERRIDES
+   ========================================================================== */
 [data-theme='dark'] .remove-btn {
     opacity: 0.8;
     color: var(--text-main) !important;

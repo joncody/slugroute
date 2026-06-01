@@ -16,6 +16,7 @@ export const ColorManager = {
         }
 
         const usedColors = Object.values(ColorManager.assignments);
+        // Find first unused color from config pool, looping back to first color if exhausted
         const nextColor = CONFIG.COLOR_POOL.find(function(c) {
             return !usedColors.includes(c);
         }) || CONFIG.COLOR_POOL[0];
@@ -43,6 +44,7 @@ export function showToast(message, type = "error") {
 
     container.appendChild(toast);
 
+    // Apply fade-out animations before cleanup to prevent visual jumps
     setTimeout(function() {
         toast.classList.add("fade-out");
         setTimeout(function() {
@@ -175,6 +177,7 @@ export const utils = {
         const dayWeights = { "M": 0, "Tu": 1, "W": 2, "Th": 3, "F": 4 };
         let earliestDayWeight = 10;
 
+        // Iterate through day keys to compute the earliest weekday class occurrence
         Object.keys(dayWeights).forEach(function(day) {
             if (daysPart.includes(day)) {
                 earliestDayWeight = Math.min(earliestDayWeight, dayWeights[day]);
@@ -190,6 +193,7 @@ export const utils = {
         const min = parseInt(timeMatch[2]);
         const ampm = timeMatch[3];
 
+        // Shift hour scale to 24-hour layout format for sorting checks
         if (ampm === "PM" && hour !== 12) {
             hour += 12;
         }
@@ -197,6 +201,7 @@ export const utils = {
             hour = 0;
         }
 
+        // Return a absolute weekly minute value representation (Minutes in Day * Day Weight + Day Minutes)
         return (earliestDayWeight * 1440) + (hour * 60 + min);
     },
 

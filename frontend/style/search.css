@@ -3,6 +3,9 @@
  * SlugRoute | Search & Suggestions
  */
 
+/* ==========================================================================
+   1. TOP NAVIGATION SEARCH INPUT WRAPPER
+   ========================================================================== */
 .search-container {
     display: flex;
     position: relative;
@@ -47,7 +50,9 @@
     justify-content: center;
 }
 
-/* --- Search Preview Dropdown --- */
+/* ==========================================================================
+   2. SUGGESTION AUTOCOMPLETE DROPDOWN DROPAWAY
+   ========================================================================== */
 .search-preview-dropdown {
     display: none;
     position: absolute;
@@ -98,6 +103,9 @@
     background-color: var(--bg-light);
 }
 
+/* ==========================================================================
+   3. COURSE SECTION PREVIEW SHEETS (SCHEDULE BUILDER)
+   ========================================================================== */
 .preview-offering {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -200,6 +208,9 @@
 
 .preview-add-all-btn:active { transform: scale(0.96); }
 
+/* ==========================================================================
+   4. SCHEDULE SECTION ITEM CARD LAYOUTS
+   ========================================================================== */
 .preview-sections-list {
     padding: 8px;
     display: flex;
@@ -234,33 +245,6 @@
 .preview-section-item.selected {
     background: var(--bg-tag);
     border-color: var(--ucsc-blue);
-}
-
-.custom-checkbox {
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--text-muted);
-    border-radius: 4px;
-    background: var(--bg-card);
-    position: relative;
-    transition: all 0.2s;
-    flex-shrink: 0;
-}
-
-.custom-checkbox.checked {
-    background: var(--ucsc-blue);
-    border-color: var(--ucsc-blue);
-}
-
-.custom-checkbox.checked::after {
-    content: '✓';
-    color: white;
-    font-size: 12px;
-    font-weight: 900;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
 }
 
 .preview-item-info {
@@ -305,6 +289,46 @@
     max-width: 150px;
 }
 
+.header-action-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   5. INTERACTIVE SELECTION CHECKBOX COMPONENT
+   ========================================================================== */
+.custom-checkbox {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--text-muted);
+    border-radius: 4px;
+    background: var(--bg-card);
+    position: relative;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.custom-checkbox.checked {
+    background: var(--ucsc-blue);
+    border-color: var(--ucsc-blue);
+}
+
+.custom-checkbox.checked::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
+    font-weight: 900;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* ==========================================================================
+   6. SCHEDULER SYSTEM MINI LABELS
+   ========================================================================== */
 .status-mini-tag {
     font-size: 9px;
     font-weight: 800;
@@ -316,14 +340,7 @@
 
 .status-mini-tag.cancelled { background: #fee2e2; color: #ef4444; }
 
-.header-action-container {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-shrink: 0;
-}
-
-/* --- Dark Mode Specific Overrides --- */
+/* --- Dark Theme Status Override --- */
 [data-theme='dark'] .status-mini-tag.cancelled {
     background: rgba(239, 68, 68, 0.2);
     color: #f87171;

@@ -11,18 +11,22 @@ export function groupDataByLocation(offerings) {
     const locationMap = {};
 
     offerings.forEach(function(offering) {
+        // Skip elements manually toggled as hidden via eye symbol
         if (offering.visible === false) {
             return;
         }
 
+        // Fetch course unique color index assignment
         const classColor = ColorManager.getColor(offering.class_number);
         offering.meetings.forEach(function(meet, mIndex) {
+            // Clean up unmapped online or TBA sections missing coordinates
             if (!meet.lat || meet.lat === 0 || isNaN(meet.lat)) {
                 return;
             }
 
             const locKey = `${meet.lat},${meet.lng}`;
 
+            // Create coordinate tracking grouping if missing
             if (!locationMap[locKey]) {
                 locationMap[locKey] = {
                     lat: meet.lat,
@@ -39,16 +43,19 @@ export function groupDataByLocation(offerings) {
             const cat = utils.getFilterCategory(meet.type);
             locationMap[locKey].totalMeetings++;
 
+            // Accumulate available class types housed in this location
             if (!locationMap[locKey].filterCategories.includes(cat)) {
                 locationMap[locKey].filterCategories.push(cat);
             }
 
+            // Assign structural importance ranking to dictate pin symbol (Lecture > Lab > Disc)
             if (cat === "LEC") {
                 locationMap[locKey].highestPriorityType = "LEC";
             } else if (cat === "LAB" && locationMap[locKey].highestPriorityType !== "LEC") {
                 locationMap[locKey].highestPriorityType = "LAB";
             }
 
+            // Nest class attributes inside target location
             if (!locationMap[locKey].offerings[offering.class_number]) {
                 locationMap[locKey].offerings[offering.class_number] = {
                     courseCode: offering.course_code,
@@ -75,6 +82,7 @@ function createMarkerElement(type, color, count = 1) {
     // Sammy the Slug brand gold accent
     const slugGold = "#F1B82D";
 
+    // Build compound numeric badge marker if multiple sessions occur in the building
     if (count > 1) {
         div.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 46" width="40" height="50" class="marker-svg">
@@ -93,6 +101,7 @@ function createMarkerElement(type, color, count = 1) {
         return div;
     }
 
+    // Build standard single course marker with specific category shape path
     const path = utils.getIconPath(category);
     div.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 46" width="40" height="50" class="marker-svg">
@@ -160,6 +169,7 @@ export function smartFitBounds(bounds) {
         store.map.setOptions({ restriction: null });
         store.map.fitBounds(bounds, padding);
 
+        // Capture bounding box limit logic after map finishes panning
         const listener = google.maps.event.addListener(store.map, 'idle', function() {
             if (store.map.getZoom() > 18) {
                 store.map.setZoom(18);
@@ -176,6 +186,7 @@ export function smartFitBounds(bounds) {
  * displayLegBubbles places a stat bubble at 95% of the length of each leg
  */
 export function displayLegBubbles(legs) {
+    // Clear legacy label tooltips
     store.routeLabelWindows.forEach(function(w) {
         w.close();
     });
@@ -198,6 +209,7 @@ export function displayLegBubbles(legs) {
         const minutes = Math.round(durationSec / 60);
         const miles = (distanceMeters / 1609.34).toFixed(1);
 
+        // Append custom info element to display walk details
         const iw = new google.maps.InfoWindow({
             disableAutoPan: true,
             headerDisabled: true,
@@ -222,6 +234,7 @@ export function displayLegBubbles(legs) {
  * executeRouting calculates the actual walking route via proxy using intermediates
  */
 export async function executeRouting(overrideOrigin = null) {
+    // Re-initialize active routing vectors and metadata text bubbles
     if (store.directionsRenderer) {
         store.directionsRenderer.setPath([]);
     }
@@ -243,6 +256,7 @@ export async function executeRouting(overrideOrigin = null) {
     const startPos = overrideOrigin || store.startMarker.position;
     store.lastRouteOrigin = startPos;
 
+    // Convert intermediate waypoints into structured API objects
     const intermediates = store.destinations.slice(0, -1).map(function(d) {
         return {
             location: {
@@ -254,6 +268,7 @@ export async function executeRouting(overrideOrigin = null) {
         };
     });
 
+    // Build request payload for the Google Routes v2 endpoint proxy
     const requestBody = {
         origin: {
             location: {
@@ -313,6 +328,7 @@ export async function executeRouting(overrideOrigin = null) {
 
             displayLegBubbles(route.legs);
 
+            // Center camera bounds around the computed path viewport limits
             const viewport = route.viewport;
             const bounds = new google.maps.LatLngBounds(
                 { lat: viewport.low.latitude, lng: viewport.low.longitude },
@@ -321,6 +337,7 @@ export async function executeRouting(overrideOrigin = null) {
 
             smartFitBounds(bounds);
 
+            // Auto-collapse sidebar on smaller screens once routes render
             if (window.innerWidth < 768) {
                 document.getElementById("sidebar").classList.add("closed");
             }
@@ -341,6 +358,7 @@ export function updateStartMarker(position, title) {
         store.activeInfoWindow.close();
     }
 
+    // Set or update coordinates of physical pin dropped on the map
     if (store.startMarker) {
         store.startMarker.position = position;
         store.startMarker.map = store.map;
@@ -393,6 +411,7 @@ export async function getDirections(lat, lng) {
         return;
     }
 
+    // Enforce registration of a starting pin location before beginning routing sequences
     if (!store.startMarker) {
         showToast("Please set your starting location first using the GPS or Pin buttons.", "error");
         return;
@@ -437,7 +456,9 @@ export function buildInfoWindowHtml(locationGroup, activeFilters) {
     let offeringsHtml = "";
     let visibleCount = 0;
 
+    // Loop through individual course lists registered inside this coordinates key
     Object.entries(locationGroup.offerings).forEach(function([classNum, off]) {
+        // Filter elements based on legend filter categories
         const visibleMeetings = off.meetings.filter(function(m) {
             return activeFilters.includes(utils.getFilterCategory(m.type));
         });
@@ -450,6 +471,7 @@ export function buildInfoWindowHtml(locationGroup, activeFilters) {
                 </div>
                 <div class="meetings-list">`;
 
+            // Append each matching course section inside the info window popup
             visibleMeetings.forEach(function(m) {
                 const type = m.type.toUpperCase();
                 const cat = utils.getFilterCategory(type);
@@ -478,10 +500,12 @@ export function buildInfoWindowHtml(locationGroup, activeFilters) {
         }
     });
 
+    // Return empty string if no segments are visible under current active filtering
     if (visibleCount === 0) {
         return "";
     }
 
+    // Build the final complete HTML structure of the Google Maps InfoWindow wrapper
     return `<div class="iw-container">
         <div class="iw-header">
             <div class="iw-title-row">
@@ -506,6 +530,7 @@ export function updateMarkers() {
         return cb.value;
     });
 
+    // Iterate through map elements to show/hide based on checked checkboxes
     store.markers.forEach(function(m) {
         const isVisible = m.categories.some(function(cat) {
             return activeFilters.includes(cat);
@@ -557,6 +582,7 @@ export function updateMarkers() {
  * refreshMapAndUI triggers a complete redraw of map pins and sidebars
  */
 export function refreshMapAndUI(shouldFitBounds = true) {
+    // Drop all markers from the map layout
     store.markers.forEach(function(m) {
         m.map = null;
     });
@@ -566,6 +592,7 @@ export function refreshMapAndUI(shouldFitBounds = true) {
         store.activeInfoWindow.close();
     }
 
+    // Repaint sidebar elements
     renderSearchList();
     renderSavedList();
 
@@ -573,6 +600,7 @@ export function refreshMapAndUI(shouldFitBounds = true) {
         return;
     }
 
+    // Re-cluster coordinates elements
     const locationGroups = groupDataByLocation(store.currentOfferings);
 
     // If a route is drawn to a destination that is removed, remove the route
@@ -595,6 +623,7 @@ export function refreshMapAndUI(shouldFitBounds = true) {
 
     const bounds = new google.maps.LatLngBounds();
 
+    // Iterate through computed groups to instantiate AdvancedMarkerElements
     for (const key in locationGroups) {
         const group = locationGroups[key];
         const uniqueCourseIDs = Object.keys(group.offerings);
@@ -633,6 +662,7 @@ export function refreshMapAndUI(shouldFitBounds = true) {
 
     updateMarkers();
 
+    // Re-compute fit boundaries encompassing only visible coordinates
     store.markers.forEach(function(m) {
         if (m.map) {
             bounds.extend(m.position);
@@ -656,6 +686,7 @@ export function focusClass(classNumber, meetingIndex = null) {
         return;
     }
 
+    // Force map reveal if previously toggled hidden
     if (offering.visible === false) {
         offering.visible = true;
         refreshMapAndUI();
@@ -690,6 +721,7 @@ export function focusClass(classNumber, meetingIndex = null) {
 
     smartFitBounds(bounds);
 
+    // Coordinate automated sliding scrolls to make cards visible in sidebars
     const sidebarElement = document.getElementById(`card-${classNumber}`);
     if (sidebarElement) {
         sidebarElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -699,6 +731,7 @@ export function focusClass(classNumber, meetingIndex = null) {
         }, 2000);
     }
 
+    // Close the sidebar menu panel on mobile screens after focusing on selection
     if (window.innerWidth < 768) {
         document.getElementById("sidebar").classList.add("closed");
     }
@@ -817,6 +850,7 @@ export async function initializeGoogleServices() {
         });
     }
 
+    // Attach map clicks to location pin drop listeners
     store.map.addListener("click", function(e) {
         if (store.isChoosingLocation) {
             updateStartMarker(e.latLng, "Custom Starting Point");

@@ -2,6 +2,9 @@
  * SlugRoute | Layout & Sidebar
  */
 
+/* ==========================================================================
+   1. NAVIGATION BAR CONTAINER
+   ========================================================================== */
 .navbar {
     height: var(--nav-height);
     background-color: var(--bg-navbar);
@@ -23,6 +26,9 @@
     margin: 0 auto;
 }
 
+/* ==========================================================================
+   2. BRANDING & BRAND LOGOS
+   ========================================================================== */
 .brand {
     display: flex;
     align-items: center;
@@ -66,6 +72,9 @@
     }
 }
 
+/* ==========================================================================
+   3. CONTAINER VIEW WRAPPERS & SCREEN AREAS
+   ========================================================================== */
 .app-container {
     display: block;
     position: relative;
@@ -74,6 +83,9 @@
     overflow: hidden;
 }
 
+/* ==========================================================================
+   4. SIDEBAR PANEL COORDINATION & DRAWER ANIMATIONS
+   ========================================================================== */
 .sidebar {
     position: fixed;
     top: var(--nav-height);
@@ -107,6 +119,9 @@
     transition: left 0.3s ease, width 0.3s ease;
 }
 
+/* ==========================================================================
+   5. DESKTOP ADAPTIONS & RESPONSIVE LAYOUT VIEWS
+   ========================================================================== */
 @media (min-width: 768px) {
     :root {
         --nav-height: 70px;

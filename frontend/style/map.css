@@ -2,13 +2,18 @@
  * SlugRoute | Map Overlays & InfoWindows
  */
 
+/* ==========================================================================
+   1. PHYSICAL GOOGLE MAP WRAPPER
+   ========================================================================== */
 #map {
     height: 100%;
     width: 100%;
     position: relative;
 }
 
-/* --- Map / InfoWindow UI --- */
+/* ==========================================================================
+   2. NATIVE GOOGLE MAPS INFOWINDOW CONTAINER OVERRIDES
+   ========================================================================== */
 .gm-style-iw-c {
     background-color: var(--bg-sidebar) !important;
     padding: 0 !important;
@@ -34,6 +39,9 @@
     padding-top: 0 !important;
 }
 
+/* ==========================================================================
+   3. GOOGLE MAP MARKER ENGINES & PIN GLOWS
+   ========================================================================== */
 .marker-wrapper {
     line-height: 0;
 }
@@ -54,6 +62,9 @@
     z-index: 1000 !important;
 }
 
+/* ==========================================================================
+   4. CUSTOM INFOWINDOW INNER STRUCTURES
+   ========================================================================== */
 .iw-container {
     padding: 12px;
     width: 280px;
@@ -242,7 +253,9 @@
     flex-shrink: 0;
 }
 
-/* --- Map Controls --- */
+/* ==========================================================================
+   5. FLOATING MAP CONTROL PANELS & BUTTON STACKS
+   ========================================================================== */
 .map-controls {
     position: absolute;
     top: 0;
@@ -367,7 +380,9 @@
     to { transform: translateY(-3px); }
 }
 
-/* --- Route Bubble Overlay --- */
+/* ==========================================================================
+   6. WALKING ROUTE PATH DETAIL OVERLAYS
+   ========================================================================== */
 .route-bubble-container {
     padding: 10px 14px;
     text-align: center;
@@ -399,7 +414,9 @@
     line-height: 1;
 }
 
-/* --- Dark Mode Overrides --- */
+/* ==========================================================================
+   7. GOOGLE MAPS DARK LAYOUT OVERRIDES
+   ========================================================================== */
 [data-theme='dark'] .gm-style-iw-c {
     background-color: var(--bg-sidebar) !important;
 }

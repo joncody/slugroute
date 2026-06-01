@@ -1,9 +1,13 @@
-/*base.cc*/
+/*base.css*/
 /**
  * SlugRoute | Base & Variables
  */
 
-/* --- Variables --- */
+/* ==========================================================================
+   1. COLOR THEMES & SYSTEM VARIABLES
+   ========================================================================== */
+
+/* --- Default Light Theme Variables --- */
 :root {
     --ucsc-blue: #003C6C;
     --ucsc-gold: #F1B82D;
@@ -29,6 +33,7 @@
     --skeleton-mid: #e0e0e0;
 }
 
+/* --- Dark Theme Variables Override --- */
 [data-theme='dark'] {
     --bg-light: #0f172a;
     --bg-card: #1e293b;
@@ -52,7 +57,9 @@
     --google-control-border: #5f6368;
 }
 
-/* --- Global Reset --- */
+/* ==========================================================================
+   2. GLOBAL HTML RESETS
+   ========================================================================== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 * {
@@ -68,14 +75,18 @@ body {
     overflow: hidden;
 }
 
-/* --- Theme Toggle Icons --- */
+/* ==========================================================================
+   3. THEME TOGGLE ELEMENT ICONS
+   ========================================================================== */
 .sun-icon { display: block; }
 .moon-icon { display: none; }
 
 [data-theme='dark'] .sun-icon { display: none; }
 [data-theme='dark'] .moon-icon { display: block; }
 
-/* --- Utilities & Animations --- */
+/* ==========================================================================
+   4. LOADING ANIMATIONS & SKELETONS
+   ========================================================================== */
 @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
