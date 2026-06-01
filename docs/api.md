@@ -9,25 +9,26 @@ This document provides an exhaustive map of the functions and endpoints powering
 ### `backend/main.go`
 | Function | Description |
 | :--- | :--- |
-| `getCourseHandler` | **API `GET /api/course/:term/:code`**. Fetches primary lecture and section data. |
+| `getCourseHandler` | **API `GET /api/course/:term/:code`**. Fetches primary lecture and section data from the database. |
 | `getTermsHandler` | **API `GET /api/terms`**. Returns a sorted list of unique academic terms from the DB. |
 | `getSuggestionsHandler` | **API `GET /api/suggest`**. Provides autocomplete results for course code searches. |
 | `getRoutesProxyHandler` | **API `POST /api/routes-proxy`**. Securely proxies walking route requests to Google. |
-| `fetchOfferings` | Internal: Executes SQL queries to retrieve course data and building coordinates. |
-| `attachSections` | Internal: Appends DIS/LAB section data to parent lecture objects. |
-| `scanMeeting` | Utility: Scans database rows into the `Meeting` struct. |
+| `fetchOfferings` | Internal: Queries SQLite for primary lecture data and joins building coordinates. |
+| `attachSections` | Internal: Queries and appends associated DIS/LAB section data to parent lecture objects. |
+| `scanMeeting` | Utility: Scans a single database row into a `Meeting` struct. |
+| `main` | Application Entry Point: Configures the SQLite connection, initializes the Gin router, sets up static asset paths, maps endpoint handlers, and starts the server on port `8080`. |
 
 ### `backend/calendar.go`
 | Function | Description |
 | :--- | :--- |
-| `exportCalendarHandler` | **API `POST /api/schedule/export`**. Streams an RFC 5545 .ics file to the client. |
-| `calculateFirstOccurrence` | Logic: Finds the specific calendar date of the first class meeting in a term. |
-| `getTermDates` | Configuration: Returns UCSC quarter start/end boundaries. |
-| `parseICalDays` | Utility: Converts UCSC day codes (MWF) to ICal codes (MO,WE,FR). |
-| `parseICalTimes` | Utility: Parses a time range string into start/end 24-hour pairs. |
-| `formatTime` | Utility: Converts 12-hour AM/PM time to 24-hour ICal format. |
-| `splitTime` | Utility: Splits raw strings into separate Days and Times segments. |
-| `addEvent` | Helper: Appends a `VEVENT` block with recurrence rules to the builder. |
+| `exportCalendarHandler` | **API `POST /api/schedule/export`**. Processes a list of classes and returns a standard RFC 5545 `.ics` file stream for local download. |
+| `calculateFirstOccurrence` | Logic: Determines the precise starting date for a recurring class schedule based on the term start date. |
+| `getTermDates` | Configuration: Returns the hardcoded academic quarter start and end boundaries for a given UCSC term code. |
+| `parseICalDays` | Utility: Converts UCSC day abbreviation formats (e.g., `M`, `Tu`, `W`, `Th`, `F`) into RFC 5545 ICal code chains (e.g., `MO,TU,WE,TH,FR`). |
+| `parseICalTimes` | Utility: Parses a raw time range string (e.g., `10:40AM-11:45AM`) into standard start/end time segments. |
+| `formatTime` | Utility: Converts a 12-hour AM/PM string into a 24-hour sequential ICal string format (`HHMMSS`). |
+| `splitTime` | Utility: Splits raw schedule string inputs into separate Day and Time strings. |
+| `addEvent` | Helper: Builds and formats a single `VEVENT` calendar block with recurrence rules and details, appending it to the ICS string builder. |
 
 ---
 
@@ -36,64 +37,75 @@ This document provides an exhaustive map of the functions and endpoints powering
 ### `js/utils.js`
 | Function | Description |
 | :--- | :--- |
-| `ColorManager.getColor` | Assigns/retrieves a persistent hex color for a specific class number. |
-| `ColorManager.releaseColor` | Removes a color assignment from the active pool. |
-| `showToast` | Renders a success or error notification toast. |
-| `utils.formatCourseCode` | Standardizes user search input (e.g., "cse101" -> "CSE 101"). |
-| `utils.getTermName` | Converts a 4-digit code (2262) to readable format (Spring 2026). |
-| `utils.calculateIdealTerm` | Auto-detects the current term based on the system date. |
-| `utils.getFilterCategory` | Maps raw meeting types to sidebar legend categories (LEC, LAB, DIS). |
-| `utils.getClassStatus` | Identifies if a class is Online, Cancelled, TBA, or Physical. |
-| `utils.getIconPath` | Returns the SVG path data for Stars, Squares, and Triangles. |
-| `utils.coordsMatch` | Compares two LatLngs with an epsilon for float precision. |
-| `utils.parseMeetingTime` | Converts schedule strings to a weekly minute integer for sorting. |
-| `utils.getEarliestMeetingSortVal` | Finds the earliest weekly minute for an entire course. |
-| `utils.getIcon` | Returns inline SVG strings for common UI elements. |
-| `utils.getHeartSvg` | Returns the bookmark/save icon SVG. |
-| `utils.getEyeSvg` | Returns the visibility toggle icon SVG. |
+| `ColorManager.getColor` | Assigns or retrieves a unique, persistent color from the configuration pool for a given class number. |
+| `ColorManager.releaseColor` | Removes a color assignment from the active tracker to free it up for subsequent courses. |
+| `showToast` | Appends a temporary success, warning, or error alert notification box to the UI. |
+| `utils.formatCourseCode` | Normalizes user search input to conform with standard UCSC search formats (e.g., `"cse115a"` -> `"CSE 115A"`). |
+| `utils.getTermName` | Converts a 4-digit academic term code (e.g., `2262`) to a readable format (e.g., `"Spring 2026"`). |
+| `utils.calculateIdealTerm` | Resolves an appropriate active term code default based on the current calendar month. |
+| `utils.getFilterCategory` | Maps raw sectional designations (e.g., `LBS`, `LAB`, `DIS`) into standardized categories (`LEC`, `LAB`, `DIS`). |
+| `utils.getClassStatus` | Evaluates if a meeting block is online, cancelled, scheduled to be announced (TBD), or held in-person (PHYSICAL). |
+| `utils.getIconPath` | Returns raw SVG path coordinates corresponding to Star (LEC), Square (LAB), and Triangle (DIS) symbols. |
+| `utils.coordsMatch` | Compares two lat/lng coordinates with a tight floating-point tolerance (epsilon) to avoid rendering conflicts. |
+| `utils.parseMeetingTime` | Parses schedule details and returns a numerical representation of the weekly start minute for sorting. |
+| `utils.getEarliestMeetingSortVal` | Iterates over all meetings of a course to resolve its earliest weekly minute value. |
+| `utils.getIcon` | Returns pre-built inline SVG icon definitions for general UI symbols (clock, pins, walking figures). |
+| `utils.getHeartSvg` | Renders a styled bookmark toggle heart SVG depending on saved state. |
+| `utils.getEyeSvg` | Renders a styled visibility toggle eye icon depending on map presence. |
 
 ### `js/map.js`
 | Function | Description |
 | :--- | :--- |
-| `initializeGoogleServices` | Bootstraps the Map instance, libraries, and global event listeners. |
-| `executeRouting` | Orchestrates multi-stop walking paths and renders polylines. |
-| `displayLegBubbles` | Places duration/distance labels along the route path. |
-| `updateStartMarker` | Sets the user's location pin and triggers route recalculation. |
-| `getDirections` | Main decision engine for starting or extending walking routes. |
-| `groupDataByLocation` | Clusters multiple class sections into a single map marker. |
-| `smartFitBounds` | Centers and zooms the map to fit active pins. |
-| `buildInfoWindowHtml` | Generates HTML content for the interactive map popups. |
-| `updateMarkers` | Toggles marker visibility based on sidebar filter checkboxes. |
-| `refreshMapAndUI` | Syncs the current application state with the Google Map and sidebars. |
-| `focusClass` | PANS the map to a class and highlights its sidebar card. |
-| `clearResults` | Resets all active offerings and navigation routes. |
+| `initializeGoogleServices` | Imports required Google Maps SDK libraries, sets up the visual map container, coordinates light/dark color schemes, and configures event bounds and standard overlays. |
+| `executeRouting` | Requests polyline routing steps from the local proxy endpoint, decodes the resulting geometries, and draws the walked path lines on the map. |
+| `displayLegBubbles` | Renders duration and distance overlay info-tags alongside mapped path segments. |
+| `updateStartMarker` | Repositions the custom blue user location pin and triggers recalculation of active navigation steps. |
+| `getDirections` | Main decision entry for mapping walking directions. Manages point-to-point routes, multi-stop paths, and routing conflicts. |
+| `groupDataByLocation` | Scans active offerings to organize individual classes and sections into coordinate-keyed groups. |
+| `createMarkerElement` | Programmatically builds custom Sammy-themed gold pins representing section loads or category types. |
+| `smartFitBounds` | Smoothly transitions map views, adjusting zoom constraints based on whether the view shows one building or multiple locations. |
+| `buildInfoWindowHtml` | Generates a styled HTML component for popup windows containing location descriptions, building previews, and course tables. |
+| `updateMarkers` | Evaluates checked/unchecked sidebar filters and toggles map marker visibility accordingly. |
+| `refreshMapAndUI` | Completely synchronizes map pins and sidebars with the central memory state. |
+| `focusClass` | Scrolls the sidebar results card into view, applies highlight styles, and centers the map on the designated course locations. |
+| `clearResults` | Resets active workspace states, clears mapped lines, closes info panels, and empties sidebar structures. |
 
 ### `js/ui.js`
 | Function | Description |
 | :--- | :--- |
-| `saveState` | Persists current/saved courses to `localStorage`. |
-| `updateSyncBtnState` | Enables/disables the calendar button based on data presence. |
-| `highlightSidebarCard` | Bidirectional UI highlighting between markers and cards. |
-| `renderSearchList` | Populates the "Current Results" sidebar with sorted cards. |
-| `renderSavedList` | Populates the "Saved for Later" sidebar. |
-| `toggleVisibility` | Toggles the `visible` flag for an offering on the map. |
-| `toggleSaveCourse` | Adds/removes a course from the saved list. |
-| `removeResult` | Clears a specific course from active results. |
-| `removeMeeting` | Deletes a single section from an active course. |
-| `searchCourse` | Fetches data from the API and opens the search dropdown. |
-| `renderSearchPreview` | Redraws the "Schedule Builder" selection dropdown. |
-| `commitSelection` | Finalizes chosen sections and maps them. |
-| `setupCalendarExport` | Binds the sync button to the backend .ics generator. |
-| `fetchSuggestions` | Debounced API call for search autocomplete. |
+| `saveState` | Serializes and saves current active courses and bookmarks back to client-side `localStorage`. |
+| `updateSyncBtnState` | Evaluates current course loads and updates the calendar button state. |
+| `highlightSidebarCard` | Synchronizes mouse hovers between specific map components and sidebar result blocks. |
+| `renderMeetingTag` | Formats HTML rows for meetings inside result cards, presenting symbols, location badges, and schedule lists. |
+| `renderSearchList` | Emits interactive cards inside the "Current Results" listing pane, sorted by term and time. |
+| `renderSavedList` | Generates compact preview cards within the "Saved for Later" bookmarks shelf. |
+| `toggleVisibility` | Minimizes or displays a specific course's locations on the map canvas. |
+| `toggleSaveCourse` | Adds/removes a course from bookmarks and updates persistent memory. |
+| `removeResult` | Releases course color slots and clears the selection from the active workspace. |
+| `removeMeeting` | Deletes a single section/meeting row from a result card. |
+| `addSavedToResults` | Moves a bookmarked course back into the active search workspace and zooms to it. |
+| `handleSearchResultsClick` | Action event mapping to focus maps on clicked cards in the results panel. |
+| `handleSavedClassesClick` | Action event mapping to activate clicked bookmark cards. |
+| `setupSidebarDelegation` | Binds click handlers and hover tracking events dynamically onto sidebar container lists. |
+| `renderPreviewSectionRow` | Generates interactive section rows in the search preview panel, incorporating checklist inputs. |
+| `togglePendingSection` | Manages selections in the preview panel checklist. |
+| `toggleAllSections` | Marks all sections of a course in the search preview as selected. |
+| `commitSelection` | Verifies and validates selected meetings, then imports the course to the map workspace. |
+| `attachPreviewListeners` | Attaches check, toggle, and mapping handlers inside the autocomplete preview dropdown. |
+| `renderSearchPreview` | Redraws the dynamic autocomplete dropdown with options sorted by term and schedule. |
+| `searchCourse` | Requests meeting coordinates from the database for a searched code. |
+| `fetchSuggestions` | Requests course code suggestions using debounced keyboard events. |
+| `addAllSavedToResults` | Imports all bookmarked classes to the map workspace at once. |
+| `setupCalendarExport` | Sets up download behavior for the calendar button, packing active schedules into a POST request to the server-side `.ics` engine. |
 
 ### `js/app.js`
 | Function | Description |
 | :--- | :--- |
-| `initMap` | Global entry point callback for the Google Maps SDK. |
-| `toggleChooseLocationMode` | Toggles the crosshair cursor for manual pin placement. |
-| `populateTerms` | Fetches terms from the API and populates the dropdown. |
-| `setupSearchUI` | Initializes input listeners and search form logic. |
-| `setupMapControls` | Binds logic to Theme, Recenter, and GPS buttons. |
+| `initMap` | Acts as the primary SDK lifecycle hook. Populates terms, registers search tools, configures layout toggles, and sets up the map components. |
+| `toggleChooseLocationMode` | Activates or exits custom starting-point pinning modes. |
+| `populateTerms` | Fetches available terms from Go and updates the sidebar dropdown to focus on logical default terms. |
+| `setupSearchUI` | Configures key entry debounces, preview closes, and form submit hooks. |
+| `setupMapControls` | Hooks events to custom panels, including sidebars, dark themes, recenters, GPS, manual pins, custom route erasers, and point-to-point modes. |
 
 ---
 
@@ -102,18 +114,23 @@ This document provides an exhaustive map of the functions and endpoints powering
 ### `scraper/scraper.py`
 | Function | Description |
 | :--- | :--- |
-| `main` | Entry point for the daily scraping engine. |
-| `calculate_current_strms` | Logic: Automates target term selection based on current date. |
-| `fetch_class_detail` | Scrapes detailed section/meeting info from PISA detail pages. |
-| `scrape_term` | Scrapes all courses for a specific academic quarter. |
-| `save_course_data` | Transactional storage of scraped data into SQLite. |
-| `split_days_times` | Regex: Parses raw schedule strings. |
-| `split_location` | Regex: Parses raw location strings into Building/Room. |
-| `init_db` | Schema: Creates and maintains database tables. |
+| `main` | Orchestrates the scraping pipeline: initializes SQLite schemas, determines relevant terms, and schedules search passes. |
+| `calculate_current_strms` | Computes active UCSC STRM term codes based on current system dates. |
+| `get_session` | Builds a configured `requests.Session` with retry behaviors and standardized client headers. |
+| `clean_text` | Normalizes whitespace and removes duplicated cancellation markers. |
+| `split_days_times` | Extracts days (e.g., `TuTh`) and time periods into separate components using regular expressions. |
+| `split_location` | Separates campus building names from distinct room numbers. |
+| `init_db` | Creates base database layouts, indexes, and tables. |
+| `save_course_data` | Transactionally manages the write-back of parsed courses, lectures, and sections to SQLite. |
+| `_parse_header` | Extracts course codes, lecture sections, and titles from heading structures. |
+| `_parse_meetings` | Gathers main lecture meeting dates, locations, and instructors from structured HTML elements. |
+| `_parse_sections` | Iterates over section blocks to record individual lab and discussion properties. |
+| `fetch_class_detail` | Coordinates specific POST queries to scrape details from individual class index pages. |
+| `scrape_term` | Executes query searches for a specific term and manages item detail scraping passes. |
 
 ### `database/import_coords.py`
 | Function | Description |
 | :--- | :--- |
-| `migrate` | Orchestrates the reading and migration of building geodata. |
-| `read_coordinates_file` | Parses the flat text file into coordinate tuples. |
-| `update_building_table` | Performs bulk DB updates for campus buildings. |
+| `migrate` | Orchestrates the geodata migration pipeline by reading coordinate text files and executing bulk database updates. |
+| `read_coordinates_file` | Parses geodata structures (`Name = Lat, Lng, ImagePath`) and formats values into sanitized tuples. |
+| `update_building_table` | Drops existing records, creates building tables, and populates rows using bulk inserts. |
