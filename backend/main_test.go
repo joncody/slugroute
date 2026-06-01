@@ -25,11 +25,13 @@ func (errReader) Read(p []byte) (n int, err error) {
 // setupTestDB creates an temporary in-memory SQLite database and initializes
 // the mock schemas for courses, lectures, sections, and buildings.
 func setupTestDB(t *testing.T) *sql.DB {
+	// Establish temporary SQLite in-memory connection
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("failed to open in-memory database: %v", err)
 	}
 
+	// Schema definitions containing courses, lectures, sections, and buildings
 	schema := `
 	CREATE TABLE courses (
 		class_number TEXT,
@@ -69,6 +71,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 		image_url TEXT
 	);`
 
+	// Execute execution loop for DDL layout queries
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("failed to initialize schema: %v", err)
 	}
@@ -82,9 +85,11 @@ func TestGetTermsHandler(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
+	// Seed multiple distinct academic term records
 	db.Exec("INSERT INTO courses (term) VALUES (?)", "2262")
 	db.Exec("INSERT INTO courses (term) VALUES (?)", "2264")
 
+	// Set test mode on Gin router instance
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.GET("/api/terms", getTermsHandler(db))
@@ -93,6 +98,7 @@ func TestGetTermsHandler(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/api/terms", nil)
 	r.ServeHTTP(w, req)
 
+	// Validate HTTP OK status code response
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
@@ -102,6 +108,7 @@ func TestGetTermsHandler(t *testing.T) {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 
+	// Validate result length limits
 	if len(terms) != 2 {
 		t.Errorf("expected 2 terms, got %d", len(terms))
 	}
@@ -113,6 +120,7 @@ func TestGetSuggestionsHandler(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
+	// Seed course suggestion payload row
 	db.Exec("INSERT INTO courses (course_code, term) VALUES (?, ?)", "CSE 101", "2262")
 
 	gin.SetMode(gin.TestMode)
@@ -127,6 +135,7 @@ func TestGetSuggestionsHandler(t *testing.T) {
 	var suggestions []string
 	json.Unmarshal(w.Body.Bytes(), &suggestions)
 
+	// Validate that matched course matches original seeded suggestion
 	if len(suggestions) != 1 || suggestions[0] != "CSE 101" {
 		t.Errorf("expected ['CSE 101'], got %v", suggestions)
 	}
@@ -137,6 +146,7 @@ func TestGetSuggestionsHandler(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	json.Unmarshal(w.Body.Bytes(), &suggestions)
+	// Confirm that searches below length 2 produce zero records
 	if len(suggestions) != 0 {
 		t.Errorf("expected empty results for short query, got %v", suggestions)
 	}
@@ -173,10 +183,12 @@ func TestGetCourseHandler(t *testing.T) {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
+	// Validate mapping length checks
 	if len(result) != 1 {
 		t.Fatalf("expected 1 offering, got %d", len(result))
 	}
 
+	// Check that the list includes both the primary lecture and secondary discussion section
 	if len(result[0].Meetings) != 2 {
 		t.Errorf("expected 2 meetings (LEC + DIS), got %d", len(result[0].Meetings))
 	}
@@ -201,11 +213,13 @@ func TestAttachSections_Isolation(t *testing.T) {
 		"102": {ClassNumber: "102", Meetings: []Meeting{}},
 	}
 
+	// Invoke the linking driver
 	err := attachSections(db, "2262", offerings)
 	if err != nil {
 		t.Errorf("attachSections failed: %v", err)
 	}
 
+	// Ensure sections are linked only to parent class number 101, leaving 102 empty
 	if len(offerings["101"].Meetings) != 1 {
 		t.Errorf("expected 1 meeting for 101, got %d", len(offerings["101"].Meetings))
 	}
@@ -230,6 +244,7 @@ func TestGetRoutesProxyHandler_MissingKey(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/api/routes-proxy", strings.NewReader(`{}`))
 	r.ServeHTTP(w, req)
 
+	// Validate status matches 500 on missing authorization environment parameters
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500 Internal Server Error when API key is missing, got %d", w.Code)
 	}
@@ -252,6 +267,7 @@ func TestGetRoutesProxyHandler_InvalidBody(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/api/routes-proxy", errReader{})
 	r.ServeHTTP(w, req)
 
+	// Ensure that unreadable payloads map directly to a 400 Bad Request error
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400 Bad Request for unreadable body, got %d", w.Code)
 	}

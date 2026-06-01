@@ -14,6 +14,7 @@ import (
 // TestSplitTime validates that raw schedule strings are accurately split
 // into separate day blocks and time ranges.
 func TestSplitTime(t *testing.T) {
+	// Check standard meeting pattern string splitting
 	days, times := splitTime("MWF 10:40AM-11:45AM")
 	if days != "MWF" || times != "10:40AM-11:45AM" {
 		t.Errorf("expected MWF and 10:40AM-11:45AM, got %s and %s", days, times)
@@ -29,11 +30,13 @@ func TestSplitTime(t *testing.T) {
 // TestFormatTime verifies that 12-hour AM/PM schedules are formatted 
 // correctly into the 24-hour HHMMSS string layout required by the iCalendar RFC 5545 specification.
 func TestFormatTime(t *testing.T) {
+	// Validate standard AM string format conversions
 	res := formatTime("10:40AM")
 	if res != "104000" {
 		t.Errorf("expected 104000, got %s", res)
 	}
 
+	// Validate PM conversions handling the afternoon hour shifts
 	res = formatTime("1:00PM")
 	if res != "130000" {
 		t.Errorf("expected 130000, got %s", res)
@@ -49,6 +52,7 @@ func TestFormatTime(t *testing.T) {
 // TestParseICalTimes validates that time ranges are split and parsed
 // into respective 24-hour start and end segments.
 func TestParseICalTimes(t *testing.T) {
+	// Test standard AM/PM time range parsing
 	start, end := parseICalTimes("10:40AM-11:45AM")
 	if start != "104000" || end != "114500" {
 		t.Errorf("expected 104000 and 114500, got %s and %s", start, end)
@@ -64,16 +68,19 @@ func TestParseICalTimes(t *testing.T) {
 // TestParseICalDays verifies conversion of short UCSC day codes into standard 
 // RFC 5545 iCalendar weekday arrays.
 func TestParseICalDays(t *testing.T) {
+	// Single day conversion
 	days := parseICalDays("M")
 	if days != "MO" {
 		t.Errorf("expected MO, got %s", days)
 	}
 
+	// Multiple days conversion
 	days = parseICalDays("MWF")
 	if days != "MO,WE,FR" {
 		t.Errorf("expected MO,WE,FR, got %s", days)
 	}
 
+	// Day conversions involving mixed letter sequences (TuTh)
 	days = parseICalDays("TuTh")
 	if days != "TU,TH" {
 		t.Errorf("expected TU,TH, got %s", days)
@@ -122,6 +129,7 @@ func TestCalculateFirstOccurrence(t *testing.T) {
 // TestExportCalendarHandler simulates HTTP communication with the Gin server,
 // ensuring schedule arrays convert cleanly into downloadable .ics files.
 func TestExportCalendarHandler(t *testing.T) {
+	// Initialize test-mode Gin framework
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/api/schedule/export", exportCalendarHandler())
@@ -145,26 +153,31 @@ func TestExportCalendarHandler(t *testing.T) {
 		},
 	}
 
+	// Serialize and transmit request payload
 	body, _ := json.Marshal(schedule)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/api/schedule/export", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
+	// Validate HTTP status code responses
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", w.Code)
 	}
 
+	// Confirm calendar content-type headers are set
 	contentType := w.Header().Get("Content-Type")
 	if contentType != "text/calendar" {
 		t.Errorf("expected Content-Type text/calendar, got %s", contentType)
 	}
 
 	bodyStr := w.Body.String()
+	// Check root VCALENDAR delimiters
 	if !strings.Contains(bodyStr, "BEGIN:VCALENDAR") || !strings.Contains(bodyStr, "END:VCALENDAR") {
 		t.Errorf("invalid calendar response structure")
 	}
 
+	// Ensure structural elements (e.g., event summary block) exist in response
 	if !strings.Contains(bodyStr, "SUMMARY:CSE 120 (LEC)") {
 		t.Errorf("missing SUMMARY in calendar response")
 	}

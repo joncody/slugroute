@@ -33,6 +33,7 @@ END:VTIMEZONE
 
 // splitTime separates a time string into days and times parts.
 func splitTime(tStr string) (string, string) {
+	// Split the meeting pattern string by a single space separating days from times.
 	parts := strings.Split(tStr, " ")
 	if len(parts) < 2 {
 		return "", ""
@@ -42,15 +43,18 @@ func splitTime(tStr string) (string, string) {
 
 // formatTime converts a 12-hour time string to a 24-hour ICal format.
 func formatTime(t string) string {
+	// Parse the string representation using 12-hour AM/PM format
 	parsed, err := time.Parse("3:04PM", t)
 	if err != nil {
 		return "000000"
 	}
+	// Format to 24-hour HHMMSS as per RFC 5545 specification
 	return parsed.Format("150405")
 }
 
 // parseICalTimes extracts start and end times from a range string.
 func parseICalTimes(times string) (string, string) {
+	// Parse the time interval separated by a hyphen (e.g., "10:40AM-11:45AM")
 	rangeParts := strings.Split(times, "-")
 	if len(rangeParts) < 2 {
 		return "000000", "000000"
@@ -61,6 +65,7 @@ func parseICalTimes(times string) (string, string) {
 // parseICalDays converts UCSC day abbreviations to ICal day codes.
 func parseICalDays(days string) string {
 	var res []string
+	// Map shorthand days to RFC 5545 standard day strings (MO, TU, WE, TH, FR)
 	if strings.Contains(days, "M") {
 		res = append(res, "MO")
 	}
@@ -81,20 +86,22 @@ func parseICalDays(days string) string {
 
 // getTermDates returns the hardcoded start and end dates for a UCSC term.
 func getTermDates(term string) (string, string) {
+	// Extract the academic year from the term string (e.g., "2262" maps to year 2026)
 	year := "20" + term[1:3]
 	suffix := term[3]
 	var start, end string
 
+	// Determine calendar limits based on the term quarter suffix
 	switch suffix {
-	case '0': // Winter
+	case '0': // Winter Quarter starts in early January and ends in mid-March
 		start, end = year+"0105", year+"0320"
-	case '2': // Spring
+	case '2': // Spring Quarter starts in late March and ends in mid-June
 		start, end = year+"0330", year+"0612"
-	case '4': // Summer
+	case '4': // Summer Quarter starts in late June and ends in late August
 		start, end = year+"0622", year+"0830"
-	case '8': // Fall
+	case '8': // Fall Quarter starts in late September and ends in mid-December
 		start, end = year+"0923", year+"1215"
-	default:
+	default:  // Fallback default spanning the full calendar year
 		start, end = year+"0101", year+"1231"
 	}
 	return start, end + "T235959Z"
@@ -102,6 +109,7 @@ func getTermDates(term string) (string, string) {
 
 // calculateFirstOccurrence finds the first date a class meets based on the term start.
 func calculateFirstOccurrence(termStart, days, timeStr string) string {
+	// Parse the starting baseline date of the quarter
 	t, _ := time.Parse("20060102", termStart)
 	dayMap := map[string]time.Weekday{
 		"M":  time.Monday,
@@ -112,6 +120,7 @@ func calculateFirstOccurrence(termStart, days, timeStr string) string {
 	}
 
 	earliest := 7
+	// Find the minimum day offset matching the scheduled weekdays
 	for code, wd := range dayMap {
 		if strings.Contains(days, code) {
 			diff := (int(wd) - int(t.Weekday()) + 7) % 7
@@ -120,16 +129,19 @@ func calculateFirstOccurrence(termStart, days, timeStr string) string {
 			}
 		}
 	}
+	// Add the calculated offset to find the exact initial date
 	return t.AddDate(0, 0, earliest).Format("20060102") + "T" + timeStr
 }
 
 // addEvent appends a VEVENT block to the ics builder.
 func addEvent(ics *strings.Builder, course Offering, m Meeting) {
+	// Split days and times (e.g., "MWF" and "10:40AM-11:45AM")
 	daysPart, timesPart := splitTime(m.Time)
 	if timesPart == "" {
 		return
 	}
 
+	// Format times and map day codes
 	startT, endT := parseICalTimes(timesPart)
 	byDay := parseICalDays(daysPart)
 	termStart, termEnd := getTermDates(course.Term)
@@ -156,6 +168,7 @@ func addEvent(ics *strings.Builder, course Offering, m Meeting) {
 func exportCalendarHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var schedule []Offering
+		// Unmarshal the incoming request payload representing the schedule
 		if err := c.ShouldBindJSON(&schedule); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid schedule data"})
 			return
@@ -171,8 +184,10 @@ func exportCalendarHandler() gin.HandlerFunc {
 		// Inject the VTIMEZONE component, ensuring CRLF line endings
 		ics.WriteString(strings.ReplaceAll(VTimezone, "\n", "\r\n"))
 
+		// Generate calendar event representations for meetings
 		for _, course := range schedule {
 			for _, m := range course.Meetings {
+				// Filter out classes that have placeholder times
 				if m.Time == "" || strings.Contains(strings.ToUpper(m.Time), "TBA") || strings.Contains(strings.ToUpper(m.Time), "CANCELLED") {
 					continue
 				}
@@ -183,6 +198,7 @@ func exportCalendarHandler() gin.HandlerFunc {
 
 		ics.WriteString("END:VCALENDAR\r\n")
 
+		// Serve the formatted .ics payload back to the client
 		c.Header("Content-Type", "text/calendar")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=slugroute-schedule-%d.ics", time.Now().Year()))
 		c.String(http.StatusOK, ics.String())

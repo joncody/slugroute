@@ -28,18 +28,20 @@ class TestImportCoords(unittest.TestCase):
             "Partial Data = 36.9, -122.0\n"
         )
 
+        # Hook builtins.open to read the simulated file contents rather than touching disk storage
         with patch("builtins.open", mock_open(read_data=mock_content)):
             data = list(import_coords.read_coordinates_file("dummy.txt"))
 
+            # Assert that exactly two viable coordinate lines successfully parsed
             self.assertEqual(len(data), 2)
 
-            # Assert complete record parsing
+            # Assert complete record parsing matches structural elements and text normalization
             self.assertEqual(data[0][0], "STEVEN ACAD")
             self.assertEqual(data[0][1], 36.997)
             self.assertEqual(data[0][2], -122.051)
             self.assertEqual(data[0][3], "images/steven-acad.jpg")
 
-            # Assert partial record parsing (empty string image URL fallback)
+            # Assert partial record parsing handles optional image path omission safely
             self.assertEqual(data[1][0], "PARTIAL DATA")
             self.assertEqual(data[1][3], "")
 
@@ -49,12 +51,15 @@ class TestImportCoordsDatabase(unittest.TestCase):
 
     def setUp(self):
         """Establishes an isolated database link."""
+        # Allocate a physical temporary file handle to sandbox write operations
         self.db_fd, self.db_path = tempfile.mkstemp()
+        # Direct the coordinates utility module constants to target the temporary mock file path
         self.patcher = patch('import_coords.DB_PATH', self.db_path)
         self.patcher.start()
 
     def tearDown(self):
         """Teardown database and unlink file handles."""
+        # Stop tracking path overrides and release temporary handles
         self.patcher.stop()
         os.close(self.db_fd)
         if os.path.exists(self.db_path):
@@ -62,15 +67,18 @@ class TestImportCoordsDatabase(unittest.TestCase):
 
     def test_update_building_table(self):
         """Verifies schema tables rebuild and write building details correctly."""
+        # Execute test queries in isolated temporary transactions
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             building_data = [
                 ("STEVEN ACAD", 36.997, -122.051, "images/steven-acad.jpg"),
                 ("CLASSROOM UNIT", 36.998, -122.056, "images/classroomunit.jpg")
             ]
+            # Execute database rebuild commands
             import_coords.update_building_table(cursor, building_data)
             conn.commit()
 
+            # Confirm that insertion structure matches our original details and orders correctly
             cursor.execute("SELECT name, lat, lng, image_url FROM buildings ORDER BY name")
             rows = cursor.fetchall()
             self.assertEqual(len(rows), 2)

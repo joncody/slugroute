@@ -17,24 +17,31 @@ def read_coordinates_file(file_path):
     Expected format: Name = Lat, Lng, ImagePath
     """
     try:
+        # Open the coordinate source file with explicit UTF-8 encoding configuration
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:
+                # Bypass any rows missing the standard assignment delimiter
                 if '=' not in line:
                     continue
 
+                # Separate the building label from geographic/image parameters
                 name, data = line.split('=')
                 parts = data.split(',')
 
+                # Ensure both latitude and longitude segments exist
                 if len(parts) < 2:
                     continue
 
+                # Parse and clean positional numeric coordinates
                 lat = float(parts[0].strip())
                 lng = float(parts[1].strip())
+                # Handle the optional front-end image path parameter
                 img_url = parts[2].strip() if len(parts) > 2 else ""
 
                 # Force uppercase for normalization as per requirements
                 clean_name = name.strip().upper()
 
+                # Yield parsed structure values back to the migration driver
                 yield (clean_name, lat, lng, img_url)
 
     except FileNotFoundError:
@@ -56,6 +63,7 @@ def update_building_table(cursor, building_data):
         """
     )
 
+    # Bulk insert mapped building records in a single database transaction
     cursor.executemany(
         "INSERT OR REPLACE INTO buildings VALUES (?, ?, ?, ?)",
         building_data
@@ -68,14 +76,17 @@ def migrate():
     Includes image_url paths for the frontend display.
     """
     try:
+        # Establish open database connections
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
 
+            # Read and gather coordinates parsed from local configuration path
             building_data = list(read_coordinates_file(COORDS_FILE))
             if not building_data:
                 logging.warning("No data found to migrate.")
                 return
 
+            # Perform the schema recreation and insert operations on active database tables
             update_building_table(cursor, building_data)
             conn.commit()
             logging.info("Coordinates and image paths imported successfully.")

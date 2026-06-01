@@ -14,6 +14,12 @@ import (
 )
 
 const (
+	// queryFetchOfferings fetches primary course and lecture data.
+	// It joins the courses and lectures tables on class number and term.
+	// A LEFT JOIN with the buildings table allows retrieval of latitude, longitude, and image URL
+	// by matching building name, handling trimming and case-insensitive conversions.
+	// The WHERE condition filters results by term and a case-insensitive check on course code 
+	// (matching with or without spaces, e.g., 'CSE120' or 'CSE 120').
 	queryFetchOfferings = `
 		SELECT 
 			c.class_number, c.course_code, c.term, c.title, 
@@ -25,6 +31,9 @@ const (
 		WHERE (UPPER(c.course_code) = UPPER(?) OR UPPER(REPLACE(c.course_code, ' ', '')) = UPPER(REPLACE(?, ' ', ''))) 
 		AND c.term = ?`
 
+	// queryAttachSections retrieves section (discussion/lab) data associated with a lecture.
+	// It performs a LEFT JOIN with the buildings table to acquire room coordinate and image data.
+	// The search filters sections by term and parent lecture class number.
 	queryAttachSections = `
 		SELECT 
 			IFNULL(s.section_type, ''), IFNULL(s.instructor, ''), IFNULL(s.days, ''), IFNULL(s.times, ''), IFNULL(s.building, ''), IFNULL(s.room_number, ''),
@@ -61,11 +70,13 @@ func scanMeeting(rows *sql.Rows, mType string) (Meeting, error) {
 	var inst, days, times, bld, rm, imageURL string
 	var lat, lng float64
 
+	// Read column data from the row iteration pointer
 	err := rows.Scan(&inst, &days, &times, &bld, &rm, &lat, &lng, &imageURL)
 	if err != nil {
 		return Meeting{}, err
 	}
 
+	// Build and return a populated Meeting struct, stitching days and times together
 	return Meeting{
 		Type:       mType,
 		Building:   bld,
@@ -80,6 +91,7 @@ func scanMeeting(rows *sql.Rows, mType string) (Meeting, error) {
 
 // fetchOfferings queries the DB for main lecture data and joins building coordinates.
 func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error) {
+	// Execute database query using queryFetchOfferings to retrieve core lectures
 	rows, err := db.Query(queryFetchOfferings, code, code, term)
 	if err != nil {
 		return nil, err
@@ -88,6 +100,7 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 
 	offeringsMap := make(map[string]*Offering)
 
+	// Scan through result rows
 	for rows.Next() {
 		var cn, cc, cterm, title, inst, days, times, bld, rm, imageURL string
 		var lat, lng float64
@@ -99,6 +112,7 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 			return nil, err
 		}
 
+		// Initialize key entry for the specified class number if not already present
 		if _, ok := offeringsMap[cn]; !ok {
 			offeringsMap[cn] = &Offering{
 				ClassNumber: cn,
@@ -110,6 +124,7 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 			}
 		}
 
+		// Hydrate and insert primary lecture meeting information
 		offeringsMap[cn].Meetings = append(offeringsMap[cn].Meetings, Meeting{
 			Type:       "LEC",
 			Building:   bld,
@@ -126,12 +141,14 @@ func fetchOfferings(db *sql.DB, term, code string) (map[string]*Offering, error)
 
 // attachSections fetches DIS/LAB sections linked to the parent lecture.
 func attachSections(db *sql.DB, term string, offerings map[string]*Offering) error {
+	// Query and attach associated discussion/lab sections for each offering
 	for cn, offering := range offerings {
 		secRows, err := db.Query(queryAttachSections, cn, term)
 		if err != nil {
 			return err
 		}
 
+		// Iterate through sections row-by-row
 		for secRows.Next() {
 			var st, si, sd, stm, bld, rm, imageURL string
 			var lat, lng float64
@@ -142,6 +159,7 @@ func attachSections(db *sql.DB, term string, offerings map[string]*Offering) err
 				return err
 			}
 
+			// Add the newly found section meeting to parent meetings list
 			offering.Meetings = append(offering.Meetings, Meeting{
 				Type:       st,
 				Building:   bld,
@@ -161,9 +179,11 @@ func attachSections(db *sql.DB, term string, offerings map[string]*Offering) err
 // getCourseHandler handles the /api/course/:term/:code route.
 func getCourseHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Extract routing parameters from context
 		term := c.Param("term")
 		code := c.Param("code")
 
+		// Query primary offerings from DB
 		offeringsMap, err := fetchOfferings(db, term, code)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -172,6 +192,7 @@ func getCourseHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Query and append secondary class sections (DIS/LAB)
 		if err := attachSections(db, term, offeringsMap); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "failed to fetch sections",
@@ -179,6 +200,7 @@ func getCourseHandler(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Convert the offerings map to a list format for JSON serialization
 		result := make([]Offering, 0, len(offeringsMap))
 		for _, v := range offeringsMap {
 			result = append(result, *v)
@@ -190,6 +212,7 @@ func getCourseHandler(db *sql.DB) gin.HandlerFunc {
 // getTermsHandler returns a sorted list of unique terms.
 func getTermsHandler(db *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Retrieve sorted distinct term values to present on the client interface (newest first)
 		query := `SELECT DISTINCT term FROM courses ORDER BY term DESC`
 		rows, err := db.Query(query)
 		if err != nil {
@@ -218,11 +241,14 @@ func getSuggestionsHandler(db *sql.DB) gin.HandlerFunc {
 		q := c.Query("q")
 		term := c.Query("term")
 
+		// Restrict query processing to prefixes longer than 1 character
 		if len(q) < 2 {
 			c.JSON(http.StatusOK, []string{})
 			return
 		}
 
+		// Search database for prefix matches on course code (case-insensitive, handling spacing offsets)
+		// and constrain response output size to 8 matches maximum.
 		query := `
 			SELECT DISTINCT course_code 
 			FROM courses 
@@ -255,28 +281,33 @@ func getSuggestionsHandler(db *sql.DB) gin.HandlerFunc {
 // getRoutesProxyHandler proxies navigation requests to Google Routes API v2.
 func getRoutesProxyHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Ensure system environment variable is correctly configured
 		apiKey := os.Getenv("GOOGLE_MAPS_API_KEY")
 		if apiKey == "" {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "map API key not configured on server"})
 			return
 		}
 
+		// Read HTTP payload content from body streams
 		body, err := io.ReadAll(c.Request.Body)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 			return
 		}
 
+		// Construct routing API call targeting computeRoutes
 		req, err := http.NewRequest("POST", "https://routes.googleapis.com/directions/v2:computeRoutes", bytes.NewBuffer(body))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create proxy request"})
 			return
 		}
 
+		// Define transmission context properties, headers, and parameter field filters
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Goog-Api-Key", apiKey)
 		req.Header.Set("X-Goog-FieldMask", "routes.duration,routes.distanceMeters,routes.polyline,routes.legs,routes.viewport")
 
+		// Execute outbound connection payload delivery
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
@@ -285,6 +316,7 @@ func getRoutesProxyHandler() gin.HandlerFunc {
 		}
 		defer resp.Body.Close()
 
+		// Read and emit payload returned from remote destination endpoint directly back to front-end
 		respBody, _ := io.ReadAll(resp.Body)
 		c.Data(resp.StatusCode, "application/json", respBody)
 	}
@@ -292,6 +324,7 @@ func getRoutesProxyHandler() gin.HandlerFunc {
 
 // main initializes the database connection and defines server routes.
 func main() {
+	// Establish open SQLite3 physical database file handle
 	db, err := sql.Open("sqlite3", "../database/slugroute.db")
 	if err != nil {
 		log.Fatal(err)
@@ -303,7 +336,7 @@ func main() {
 	// Load HTML templates from the frontend folder
 	r.LoadHTMLGlob("../frontend/*.html")
 
-	// API Routes
+	// API Routes mapping structure
 	r.GET("/api/course/:term/:code", getCourseHandler(db))
 	r.GET("/api/terms", getTermsHandler(db))
 	r.GET("/api/suggest", getSuggestionsHandler(db))
@@ -323,11 +356,12 @@ func main() {
 		c.HTML(http.StatusOK, "tests.html", nil)
 	})
 
-	// Static assets
+	// Static asset routing map definitions
 	r.Static("/js", "../frontend/js")
 	r.Static("/style", "../frontend/style")
 	r.Static("/images", "../frontend/images")
 
+	// Start Gin engine and listen on standard port
 	log.Println("SlugRoute live at http://localhost:8080")
 	r.Run(":8080")
 }
