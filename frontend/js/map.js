@@ -2,7 +2,7 @@
 import { CONFIG } from "./config.js";
 import { store } from "./state.js";
 import { utils, showToast, ColorManager } from "./utils.js";
-import { renderSearchList, renderSavedList, highlightSidebarCard } from "./ui.js";
+import { renderSearchList, renderSavedList, highlightSidebarCard, saveState } from "./ui.js";
 
 /**
  * groupDataByLocation clusters meeting data into location points
@@ -365,7 +365,7 @@ export function updateStartMarker(position, title) {
     } else {
         const youAreHereDiv = document.createElement('div');
         youAreHereDiv.style.transform = 'translateY(50%)';
-        youAreHereDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`;
+        youAreHereDiv.innerHTML = utils.getIcon('location', 28, '#4285F4');
         store.startMarker = new store.AdvancedMarkerElement({
             map: store.map,
             position: position,
@@ -393,17 +393,7 @@ export async function getDirections(lat, lng) {
     if (store.isP2PMode) {
         if (!store.p2pOrigin) {
             // Clear existing routes now that the starting P2P class marker is clicked
-            if (store.directionsRenderer) {
-                store.directionsRenderer.setPath([]);
-            }
-            store.routeLabelWindows.forEach(function(w) {
-                w.close();
-            });
-            store.routeLabelWindows = [];
-            store.lastRoute = null;
-            store.destinations = [];
-            store.isLastRouteP2P = false;
-            store.lastRouteOrigin = null;
+            clearRoute();
 
             // Set the origin to the clicked marker
             store.p2pOrigin = targetPos;
@@ -453,6 +443,11 @@ export async function getDirections(lat, lng) {
 
     if (store.lastRoute && isNewTarget) {
         store.pendingRoutingTarget = targetPos;
+        // Conditionally show/hide 'Replace Destination' button depending on route stops count
+        const replaceBtn = document.getElementById("replace-route-btn");
+        if (replaceBtn) {
+            replaceBtn.style.display = store.destinations.length > 1 ? "" : "none";
+        }
         document.getElementById('routing-modal').style.display = 'block';
     } else {
         store.destinations = [targetPos];
@@ -540,9 +535,7 @@ export function buildInfoWindowHtml(locationGroup, activeFilters) {
  * updateMarkers toggles marker visibility based on sidebar filters
  */
 export function updateMarkers() {
-    const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
-        return cb.value;
-    });
+    const activeFilters = utils.getActiveFilters();
 
     // Iterate through map elements to show/hide based on checked checkboxes
     store.markers.forEach(function(m) {
@@ -559,17 +552,7 @@ export function updateMarkers() {
         });
 
         if (destMarker && !destMarker.map) {
-            if (store.directionsRenderer) {
-                store.directionsRenderer.setPath([]);
-            }
-            store.routeLabelWindows.forEach(function(w) {
-                w.close();
-            });
-            store.routeLabelWindows = [];
-            store.lastRoute = null;
-            store.currentDestination = null;
-            store.destinations = [];
-            store.lastRouteOrigin = null;
+            clearRoute();
         }
     }
 
@@ -621,17 +604,7 @@ export function refreshMapAndUI(shouldFitBounds = true) {
     if (store.currentDestination) {
         const destKey = `${store.currentDestination.lat},${store.currentDestination.lng}`;
         if (!locationGroups[destKey]) {
-            if (store.directionsRenderer) {
-                store.directionsRenderer.setPath([]);
-            }
-            store.routeLabelWindows.forEach(function(w) {
-                w.close();
-            });
-            store.routeLabelWindows = [];
-            store.lastRoute = null;
-            store.currentDestination = null;
-            store.destinations = [];
-            store.lastRouteOrigin = null;
+            clearRoute();
         }
     }
 
@@ -658,9 +631,7 @@ export function refreshMapAndUI(shouldFitBounds = true) {
                 // Clicking the marker selects it directly for routing without an info window
                 getDirections(group.lat, group.lng);
             } else {
-                const activeFilters = Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
-                    return cb.value;
-                });
+                const activeFilters = utils.getActiveFilters();
                 const content = buildInfoWindowHtml(group, activeFilters);
                 if (!content) {
                     return;
@@ -752,34 +723,38 @@ export function focusClass(classNumber, meetingIndex = null) {
 }
 
 /**
+ * clearRoute wipes computed route polylines and state
+ */
+export function clearRoute() {
+    if (store.directionsRenderer) {
+        store.directionsRenderer.setPath([]);
+    }
+    store.routeLabelWindows.forEach(function(w) {
+        w.close();
+    });
+    store.routeLabelWindows = [];
+    store.lastRoute = null;
+    store.currentDestination = null;
+    store.destinations = [];
+    store.isLastRouteP2P = false;
+    store.lastRouteOrigin = null;
+}
+
+/**
  * clearResults empties current results and map
  */
 export function clearResults() {
     if (store.activeInfoWindow) {
         store.activeInfoWindow.close();
     }
-    store.routeLabelWindows.forEach(function(w) {
-        w.close();
-    });
-    store.routeLabelWindows = [];
-    if (store.directionsRenderer) {
-        store.directionsRenderer.setPath([]);
-    }
-    store.lastRoute = null;
-    store.currentDestination = null;
-    store.destinations = [];
-    store.lastRouteOrigin = null;
+    clearRoute();
     store.currentOfferings.forEach(function(c) {
         ColorManager.releaseColor(c.class_number);
     });
     store.currentOfferings = [];
 
     // State Hardening write-back
-    try {
-        localStorage.setItem("slugroute_current", JSON.stringify([]));
-    } catch (e) {
-        console.error("LocalStorage sync failed during clearResults", e);
-    }
+    saveState();
 
     refreshMapAndUI();
 }

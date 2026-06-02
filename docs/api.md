@@ -49,7 +49,9 @@ This document provides an exhaustive map of the functions and endpoints powering
 | `utils.coordsMatch` | Compares two lat/lng coordinates with a tight floating-point tolerance (epsilon) to avoid rendering conflicts. |
 | `utils.parseMeetingTime` | Parses schedule details and returns a numerical representation of the weekly start minute for sorting. |
 | `utils.getEarliestMeetingSortVal` | Iterates over all meetings of a course to resolve its earliest weekly minute value. |
-| `utils.getIcon` | Returns pre-built inline SVG icon definitions for general UI symbols (clock, pins, walking figures). |
+| `utils.sortMeetings` | Sorts a copy of meeting arrays chronologically based on weekly meeting start values. |
+| `utils.getActiveFilters` | Retrieves currently checked category filter values (e.g., `LEC`, `LAB`, `DIS`) from the DOM. |
+| `utils.getIcon` | Returns pre-built inline SVG icon definitions for general UI symbols (clock, pins, walking figures, starting location). |
 | `utils.getHeartSvg` | Renders a styled bookmark toggle heart SVG depending on saved state. |
 | `utils.getEyeSvg` | Renders a styled visibility toggle eye icon depending on map presence. |
 
@@ -68,6 +70,7 @@ This document provides an exhaustive map of the functions and endpoints powering
 | `updateMarkers` | Evaluates checked/unchecked sidebar filters and toggles map marker visibility accordingly. |
 | `refreshMapAndUI` | Completely synchronizes map pins and sidebars with the central memory state. |
 | `focusClass` | Scrolls the sidebar results card into view, applies highlight styles, and centers the map on the designated course locations. |
+| `clearRoute` | Wipes computed route polylines and resets routing-related state variables in the global store. |
 | `clearResults` | Resets active workspace states, clears mapped lines, closes info panels, and empties sidebar structures. |
 
 ### `js/ui.js`

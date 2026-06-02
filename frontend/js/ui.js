@@ -143,15 +143,10 @@ export function renderSearchList() {
         const isVisible = course.visible !== false;
 
         // Sort meetings chronologically within the card while preserving original index for functionality
-        const meetingTagsHtml = course.meetings
-            .map(function(m, idx) {
-                return { ...m, originalIndex: idx };
-            })
-            .sort(function(a, b) {
-                const valA = utils.parseMeetingTime(a.time) ?? 999999;
-                const valB = utils.parseMeetingTime(b.time) ?? 999999;
-                return valA - valB;
-            })
+        const meetingsWithIdx = course.meetings.map(function(m, idx) {
+            return { ...m, originalIndex: idx };
+        });
+        const meetingTagsHtml = utils.sortMeetings(meetingsWithIdx)
             .map(function(m) {
                 return renderMeetingTag(course, m, m.originalIndex, color);
             })
@@ -215,9 +210,7 @@ export function renderSavedList() {
         const color = ColorManager.getColor(course.class_number);
 
         // Find the earliest available meeting time to display on the card
-        const sortedMeets = [...course.meetings].sort(function(a, b) {
-            return (utils.parseMeetingTime(a.time) ?? 999999) - (utils.parseMeetingTime(b.time) ?? 999999);
-        });
+        const sortedMeets = utils.sortMeetings(course.meetings);
         const earliestMeet = sortedMeets[0];
         const timeStr = earliestMeet && earliestMeet.time && earliestMeet.time.trim() !== "" ? earliestMeet.time : "Time TBD";
 
@@ -604,13 +597,10 @@ export function renderSearchPreview() {
         const cn = offering.class_number;
 
         // Map meetings with their original indices and sort them chronologically
-        const sortedMeets = offering.meetings
-            .map(function(m, idx) {
-                return { ...m, originalIndex: idx };
-            })
-            .sort(function(a, b) {
-                return (utils.parseMeetingTime(a.time) ?? 999999) - (utils.parseMeetingTime(b.time) ?? 999999);
-            });
+        const meetingsWithIdx = offering.meetings.map(function(m, idx) {
+            return { ...m, originalIndex: idx };
+        });
+        const sortedMeets = utils.sortMeetings(meetingsWithIdx);
 
         const lecMeet = sortedMeets.find(function(m) {
             return utils.getFilterCategory(m.type) === 'LEC';

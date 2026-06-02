@@ -11,7 +11,8 @@ import {
     updateStartMarker,
     displayLegBubbles,
     executeRouting,
-    getDirections
+    getDirections,
+    clearRoute
 } from "./map.js";
 import {
     setupSidebarDelegation,
@@ -174,7 +175,7 @@ export function setupMapControls() {
             if (currentStartPos) {
                 const youAreHereDiv = document.createElement('div');
                 youAreHereDiv.style.transform = 'translateY(50%)';
-                youAreHereDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="10" fill="#4285F4" stroke="white" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="white"/></svg>`;
+                youAreHereDiv.innerHTML = utils.getIcon('location', 28, '#4285F4');
                 store.startMarker = new store.AdvancedMarkerElement({
                     map: store.map,
                     position: currentStartPos,
@@ -235,18 +236,7 @@ export function setupMapControls() {
 
     // Wipe computed polylines and destinations
     document.getElementById("clear-route-btn").onclick = function() {
-        if (store.directionsRenderer) {
-            store.directionsRenderer.setPath([]);
-        }
-        store.routeLabelWindows.forEach(function(w) {
-            w.close();
-        });
-        store.routeLabelWindows = [];
-        store.lastRoute = null;
-        store.currentDestination = null;
-        store.destinations = [];
-        store.isLastRouteP2P = false;
-        store.lastRouteOrigin = null;
+        clearRoute();
     };
 
     // Show geolocation options modal
