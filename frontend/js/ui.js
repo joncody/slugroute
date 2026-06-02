@@ -660,6 +660,9 @@ export function renderSearchPreview() {
  * searchCourse handles API call for course sections
  */
 export async function searchCourse() {
+    clearTimeout(store.suggestionTimeout);
+    store.activeSuggestionId = null; // Invalidate any in-flight suggestion requests
+
     const input = document.getElementById("course-input");
     const preview = document.getElementById("search-preview");
     const term = document.getElementById("term-select").value;
@@ -720,9 +723,19 @@ export async function fetchSuggestions(query) {
         return;
     }
 
+    // Generate a unique ID for this specific suggestion request
+    store.activeSuggestionId = (store.activeSuggestionId || 0) + 1;
+    const currentId = store.activeSuggestionId;
+
     try {
         const response = await fetch(`/api/suggest?q=${encodeURIComponent(query)}&term=${term}`);
         const data = await response.json();
+
+        // GUARD: If a newer suggestion request or a full search has been initiated
+        // in the meantime, ignore this stale response and exit early.
+        if (currentId !== store.activeSuggestionId) {
+            return;
+        }
 
         // Dynamically build suggestions dropdown elements
         if (data && data.length > 0) {

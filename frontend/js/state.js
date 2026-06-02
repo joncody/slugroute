@@ -32,7 +32,7 @@ export const store = {
     currentOfferings: currentOfferingsParsed, // Active course list added to the map and sidebar results
     lastSearchResults: [],                 // Latest raw results retrieved from course lookup API
     pendingSelections: {},                 // Temporary checkboxes record in the search dropdown
-    savedCourses: savedCoursesParsed,       // Bookmarked items preserved in the secondary sidebar
+    savedCourses: savedCoursesParsed,      // Bookmarked items preserved in the secondary sidebar
     AdvancedMarkerElement: null,           // Constructor reference for custom Google Map markers
     suggestionTimeout: null,               // Debounce handle for suggestion search key inputs
     startMarker: null,                     // Pin marking starting walk location
@@ -45,5 +45,6 @@ export const store = {
     isP2PMode: false,                      // Point-to-Point selection mode active toggle
     p2pOrigin: null,                       // Custom selected start coordinates for P2P mode
     isLastRouteP2P: false,                 // Indicates if the currently drawn route is a P2P walk path
-    lastRouteOrigin: null                  // Backup reference of original starting coordinates
+    lastRouteOrigin: null,                 // Backup reference of original starting coordinates
+    activeSuggestionId: 0                  // Track active autocomplete requests
 };
