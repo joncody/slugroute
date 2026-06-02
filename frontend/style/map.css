@@ -366,12 +366,12 @@
     stroke: none;
 }
 
-#choose-location-btn.active, #p2p-route-btn.active {
+#choose-location-btn.active, #p2p-route-btn.active, #grab-location-btn.active {
     color: #1a73e8;
     background: #e8f0fe;
 }
 
-#choose-location-btn.active svg, #p2p-route-btn.active svg {
+#choose-location-btn.active svg, #p2p-route-btn.active svg, #grab-location-btn.active svg {
     animation: pinBounce 0.5s infinite alternate;
 }
 

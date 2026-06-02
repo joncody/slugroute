@@ -267,18 +267,6 @@ export function setupMapControls() {
             if (store.activeInfoWindow) {
                 store.activeInfoWindow.close();
             }
-            if (store.directionsRenderer) {
-                store.directionsRenderer.setPath([]);
-            }
-            store.routeLabelWindows.forEach(function(w) {
-                w.close();
-            });
-            store.routeLabelWindows = [];
-            store.lastRoute = null;
-            store.destinations = [];
-            store.isLastRouteP2P = false;
-            store.lastRouteOrigin = null;
-
             this.classList.add("active");
             store.p2pOrigin = null;
             showToast("Point-to-Point active. Click your origin class marker.", "success");
@@ -292,10 +280,30 @@ export function setupMapControls() {
     document.getElementById("allow-location-btn").onclick = function() {
         document.getElementById('location-modal').style.display = 'none';
 
-        navigator.geolocation.getCurrentPosition(function(position) {
-            const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
-            updateStartMarker(userPos, "Current Location");
-        }, null, { enableHighAccuracy: true });
+        const grabBtn = document.getElementById("grab-location-btn");
+        if (grabBtn) {
+            grabBtn.classList.add("active");
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const userPos = { lat: position.coords.latitude, lng: position.coords.longitude };
+                updateStartMarker(userPos, "Current Location");
+
+                // Remove active styling once successfully resolved
+                if (grabBtn) {
+                    grabBtn.classList.remove("active");
+                }
+            },
+            function(error) {
+                // Revert active styling and alert user if permission is denied or a timeout occurs
+                if (grabBtn) {
+                    grabBtn.classList.remove("active");
+                }
+                showToast("Could not retrieve your location.", "error");
+            },
+            { enableHighAccuracy: true }
+        );
     };
 
     // Dismiss geolocation options modal

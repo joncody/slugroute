@@ -392,6 +392,20 @@ export async function getDirections(lat, lng) {
     // Mode Intercept: Point-to-Point routing
     if (store.isP2PMode) {
         if (!store.p2pOrigin) {
+            // Clear existing routes now that the starting P2P class marker is clicked
+            if (store.directionsRenderer) {
+                store.directionsRenderer.setPath([]);
+            }
+            store.routeLabelWindows.forEach(function(w) {
+                w.close();
+            });
+            store.routeLabelWindows = [];
+            store.lastRoute = null;
+            store.destinations = [];
+            store.isLastRouteP2P = false;
+            store.lastRouteOrigin = null;
+
+            // Set the origin to the clicked marker
             store.p2pOrigin = targetPos;
             showToast("Origin set. Now select your destination class marker.", "success");
         } else {
