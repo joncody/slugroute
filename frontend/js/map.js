@@ -594,6 +594,7 @@ export function refreshMapAndUI(shouldFitBounds = true) {
     renderSavedList();
 
     if (store.currentOfferings.length === 0) {
+        clearRoute();
         return;
     }
 
