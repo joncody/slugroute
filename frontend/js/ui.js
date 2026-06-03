@@ -249,7 +249,7 @@ export function toggleVisibility(classNum) {
     if (offering) {
         offering.visible = (offering.visible === false);
         saveState();
-        refreshMapAndUI();
+        refreshMapAndUI(false); // Prevents jarring camera shifts on visibility changes
     }
 }
 
@@ -265,7 +265,7 @@ export function removeResult(classNum) {
         return c.class_number !== classNum;
     });
     saveState();
-    refreshMapAndUI();
+    refreshMapAndUI(false); // Prevents jarring camera shifts on card deletion
 }
 
 /**
@@ -277,8 +277,6 @@ export function removeMeeting(classNum, meetingIndex) {
     });
 
     if (offering && offering.meetings.length > 1) {
-        const removedCategory = utils.getFilterCategory(offering.meetings[meetingIndex].type);
-
         offering.meetings.splice(meetingIndex, 1);
 
         const savedIdx = store.savedCourses.findIndex(function(s) {
@@ -290,12 +288,7 @@ export function removeMeeting(classNum, meetingIndex) {
         }
 
         saveState();
-        const categoryStillExists = offering.meetings.some(function(m) {
-            return utils.getFilterCategory(m.type) === removedCategory;
-        });
-
-        // Refocus the map only if the removed section was the last one of its category (LEC, LAB, or DIS)
-        refreshMapAndUI(!categoryStillExists);
+        refreshMapAndUI(false); // Prevents jarring camera shifts on individual meeting deletions
     } else {
         removeResult(classNum);
     }

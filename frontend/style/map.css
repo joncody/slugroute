@@ -269,11 +269,24 @@
 .control-stack {
     position: absolute;
     bottom: 114px;
-    right: 10px;
+    right: 4px; /* Adjusted to 4px to maintain exact 10px visual padding after adding 6px container padding */
     display: flex;
     flex-direction: column;
     gap: 8px;
     pointer-events: auto;
+    
+    /* Bounding constraints for vertical responsiveness */
+    max-height: calc(100% - 130px);
+    overflow-y: auto;
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+
+    /* Padding buffer to allow child drop-shadows to render without clipping */
+    padding: 6px;
+}
+
+/* Hide scrollbar for Webkit (Chrome, Safari, Edge) */
+.control-stack::-webkit-scrollbar {
+    display: none;
 }
 
 .map-btn-group {
@@ -283,6 +296,7 @@
     border-radius: 2px;
     overflow: hidden;
     pointer-events: auto;
+    flex-shrink: 0; /* Prevent vertical collapsing on small viewports */
 }
 
 .map-btn {
@@ -299,6 +313,7 @@
     color: var(--text-muted);
     transition: background 0.2s, color 0.2s, box-shadow 0.2s;
     pointer-events: auto;
+    flex-shrink: 0; /* Prevent vertical collapsing on small viewports */
 }
 
 .map-btn:hover {

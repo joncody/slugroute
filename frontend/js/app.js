@@ -122,21 +122,11 @@ export function setupMapControls() {
         const sidebar = document.getElementById("sidebar");
         sidebar.classList.toggle("closed");
 
-        // Fit active map boundaries with appropriate padding adjustments after transition ends
+        // Notify Maps instance of container dimension changes after transition ends
         setTimeout(function() {
-            if (store.currentOfferings.length > 0) {
-                const bounds = new google.maps.LatLngBounds();
-                store.markers.forEach(function(m) {
-                    if (m.map) {
-                        bounds.extend(m.position);
-                    }
-                });
-                if (!bounds.isEmpty()) {
-                    smartFitBounds(bounds);
-                }
+            if (store.map) {
+                google.maps.event.trigger(store.map, 'resize');
             }
-            // Notify Maps instance of container dimension changes
-            google.maps.event.trigger(store.map, 'resize');
         }, 350);
     };
 
@@ -232,6 +222,58 @@ export function setupMapControls() {
         }
         store.map.setZoom(CONFIG.ZOOM.CAMPUS);
         store.map.panTo(CONFIG.CAMPUS_CENTER);
+    };
+
+    // Center map view on all active class markers
+    document.getElementById("recenter-markers-btn").onclick = function() {
+        if (store.activeInfoWindow) {
+            store.activeInfoWindow.close();
+        }
+
+        const bounds = new google.maps.LatLngBounds();
+        store.markers.forEach(function(m) {
+            if (m.map) {
+                bounds.extend(m.position);
+            }
+        });
+
+        if (!bounds.isEmpty()) {
+            smartFitBounds(bounds);
+        } else {
+            showToast("No active classes to center on.", "error");
+        }
+    };
+
+    // Center map view on the starting point marker
+    document.getElementById("recenter-start-btn").onclick = function() {
+        if (store.activeInfoWindow) {
+            store.activeInfoWindow.close();
+        }
+
+        if (store.startMarker && store.startMarker.position) {
+            store.map.panTo(store.startMarker.position);
+            store.map.setZoom(CONFIG.ZOOM.BUILDING);
+        } else {
+            showToast("No start point set yet. Drop a pin or use GPS.", "error");
+        }
+    };
+
+    // Center map view on the active routing path
+    document.getElementById("recenter-route-btn").onclick = function() {
+        if (store.activeInfoWindow) {
+            store.activeInfoWindow.close();
+        }
+
+        if (store.lastRoute && store.lastRoute.viewport) {
+            const viewport = store.lastRoute.viewport;
+            const bounds = new google.maps.LatLngBounds(
+                { lat: viewport.low.latitude, lng: viewport.low.longitude },
+                { lat: viewport.high.latitude, lng: viewport.high.longitude }
+            );
+            smartFitBounds(bounds);
+        } else {
+            showToast("No active route to center on.", "error");
+        }
     };
 
     // Wipe computed polylines and destinations
