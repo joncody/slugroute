@@ -1,7 +1,8 @@
 //ui.js
 import { store } from "./state.js";
-import { utils, ColorManager, showToast } from "./utils.js";
-import { refreshMapAndUI, focusClass } from "./map.js";
+import { utils, ColorManager } from "./utils.js";
+import { focusClass } from "./navigation.js";
+import { refreshMapAndUI } from "./markers.js";
 
 /**
  * saveState persists currentOfferings and savedCourses to LocalStorage
@@ -24,9 +25,44 @@ export function updateSyncBtnState() {
         return;
     }
 
-    // Determine total elements tracked in our state lists
     const totalCourses = (store.currentOfferings || []).length + (store.savedCourses || []).length;
     syncBtn.disabled = (totalCourses === 0);
+}
+
+/**
+ * toggleCourseHighlight visually toggles cards outline styles
+ */
+function toggleCourseHighlight(el, active) {
+    if (active) {
+        el.classList.add('highlight');
+    } else {
+        el.classList.remove('highlight');
+        el.querySelectorAll('.highlight').forEach(function(node) {
+            node.classList.remove('highlight');
+        });
+    }
+}
+
+/**
+ * toggleMeetingHighlight toggles subsection badge layouts outline styles
+ */
+function toggleMeetingHighlight(el, active, meetingIndex) {
+    const selector = el.classList.contains('course-card')
+        ? `.sidebar-meeting-tag[data-index="${meetingIndex}"]`
+        : `.iw-meeting-card[data-index="${meetingIndex}"]`;
+
+    const tag = el.querySelector(selector);
+    if (tag) {
+        if (active) {
+            tag.classList.add('highlight');
+        } else {
+            tag.classList.remove('highlight');
+        }
+    }
+
+    if (active) {
+        el.classList.add('highlight');
+    }
 }
 
 /**
@@ -42,35 +78,9 @@ export function highlightSidebarCard(classNumber, active, meetingIndex = null) {
         }
 
         if (meetingIndex === null) {
-            // Course-level toggle
-            if (active) {
-                el.classList.add('highlight');
-            } else {
-                el.classList.remove('highlight');
-                // Cleanup child meeting highlights if we are deactivating the whole card
-                el.querySelectorAll('.highlight').forEach(function(node) {
-                    node.classList.remove('highlight');
-                });
-            }
+            toggleCourseHighlight(el, active);
         } else {
-            // Subsection-level toggle
-            const selector = el.classList.contains('course-card')
-                ? `.sidebar-meeting-tag[data-index="${meetingIndex}"]`
-                : `.iw-meeting-card[data-index="${meetingIndex}"]`;
-
-            const tag = el.querySelector(selector);
-            if (tag) {
-                if (active) {
-                    tag.classList.add('highlight');
-                } else {
-                    tag.classList.remove('highlight');
-                }
-            }
-
-            // If entering a section, ensure parent is highlighted.
-            if (active) {
-                el.classList.add('highlight');
-            }
+            toggleMeetingHighlight(el, active, meetingIndex);
         }
     };
 
@@ -89,7 +99,6 @@ export function renderMeetingTag(course, m, index, color) {
 
     let locationHtml = `<span class="loc-text" title="${m.building}">${m.building}</span>`;
 
-    // Assign special layout parameters for abnormal statuses
     if (status === "ONLINE") {
         locationHtml = `<span class="online-tag">Online Instruction</span>`;
     } else if (status === "CANCELLED") {
@@ -116,6 +125,64 @@ export function renderMeetingTag(course, m, index, color) {
 }
 
 /**
+ * renderSearchCourseCardHtml builds HTML for a single search result course card
+ */
+export function renderSearchCourseCardHtml(course, isSaved, color, isVisible, meetingTagsHtml) {
+    return `
+        <div class="course-card ${!isVisible ? 'hidden-offering' : ''}" id="card-${course.class_number}" data-class="${course.class_number}" style="--accent-color: ${isVisible ? color : '#e2e8f0'}">
+            <div class="card-header">
+                <div class="card-info-group">
+                    <div class="card-title-row" title="${course.course_code}, #${course.class_number}">
+                        <h4>${course.course_code}</h4>
+                        <span class="course-id-tag">#${course.class_number}</span>
+                    </div>
+                    <div class="course-meta-row">
+                        <span class="course-instructor" title="${course.instructor}">${course.instructor}</span>
+                    </div>
+                    <div class="course-term-tag">${utils.getTermName(course.term)}</div>
+                </div>
+                <div class="card-actions">
+                    <button class="save-btn vis-toggle" title="Toggle Visibility" data-class="${course.class_number}">
+                        ${utils.getEyeSvg(isVisible)}
+                    </button>
+                    <button class="save-btn save-toggle" title="Save Course" data-class="${course.class_number}">
+                        ${utils.getHeartSvg(isSaved)}
+                    </button>
+                    <button class="remove-btn result-remove" title="Clear Result" data-class="${course.class_number}">✕</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="sidebar-tags-container">
+                    ${meetingTagsHtml}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * renderSearchCourseRow builds HTML layout parameters inside mapped arrays
+ */
+function renderSearchCourseRow(course) {
+    const isSaved = store.savedCourses.some(function(s) {
+        return s.class_number === course.class_number;
+    });
+    const color = ColorManager.getColor(course.class_number);
+    const isVisible = course.visible !== false;
+
+    const meetingsWithIdx = course.meetings.map(function(m, idx) {
+        return { ...m, originalIndex: idx };
+    });
+    const meetingTagsHtml = utils.sortMeetings(meetingsWithIdx)
+        .map(function(m) {
+            return renderMeetingTag(course, m, m.originalIndex, color);
+        })
+        .join("");
+
+    return renderSearchCourseCardHtml(course, isSaved, color, isVisible, meetingTagsHtml);
+}
+
+/**
  * renderSearchList updates the "Current Results" sidebar section
  */
 export function renderSearchList() {
@@ -127,7 +194,6 @@ export function renderSearchList() {
         return;
     }
 
-    // Sort active results by Quarter (Term), then Day and Time
     const sortedOfferings = [...store.currentOfferings].sort(function(a, b) {
         if (a.term !== b.term) {
             return parseInt(a.term) - parseInt(b.term);
@@ -135,55 +201,47 @@ export function renderSearchList() {
         return utils.getEarliestMeetingSortVal(a.meetings) - utils.getEarliestMeetingSortVal(b.meetings);
     });
 
-    container.innerHTML = sortedOfferings.map(function(course) {
-        const isSaved = store.savedCourses.some(function(s) {
-            return s.class_number === course.class_number;
-        });
-        const color = ColorManager.getColor(course.class_number);
-        const isVisible = course.visible !== false;
+    container.innerHTML = sortedOfferings.map(renderSearchCourseRow).join("");
+    updateSyncBtnState();
+}
 
-        // Sort meetings chronologically within the card while preserving original index for functionality
-        const meetingsWithIdx = course.meetings.map(function(m, idx) {
-            return { ...m, originalIndex: idx };
-        });
-        const meetingTagsHtml = utils.sortMeetings(meetingsWithIdx)
-            .map(function(m) {
-                return renderMeetingTag(course, m, m.originalIndex, color);
-            })
-            .join("");
-
-        return `
-            <div class="course-card ${!isVisible ? 'hidden-offering' : ''}" id="card-${course.class_number}" data-class="${course.class_number}" style="--accent-color: ${isVisible ? color : '#e2e8f0'}">
-                <div class="card-header">
-                    <div class="card-info-group">
-                        <div class="card-title-row" title="${course.course_code}, #${course.class_number}">
-                            <h4>${course.course_code}</h4>
-                            <span class="course-id-tag">#${course.class_number}</span>
-                        </div>
-                        <div class="course-meta-row">
-                            <span class="course-instructor" title="${course.instructor}">${course.instructor}</span>
-                        </div>
-                        <div class="course-term-tag">${utils.getTermName(course.term)}</div>
+/**
+ * renderSavedCourseCardHtml builds HTML for a single saved course card
+ */
+export function renderSavedCourseCardHtml(course, color, timeStr) {
+    return `
+        <div class="course-card saved-item-card" data-class="${course.class_number}" style="--accent-color: ${color}">
+            <div class="card-header">
+                <div class="card-info-group">
+                    <div class="card-title-row" title="${course.course_code}, #${course.class_number}">
+                        <h4>${course.course_code}</h4>
+                        <span class="course-id-tag">#${course.class_number}</span>
                     </div>
-                    <div class="card-actions">
-                        <button class="save-btn vis-toggle" title="Toggle Visibility" data-class="${course.class_number}">
-                            ${utils.getEyeSvg(isVisible)}
-                        </button>
-                        <button class="save-btn save-toggle" title="Save Course" data-class="${course.class_number}">
-                            ${utils.getHeartSvg(isSaved)}
-                        </button>
-                        <button class="remove-btn result-remove" title="Clear Result" data-class="${course.class_number}">✕</button>
-                    </div>
+                    <div class="course-instructor" title="${course.instructor}">${course.instructor}</div>
+                    <div class="course-term-tag">${utils.getTermName(course.term)}</div>
+                    <div class="course-card-time">${utils.getIcon('clock', 12)} ${timeStr}</div>
                 </div>
-                <div class="card-body">
-                    <div class="sidebar-tags-container">
-                        ${meetingTagsHtml}
-                    </div>
+                <div class="card-actions">
+                    <button class="save-btn save-toggle" data-class="${course.class_number}">
+                        ${utils.getHeartSvg(true)}
+                    </button>
                 </div>
             </div>
-        `;
-    }).join("");
-    updateSyncBtnState();
+        </div>
+    `;
+}
+
+/**
+ * renderSavedCourseRow processes standard arrays to render HTML layouts
+ */
+function renderSavedCourseRow(course) {
+    const color = ColorManager.getColor(course.class_number);
+
+    const sortedMeets = utils.sortMeetings(course.meetings);
+    const earliestMeet = sortedMeets[0];
+    const timeStr = earliestMeet && earliestMeet.time && earliestMeet.time.trim() !== "" ? earliestMeet.time : "Time TBD";
+
+    return renderSavedCourseCardHtml(course, color, timeStr);
 }
 
 /**
@@ -198,7 +256,6 @@ export function renderSavedList() {
         return;
     }
 
-    // Sort saved courses by Quarter (Term), then Day and Time
     const sortedCourses = [...store.savedCourses].sort(function(a, b) {
         if (a.term !== b.term) {
             return parseInt(a.term) - parseInt(b.term);
@@ -206,35 +263,7 @@ export function renderSavedList() {
         return utils.getEarliestMeetingSortVal(a.meetings) - utils.getEarliestMeetingSortVal(b.meetings);
     });
 
-    container.innerHTML = sortedCourses.map(function(course) {
-        const color = ColorManager.getColor(course.class_number);
-
-        // Find the earliest available meeting time to display on the card
-        const sortedMeets = utils.sortMeetings(course.meetings);
-        const earliestMeet = sortedMeets[0];
-        const timeStr = earliestMeet && earliestMeet.time && earliestMeet.time.trim() !== "" ? earliestMeet.time : "Time TBD";
-
-        return `
-            <div class="course-card saved-item-card" data-class="${course.class_number}" style="--accent-color: ${color}">
-                <div class="card-header">
-                    <div class="card-info-group">
-                        <div class="card-title-row" title="${course.course_code}, #${course.class_number}">
-                            <h4>${course.course_code}</h4>
-                            <span class="course-id-tag">#${course.class_number}</span>
-                        </div>
-                        <div class="course-instructor" title="${course.instructor}">${course.instructor}</div>
-                        <div class="course-term-tag">${utils.getTermName(course.term)}</div>
-                        <div class="course-card-time">${utils.getIcon('clock', 12)} ${timeStr}</div>
-                    </div>
-                    <div class="card-actions">
-                        <button class="save-btn save-toggle" data-class="${course.class_number}">
-                            ${utils.getHeartSvg(true)}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join("");
+    container.innerHTML = sortedCourses.map(renderSavedCourseRow).join("");
     updateSyncBtnState();
 }
 
@@ -249,7 +278,7 @@ export function toggleVisibility(classNum) {
     if (offering) {
         offering.visible = (offering.visible === false);
         saveState();
-        refreshMapAndUI(false); // Prevents jarring camera shifts on visibility changes
+        refreshMapAndUI(false);
     }
 }
 
@@ -265,7 +294,7 @@ export function removeResult(classNum) {
         return c.class_number !== classNum;
     });
     saveState();
-    refreshMapAndUI(false); // Prevents jarring camera shifts on card deletion
+    refreshMapAndUI(false);
 }
 
 /**
@@ -288,7 +317,7 @@ export function removeMeeting(classNum, meetingIndex) {
         }
 
         saveState();
-        refreshMapAndUI(false); // Prevents jarring camera shifts on individual meeting deletions
+        refreshMapAndUI(false);
     } else {
         removeResult(classNum);
     }
@@ -354,6 +383,53 @@ function handleSavedClassesClick(classNum) {
 }
 
 /**
+ * handleSidebarClick routes target buttons to their registered UI actions
+ */
+function handleSidebarClick(e, handler) {
+    const target = e.target;
+
+    const visBtn = target.closest('.vis-toggle');
+    if (visBtn) {
+        e.stopPropagation();
+        toggleVisibility(visBtn.dataset.class);
+        return;
+    }
+
+    const saveBtn = target.closest('.save-toggle');
+    if (saveBtn) {
+        e.stopPropagation();
+        toggleSaveCourse(saveBtn.dataset.class);
+        return;
+    }
+
+    const removeBtn = target.closest('.result-remove');
+    if (removeBtn) {
+        e.stopPropagation();
+        removeResult(removeBtn.dataset.class);
+        return;
+    }
+
+    const tagRemoveBtn = target.closest('.tag-remove-btn');
+    if (tagRemoveBtn) {
+        e.stopPropagation();
+        removeMeeting(tagRemoveBtn.dataset.class, parseInt(tagRemoveBtn.dataset.index));
+        return;
+    }
+
+    const tag = target.closest('.sidebar-meeting-tag');
+    if (tag) {
+        e.stopPropagation();
+        focusClass(tag.dataset.class, parseInt(tag.dataset.index));
+        return;
+    }
+
+    const card = target.closest('.course-card');
+    if (card) {
+        handler(card.dataset.class);
+    }
+}
+
+/**
  * setupSidebarDelegation handles all clicks and bidirectional hover highlighting in sidebars
  */
 export function setupSidebarDelegation() {
@@ -369,47 +445,7 @@ export function setupSidebarDelegation() {
         }
 
         el.onclick = function(e) {
-            const target = e.target;
-
-            const visBtn = target.closest('.vis-toggle');
-            if (visBtn) {
-                e.stopPropagation();
-                toggleVisibility(visBtn.dataset.class);
-                return;
-            }
-
-            const saveBtn = target.closest('.save-toggle');
-            if (saveBtn) {
-                e.stopPropagation();
-                toggleSaveCourse(saveBtn.dataset.class);
-                return;
-            }
-
-            const removeBtn = target.closest('.result-remove');
-            if (removeBtn) {
-                e.stopPropagation();
-                removeResult(removeBtn.dataset.class);
-                return;
-            }
-
-            const tagRemoveBtn = target.closest('.tag-remove-btn');
-            if (tagRemoveBtn) {
-                e.stopPropagation();
-                removeMeeting(tagRemoveBtn.dataset.class, parseInt(tagRemoveBtn.dataset.index));
-                return;
-            }
-
-            const tag = target.closest('.sidebar-meeting-tag');
-            if (tag) {
-                e.stopPropagation();
-                focusClass(tag.dataset.class, parseInt(tag.dataset.index));
-                return;
-            }
-
-            const card = target.closest('.course-card');
-            if (card) {
-                config.handler(card.dataset.class);
-            }
+            handleSidebarClick(e, config.handler);
         };
 
         // Bidirectional hover listeners for sidebar -> map InfoWindow
@@ -430,319 +466,6 @@ export function setupSidebarDelegation() {
 }
 
 /**
- * renderPreviewSectionRow handles the checkboxes inside search results dropdown
- */
-export function renderPreviewSectionRow(meet, index, cn) {
-    const isLec = utils.getFilterCategory(meet.type) === 'LEC';
-    const status = utils.getClassStatus(meet);
-
-    if (isLec || !meet.time || meet.time.trim() === "") {
-        return '';
-    }
-
-    const isSelected = store.pendingSelections[cn].includes(index);
-    const rowClass = isSelected ? 'preview-section-item selected' : 'preview-section-item';
-
-    return `
-        <div class="${rowClass} preview-sec-row" data-class="${cn}" data-index="${index}">
-            <div class="checkbox-wrapper">
-                <div class="custom-checkbox ${isSelected ? 'checked' : ''}"></div>
-            </div>
-            <div class="preview-item-info">
-                <div class="sec-time-row">
-                    <span class="sec-type">${meet.type}</span>
-                    <span class="sec-time">${meet.time}</span>
-                </div>
-                <div class="sec-meta-row">
-                    <span class="sec-instructor" title="${meet.instructor || 'Staff'}">${meet.instructor || 'Staff'}</span>
-                    ${status !== 'PHYSICAL' ? `<span class="status-mini-tag ${status.toLowerCase()}">${status}</span>` : ''}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * togglePendingSection handles checklist behavior in the search preview
- */
-export function togglePendingSection(classNum, index) {
-    const list = store.pendingSelections[classNum];
-    const idx = list.indexOf(index);
-    if (idx > -1) {
-        list.splice(idx, 1);
-    } else {
-        list.push(index);
-    }
-    renderSearchPreview();
-}
-
-/**
- * toggleAllSections handles the "Add All" shortcut in search preview
- */
-export function toggleAllSections(classNum) {
-    const offering = store.lastSearchResults.find(function(o) {
-        return o.class_number === classNum;
-    });
-    if (!offering) {
-        return;
-    }
-    store.pendingSelections[classNum] = offering.meetings.map(function(m, idx) {
-        return idx;
-    }).filter(function(idx) {
-        return offering.meetings[idx].time && offering.meetings[idx].time.trim() !== "";
-    });
-    renderSearchPreview();
-}
-
-/**
- * commitSelection handles validation and mapping of selected sections
- */
-export function commitSelection(classNum) {
-    const original = store.lastSearchResults.find(function(o) {
-        return o.class_number === classNum;
-    });
-    const indices = store.pendingSelections[classNum];
-    const filteredMeetings = original.meetings.filter(function(m, idx) {
-        return indices.includes(idx);
-    });
-
-    // Enforce schedule validations: reject cancelled classes or incomplete locations
-    for (let i = 0; i < filteredMeetings.length; i++) {
-        const m = filteredMeetings[i];
-        const status = utils.getClassStatus(m);
-
-        if (status === "CANCELLED") {
-            showToast(`The ${m.type} for this course is Cancelled and cannot be mapped.`);
-            return;
-        }
-        if (status === "TBD") {
-            showToast(`The location for this ${m.type} is TBA. Please check back later.`);
-            return;
-        }
-    }
-
-    let active = store.currentOfferings.find(function(o) {
-        return o.class_number === classNum;
-    });
-
-    if (active) {
-        active.meetings = filteredMeetings;
-    } else {
-        store.currentOfferings.push({ ...original, meetings: filteredMeetings, visible: true });
-    }
-
-    const sIdx = store.savedCourses.findIndex(function(s) {
-        return s.class_number === classNum;
-    });
-
-    if (sIdx > -1) {
-        store.savedCourses[sIdx] = store.currentOfferings.find(function(o) {
-            return o.class_number === classNum;
-        });
-    }
-
-    saveState();
-    document.getElementById("course-input").value = "";
-    document.getElementById("search-preview").style.display = "none";
-    refreshMapAndUI();
-    focusClass(classNum);
-}
-
-/**
- * attachPreviewListeners attaches listeners to dropdown elements
- */
-export function attachPreviewListeners() {
-    document.querySelectorAll(".preview-sec-row").forEach(function(row) {
-        row.onclick = function(e) {
-            e.stopPropagation();
-            togglePendingSection(this.dataset.class, parseInt(this.dataset.index));
-        };
-    });
-
-    document.querySelectorAll(".commit-select-btn").forEach(function(btn) {
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            commitSelection(this.dataset.class);
-        };
-    });
-
-    document.querySelectorAll(".toggle-all-btn").forEach(function(btn) {
-        btn.onclick = function(e) {
-            e.stopPropagation();
-            toggleAllSections(this.dataset.class);
-        };
-    });
-
-    document.querySelectorAll(".preview-offering").forEach(function(o) {
-        o.onclick = function(e) {
-            e.stopPropagation();
-        };
-    });
-}
-
-/**
- * renderSearchPreview populates the dropdown with a "Schedule Builder" layout
- */
-export function renderSearchPreview() {
-    const container = document.getElementById("search-preview");
-
-    container.innerHTML = store.lastSearchResults.map(function(offering) {
-        const cn = offering.class_number;
-
-        // Map meetings with their original indices and sort them chronologically
-        const meetingsWithIdx = offering.meetings.map(function(m, idx) {
-            return { ...m, originalIndex: idx };
-        });
-        const sortedMeets = utils.sortMeetings(meetingsWithIdx);
-
-        const lecMeet = sortedMeets.find(function(m) {
-            return utils.getFilterCategory(m.type) === 'LEC';
-        });
-
-        const displayableSections = sortedMeets.filter(function(meet) {
-            const isLec = utils.getFilterCategory(meet.type) === 'LEC';
-            return !isLec && meet.time && meet.time.trim() !== "";
-        });
-
-        const showAddAll = displayableSections.some(function(meet) {
-            return utils.getClassStatus(meet) === 'PHYSICAL';
-        });
-
-        return `
-            <div class="preview-offering" id="preview-offering-${cn}">
-                <div class="preview-header">
-                    <div class="preview-header-info">
-                        <div class="preview-course-title" title="${offering.course_code}">${offering.course_code}</div>
-                        <div class="preview-course-meta">
-                            <span class="preview-course-instructor" title="${offering.instructor}">${offering.instructor}</span>
-                            <span class="preview-course-id">#${cn}</span>
-                        </div>
-                        <div class="preview-sub-meta">${utils.getIcon('clock', 12)} ${lecMeet ? lecMeet.time : "TBA"}</div>
-                    </div>
-                    <div class="header-action-container">
-                        <button class="preview-commit-btn commit-select-btn" data-class="${cn}">Add to Map</button>
-                        ${showAddAll ? `<button class="preview-add-all-btn toggle-all-btn" data-class="${cn}">+ All</button>` : ''}
-                    </div>
-                </div>
-                ${displayableSections.length > 0 ? `
-                    <div class="preview-sections-list">
-                        <div class="preview-section-label">Available Sections</div>
-                        ${sortedMeets.map(function(meet) {
-                            return renderPreviewSectionRow(meet, meet.originalIndex, cn);
-                        }).join('')}
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }).join('');
-
-    attachPreviewListeners();
-}
-
-/**
- * searchCourse handles API call for course sections
- */
-export async function searchCourse() {
-    clearTimeout(store.suggestionTimeout);
-    store.activeSuggestionId = null; // Invalidate any in-flight suggestion requests
-
-    const input = document.getElementById("course-input");
-    const preview = document.getElementById("search-preview");
-    const term = document.getElementById("term-select").value;
-    const courseCode = utils.formatCourseCode(input.value);
-
-    if (!courseCode) {
-        return;
-    }
-
-    preview.innerHTML = `<div class="loading-skeleton skeleton-preview"></div>`;
-    preview.style.display = "block";
-
-    try {
-        // Fetch matching course catalog lists based on selected academic term
-        const [response] = await Promise.all([
-            fetch(`/api/course/${term}/${encodeURIComponent(courseCode)}`),
-            new Promise(function(resolve) {
-                setTimeout(resolve, 400);
-            })
-        ]);
-
-        const results = await response.json();
-
-        if (!Array.isArray(results) || results.length === 0) {
-            preview.innerHTML = `<p class="empty-msg no-border-padding">No results found for "${courseCode}"</p>`;
-            return;
-        }
-
-        store.lastSearchResults = results;
-        store.pendingSelections = {};
-
-        // Auto-select the lecture (LEC) sections by default inside the pendingSelections lookup
-        results.forEach(function(offering) {
-            store.pendingSelections[offering.class_number] = [];
-            offering.meetings.forEach(function(m, idx) {
-                if (utils.getFilterCategory(m.type) === 'LEC') {
-                    store.pendingSelections[offering.class_number].push(idx);
-                }
-            });
-        });
-
-        renderSearchPreview();
-    } catch (err) {
-        console.error("Search failed:", err);
-        preview.innerHTML = "<p class=\"empty-msg no-border\">Error fetching results.</p>";
-    }
-}
-
-/**
- * fetchSuggestions handles autocomplete logic for the search bar
- */
-export async function fetchSuggestions(query) {
-    const term = document.getElementById("term-select").value;
-    const preview = document.getElementById("search-preview");
-
-    if (query.length < 2) {
-        preview.style.display = "none";
-        return;
-    }
-
-    // Generate a unique ID for this specific suggestion request
-    store.activeSuggestionId = (store.activeSuggestionId || 0) + 1;
-    const currentId = store.activeSuggestionId;
-
-    try {
-        const response = await fetch(`/api/suggest?q=${encodeURIComponent(query)}&term=${term}`);
-        const data = await response.json();
-
-        // GUARD: If a newer suggestion request or a full search has been initiated
-        // in the meantime, ignore this stale response and exit early.
-        if (currentId !== store.activeSuggestionId) {
-            return;
-        }
-
-        // Dynamically build suggestions dropdown elements
-        if (data && data.length > 0) {
-            preview.innerHTML = `<div class="suggestion-header">Suggestions</div>` +
-                data.map(function(s) {
-                    return `<div class="suggestion-item" data-val="${s}" title="${s}">${s}</div>`;
-                }).join("");
-
-            document.querySelectorAll(".suggestion-item").forEach(function(item) {
-                item.onclick = function(e) {
-                    e.stopPropagation();
-                    const val = this.dataset.val;
-                    document.getElementById("course-input").value = val;
-                    searchCourse();
-                };
-            });
-            preview.style.display = "block";
-        }
-    } catch (err) {
-        console.error("Suggestion fetch failed");
-    }
-}
-
-/**
  * addAllSavedToResults batches saved items into the results sidebar
  */
 export function addAllSavedToResults() {
@@ -756,84 +479,4 @@ export function addAllSavedToResults() {
     });
     saveState();
     refreshMapAndUI();
-}
-
-/**
- * Binds the "Sync to Calendar" button directly to the backend .ics generator.
- * Merges both mapped classes and saved classes so nothing gets left out.
- */
-export function setupCalendarExport() {
-    const syncBtn = document.getElementById('syncCalendarBtn');
-    if (!syncBtn) {
-        return;
-    }
-
-    // Set initial state
-    updateSyncBtnState();
-
-    syncBtn.addEventListener('click', async function() {
-        // 1. Gather sections from both the active map and the saved sidebar list using store
-        const activeClasses = store.currentOfferings || [];
-        const savedClasses = store.savedCourses || [];
-
-        // 2. Merge them into a single list
-        const combinedList = [...activeClasses, ...savedClasses];
-
-        // 3. Remove exact duplicates based on the correct property name: class_number
-        const finalSchedule = combinedList.filter(function(offering, index, self) {
-            return index === self.findIndex(function(o) {
-                return o.class_number === offering.class_number;
-            });
-        });
-
-        // 4. Double check for safety
-        if (finalSchedule.length === 0) {
-            showToast('Please add or save at least one course first!', 'error');
-            return;
-        }
-
-        const initialHtml = syncBtn.innerHTML;
-
-        try {
-            syncBtn.disabled = true;
-            syncBtn.text = "Generating File...";
-
-            // Post schedule list to export endpoint to produce an iCalendar .ics format
-            const response = await fetch('/api/schedule/export', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'text/calendar'
-                },
-                body: JSON.stringify(finalSchedule)
-            });
-
-            if (!response.ok) {
-                throw new Error(`Server returned status code: ${response.status}`);
-            }
-
-            // Generate downloadable blob from stream payload responses
-            const blob = await response.blob();
-            const downloadUrl = window.URL.createObjectURL(blob);
-
-            const anchor = document.createElement('a');
-            anchor.href = downloadUrl;
-            anchor.download = `slugroute-schedule-${new Date().getFullYear()}.ics`;
-            document.body.appendChild(anchor);
-            anchor.click();
-
-            anchor.remove();
-            window.URL.revokeObjectURL(downloadUrl);
-
-            showToast('Calendar file exported successfully!', 'success');
-
-        } catch (error) {
-            console.error('Calendar generation process failed:', error);
-            showToast('Failed to export calendar. Please try again.', 'error');
-        } finally {
-            syncBtn.disabled = false;
-            syncBtn.innerHTML = initialHtml;
-            updateSyncBtnState();
-        }
-    });
 }

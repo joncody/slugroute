@@ -101,7 +101,7 @@ func getTermDates(term string) (string, string) {
 		start, end = year+"0622", year+"0830"
 	case '8': // Fall Quarter starts in late September and ends in mid-December
 		start, end = year+"0923", year+"1215"
-	default:  // Fallback default spanning the full calendar year
+	default: // Fallback default spanning the full calendar year
 		start, end = year+"0101", year+"1231"
 	}
 	return start, end + "T235959Z"

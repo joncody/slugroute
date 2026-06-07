@@ -7,16 +7,12 @@ import { CONFIG } from "./config.js";
 export const ColorManager = {
     assignments: {},
 
-    /**
-     * getColor retrieves the assigned hex code for a class, or assigns a new one.
-     */
     getColor: function(classNumber) {
         if (ColorManager.assignments[classNumber]) {
             return ColorManager.assignments[classNumber];
         }
 
         const usedColors = Object.values(ColorManager.assignments);
-        // Find first unused color from config pool, looping back to first color if exhausted
         const nextColor = CONFIG.COLOR_POOL.find(function(c) {
             return !usedColors.includes(c);
         }) || CONFIG.COLOR_POOL[0];
@@ -25,9 +21,6 @@ export const ColorManager = {
         return nextColor;
     },
 
-    /**
-     * releaseColor frees up a hex code for future use when a class is removed.
-     */
     releaseColor: function(classNumber) {
         delete ColorManager.assignments[classNumber];
     }
@@ -44,7 +37,6 @@ export function showToast(message, type = "error") {
 
     container.appendChild(toast);
 
-    // Apply fade-out animations before cleanup to prevent visual jumps
     setTimeout(function() {
         toast.classList.add("fade-out");
         setTimeout(function() {
@@ -54,19 +46,51 @@ export function showToast(message, type = "error") {
 }
 
 /**
+ * getEarliestDayWeight determines the numeric weekday index offset for chronological sorting
+ */
+function getEarliestDayWeight(daysPart) {
+    const dayWeights = { "M": 0, "Tu": 1, "W": 2, "Th": 3, "F": 4 };
+    let earliestDayWeight = 10;
+
+    Object.keys(dayWeights).forEach(function(day) {
+        if (daysPart.includes(day)) {
+            earliestDayWeight = Math.min(earliestDayWeight, dayWeights[day]);
+        }
+    });
+    return earliestDayWeight;
+}
+
+/**
+ * parseTimeDigits shifts digits to a standard 24-hour minute value format
+ */
+function parseTimeDigits(timeStr, earliestDayWeight) {
+    const timeMatch = timeStr.match(/(\d+):(\d+)(AM|PM)/);
+    if (!timeMatch || earliestDayWeight === 10) {
+        return null;
+    }
+
+    let hour = parseInt(timeMatch[1]);
+    const min = parseInt(timeMatch[2]);
+    const ampm = timeMatch[3];
+
+    if (ampm === "PM" && hour !== 12) {
+        hour += 12;
+    }
+    if (ampm === "AM" && hour === 12) {
+        hour = 0;
+    }
+
+    return (earliestDayWeight * 1440) + (hour * 60 + min);
+}
+
+/**
  * utils provides formatting and logic helpers
  */
 export const utils = {
-    /**
-     * formatCourseCode standardizes user input into UCSC PISA search format.
-     */
     formatCourseCode: function(input) {
         return input.trim().toUpperCase().replace(/([A-Z]+)(\d+)/, "$1 $2");
     },
 
-    /**
-     * getTermName converts a 4-digit STRM code to a readable season and year.
-     */
     getTermName: function(term) {
         const year = "20" + term.substring(1, 3);
         const suffix = term.charAt(3);
@@ -85,9 +109,6 @@ export const utils = {
         return `${season} ${year}`;
     },
 
-    /**
-     * calculateIdealTerm guesses the current active quarter based on the calendar month.
-     */
     calculateIdealTerm: function() {
         const now = new Date();
         const m = now.getMonth() + 1;
@@ -105,9 +126,6 @@ export const utils = {
         return `2${y}${season}`;
     },
 
-    /**
-     * getFilterCategory maps raw meeting types to sidebar legend categories.
-     */
     getFilterCategory: function(type) {
         const t = type.toUpperCase();
         if (t === "LBS" || t === "LAB") {
@@ -119,9 +137,6 @@ export const utils = {
         return "LEC";
     },
 
-    /**
-     * getClassStatus determines if a meeting is Online, TBA, or physical.
-     */
     getClassStatus: function(meeting) {
         const timeStr = (meeting.time || "").toUpperCase();
         const bldStr = (meeting.building || "").toUpperCase();
@@ -139,9 +154,6 @@ export const utils = {
         return "PHYSICAL";
     },
 
-    /**
-     * getIconPath returns SVG paths for Star, Square, or Triangle symbols.
-     */
     getIconPath: function(category) {
         if (category === "LEC") {
             return "M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z";
@@ -152,9 +164,6 @@ export const utils = {
         return "M12 2L2 21H22L12 2Z";
     },
 
-    /**
-     * coordsMatch compares two LatLng objects with an epsilon to handle precision.
-     */
     coordsMatch: function(a, b) {
         if (!a || !b) {
             return false;
@@ -163,51 +172,17 @@ export const utils = {
         return Math.abs(a.lat - b.lat) < epsilon && Math.abs(a.lng - b.lng) < epsilon;
     },
 
-    /**
-     * parseMeetingTime converts strings like "TuTh 10:40AM-11:45AM" to weekly sort values.
-     */
     parseMeetingTime: function(timeStr) {
         if (!timeStr || timeStr === "TBA" || timeStr.includes("CANCELLED")) {
             return null;
         }
 
-        // Isolate the day prefix (e.g., "TuTh" or "MWF") to avoid matching letters in "AM" or "PM"
         const daysPart = timeStr.split(' ')[0];
+        const earliestDayWeight = getEarliestDayWeight(daysPart);
 
-        const dayWeights = { "M": 0, "Tu": 1, "W": 2, "Th": 3, "F": 4 };
-        let earliestDayWeight = 10;
-
-        // Iterate through day keys to compute the earliest weekday class occurrence
-        Object.keys(dayWeights).forEach(function(day) {
-            if (daysPart.includes(day)) {
-                earliestDayWeight = Math.min(earliestDayWeight, dayWeights[day]);
-            }
-        });
-
-        const timeMatch = timeStr.match(/(\d+):(\d+)(AM|PM)/);
-        if (!timeMatch || earliestDayWeight === 10) {
-            return null;
-        }
-
-        let hour = parseInt(timeMatch[1]);
-        const min = parseInt(timeMatch[2]);
-        const ampm = timeMatch[3];
-
-        // Shift hour scale to 24-hour layout format for sorting checks
-        if (ampm === "PM" && hour !== 12) {
-            hour += 12;
-        }
-        if (ampm === "AM" && hour === 12) {
-            hour = 0;
-        }
-
-        // Return a absolute weekly minute value representation (Minutes in Day * Day Weight + Day Minutes)
-        return (earliestDayWeight * 1440) + (hour * 60 + min);
+        return parseTimeDigits(timeStr, earliestDayWeight);
     },
 
-    /**
-     * getEarliestMeetingSortVal finds the absolute earliest weekly minute for a course.
-     */
     getEarliestMeetingSortVal: function(meetings) {
         const vals = meetings
             .map(function(m) {
@@ -219,9 +194,6 @@ export const utils = {
         return vals.length > 0 ? Math.min(...vals) : 999999;
     },
 
-    /**
-     * sortMeetings returns a chronologically sorted copy of meeting arrays.
-     */
     sortMeetings: function(meetings) {
         return [...meetings].sort(function(a, b) {
             const valA = utils.parseMeetingTime(a.time) ?? 999999;
@@ -230,18 +202,12 @@ export const utils = {
         });
     },
 
-    /**
-     * getActiveFilters retrieves currently checked category filter values.
-     */
     getActiveFilters: function() {
         return Array.from(document.querySelectorAll(".filter-type:checked")).map(function(cb) {
             return cb.value;
         });
     },
 
-    /**
-     * getIcon returns an inline SVG string for common UI symbols.
-     */
     getIcon: function(name, size = 16, color = "currentColor") {
         const icons = {
             pin: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; display: inline-block;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>`,
@@ -258,9 +224,6 @@ export const utils = {
         return icons[name] || "";
     },
 
-    /**
-     * getHeartSvg returns the SVG for a bookmark/save heart.
-     */
     getHeartSvg: function(isSaved) {
         const fill = isSaved ? "#ef4444" : "none";
         const stroke = isSaved ? "#ef4444" : "#64748b";
@@ -271,9 +234,6 @@ export const utils = {
         `;
     },
 
-    /**
-     * getEyeSvg returns the SVG for a visibility toggle.
-     */
     getEyeSvg: function(isVisible) {
         const stroke = "#64748b";
         if (isVisible) {

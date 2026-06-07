@@ -1,462 +1,55 @@
 //map.js
 import { CONFIG } from "./config.js";
 import { store } from "./state.js";
-import { utils, showToast, ColorManager } from "./utils.js";
-import { renderSearchList, renderSavedList, highlightSidebarCard, saveState } from "./ui.js";
+import { utils } from "./utils.js";
+import { updateStartMarker } from "./navigation.js";
+import { highlightSidebarCard } from "./ui.js";
 
 /**
- * groupDataByLocation clusters meeting data into location points
+ * buildInfoWindowMeetingCardHtml creates the HTML for a single meeting card in the InfoWindow
  */
-export function groupDataByLocation(offerings) {
-    const locationMap = {};
+function buildInfoWindowMeetingCardHtml(m, classNum, originalIndex) {
+    const type = m.type.toUpperCase();
+    const cat = utils.getFilterCategory(type);
+    const iconPath = utils.getIconPath(cat);
+    const roomStr = m.room_number ? `${m.room_number}` : "TBA";
+    const timeStr = m.time || "TBA";
 
-    offerings.forEach(function(offering) {
-        // Skip elements manually toggled as hidden via eye symbol
-        if (offering.visible === false) {
-            return;
-        }
-
-        // Fetch course unique color index assignment
-        const classColor = ColorManager.getColor(offering.class_number);
-        offering.meetings.forEach(function(meet, mIndex) {
-            // Clean up unmapped online or TBA sections missing coordinates
-            if (!meet.lat || meet.lat === 0 || isNaN(meet.lat)) {
-                return;
-            }
-
-            const locKey = `${meet.lat},${meet.lng}`;
-
-            // Create coordinate tracking grouping if missing
-            if (!locationMap[locKey]) {
-                locationMap[locKey] = {
-                    lat: meet.lat,
-                    lng: meet.lng,
-                    building: meet.building,
-                    imageUrl: meet.image_url || '',
-                    offerings: {},
-                    totalMeetings: 0,
-                    highestPriorityType: "DIS",
-                    filterCategories: []
-                };
-            }
-
-            const cat = utils.getFilterCategory(meet.type);
-            locationMap[locKey].totalMeetings++;
-
-            // Accumulate available class types housed in this location
-            if (!locationMap[locKey].filterCategories.includes(cat)) {
-                locationMap[locKey].filterCategories.push(cat);
-            }
-
-            // Assign structural importance ranking to dictate pin symbol (Lecture > Lab > Disc)
-            if (cat === "LEC") {
-                locationMap[locKey].highestPriorityType = "LEC";
-            } else if (cat === "LAB" && locationMap[locKey].highestPriorityType !== "LEC") {
-                locationMap[locKey].highestPriorityType = "LAB";
-            }
-
-            // Nest class attributes inside target location
-            if (!locationMap[locKey].offerings[offering.class_number]) {
-                locationMap[locKey].offerings[offering.class_number] = {
-                    courseCode: offering.course_code,
-                    term: offering.term,
-                    color: classColor,
-                    meetings: []
-                };
-            }
-            // Track original index for bidirectional highlight sync
-            locationMap[locKey].offerings[offering.class_number].meetings.push({ ...meet, originalIndex: mIndex });
-        });
-    });
-    return locationMap;
+    return `<div class="meeting-card iw-meeting-card" data-class="${classNum}" data-index="${originalIndex}">
+        <div class="meeting-row-top">
+            <div class="meeting-identity">
+                <span class="type-badge">
+                    <svg width="10" height="10" viewBox="0 0 24 24" class="iw-badge-icon">
+                        <path d="${iconPath}" fill="white"/>
+                    </svg>${type}
+                </span>
+                <span class="instructor-name" title="${m.instructor || 'Staff'}">${m.instructor || "Staff"}</span>
+            </div>
+            <div class="room-number-badge">Rm ${roomStr}</div>
+        </div>
+        <div class="meeting-row-bottom">
+            <span class="meeting-time-text">${utils.getIcon('clock', 12)} ${timeStr}</span>
+        </div>
+    </div>`;
 }
 
 /**
- * createMarkerElement builds the SVG icon for map pins
+ * buildInfoWindowOfferingHtml creates the HTML for a single course offering inside the InfoWindow
  */
-function createMarkerElement(type, color, count = 1) {
-    const category = utils.getFilterCategory(type);
-    const div = document.createElement('div');
-    div.className = 'marker-wrapper';
+function buildInfoWindowOfferingHtml(classNum, off, visibleMeetings) {
+    const meetingsHtml = visibleMeetings.map(function(m) {
+        return buildInfoWindowMeetingCardHtml(m, classNum, m.originalIndex);
+    }).join("");
 
-    // Sammy the Slug brand gold accent
-    const slugGold = "#F1B82D";
-
-    // Build compound numeric badge marker if multiple sessions occur in the building
-    if (count > 1) {
-        div.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 46" width="40" height="50" class="marker-svg">
-                <!-- Sammy the Slug Eyestalks -->
-                <path d="M14 14 C12 8, 9 8, 9 3" stroke="${slugGold}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-                <circle cx="9" cy="3" r="2" fill="${slugGold}"/>
-                <path d="M22 14 C24 8, 27 8, 27 3" stroke="${slugGold}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-                <circle cx="27" cy="3" r="2" fill="${slugGold}"/>
-
-                <!-- Main Pin Body -->
-                <path d="M18 12c-6.6 0-12 5.4-12 12 0 9 12 20 12 20s12-11 12-20c0-6.6-5.4-12-12-12z" fill="${slugGold}" stroke="#ffffff" stroke-width="2"/>
-                <circle cx="18" cy="24" r="9" fill="#232323"/>
-                <text x="18" y="24" font-family="Inter, sans-serif" font-weight="800" font-size="11" fill="white" text-anchor="middle" dominant-baseline="central" class="marker-text">${count}</text>
-            </svg>
-        `;
-        return div;
-    }
-
-    // Build standard single course marker with specific category shape path
-    const path = utils.getIconPath(category);
-    div.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 46" width="40" height="50" class="marker-svg">
-            <!-- Sammy the Slug Eyestalks -->
-            <path d="M14 14 C12 8, 9 8, 9 3" stroke="${slugGold}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-            <circle cx="9" cy="3" r="2" fill="${slugGold}"/>
-            <path d="M22 14 C24 8, 27 8, 27 3" stroke="${slugGold}" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-            <circle cx="27" cy="3" r="2" fill="${slugGold}"/>
-
-            <!-- Main Pin Body -->
-            <path d="M18 12c-6.6 0-12 5.4-12 12 0 9 12 20 12 20s12-11 12-20c0-6.6-5.4-12-12-12z" fill="${slugGold}" stroke="#ffffff" stroke-width="2"/>
-
-            <!-- Category Symbol Container -->
-            <circle cx="18" cy="24" r="9" fill="#ffffff" stroke="${color}" stroke-width="1"/>
-
-            <!-- Category Icon -->
-            <g transform="translate(10.5, 16.5) scale(0.625)">
-                <path d="${path}" fill="${color}"/>
-            </g>
-        </svg>
-    `;
-    return div;
+    return `<div class="iw-offering" style="--accent-color: ${off.color}" data-class="${classNum}">
+        <div class="course-code iw-course-code" title="${off.courseCode}">
+            ${off.courseCode} <i class="iw-term-label">(${utils.getTermName(off.term)})</i>
+        </div>
+        <div class="meetings-list">
+            ${meetingsHtml}
+        </div>
+    </div>`;
 }
-
-/**
- * smartFitBounds: Centers the map. Now that the map container width adjusts,
- * centering is handled automatically by the map engine.
- */
-export function smartFitBounds(bounds) {
-    if (bounds.isEmpty()) {
-        return;
-    }
-
-    if (store.activeInfoWindow) {
-        store.activeInfoWindow.close();
-    }
-
-    // Check if bounds represent a single point (NE equals SW)
-    const isSinglePoint = bounds.getNorthEast().equals(bounds.getSouthWest());
-
-    if (isSinglePoint) {
-        // Special logic for single meeting (e.g. CSE 101)
-        const center = bounds.getCenter();
-        store.map.setOptions({ restriction: null });
-        store.map.setZoom(CONFIG.ZOOM.BUILDING); // Use your constant (18)
-        store.map.panTo(center);
-
-        // Re-apply restriction after pan
-        setTimeout(function() {
-            store.map.setOptions({
-                restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false }
-            });
-        }, 400);
-
-    } else {
-        // Standard logic for multiple meetings (e.g. CSE 30)
-        // With the map DOM element shifted/resized, we only need normal padding.
-        const padding = {
-            top: 100,
-            right: 100,
-            bottom: 50,
-            left: 100
-        };
-
-        store.map.setOptions({ restriction: null });
-        store.map.fitBounds(bounds, padding);
-
-        // Capture bounding box limit logic after map finishes panning
-        const listener = google.maps.event.addListener(store.map, 'idle', function() {
-            if (store.map.getZoom() > 18) {
-                store.map.setZoom(18);
-            }
-            store.map.setOptions({
-                restriction: { latLngBounds: CONFIG.UCSC_BOUNDS, strictBounds: false }
-            });
-            google.maps.event.removeListener(listener);
-        });
-    }
-}
-
-/**
- * displayLegBubbles places a stat bubble at 95% of the length of each leg
- */
-export function displayLegBubbles(legs) {
-    // Clear legacy label tooltips
-    store.routeLabelWindows.forEach(function(w) {
-        w.close();
-    });
-    store.routeLabelWindows = [];
-
-    legs.forEach(function(leg) {
-        const snappedPath = google.maps.geometry.encoding.decodePath(leg.polyline.encodedPolyline);
-        if (snappedPath.length === 0) {
-            return;
-        }
-
-        // Place bubble 95% down the leg for better clarity near destination
-        const posIdx = Math.max(0, Math.floor(snappedPath.length * 0.95) - 1);
-        const bubblePoint = snappedPath[posIdx];
-
-        const durationStr = leg.duration || "0s";
-        const durationSec = parseInt(durationStr.replace('s', ''));
-        const distanceMeters = leg.distanceMeters || 0;
-
-        const minutes = Math.round(durationSec / 60);
-        const miles = (distanceMeters / 1609.34).toFixed(1);
-
-        // Append custom info element to display walk details
-        const iw = new google.maps.InfoWindow({
-            disableAutoPan: true,
-            headerDisabled: true,
-            position: bubblePoint,
-            zIndex: 100, // Stacking order: bubbles sit below main building details
-            content: `
-                <div class="route-bubble-container">
-                    <div class="route-bubble-time">
-                        ${utils.getIcon('walk', 14, 'currentColor')}
-                        <span>${minutes} min</span>
-                    </div>
-                    <div class="route-bubble-dist">${miles} miles</div>
-                </div>
-            `
-        });
-        iw.open(store.map);
-        store.routeLabelWindows.push(iw);
-    });
-}
-
-/**
- * executeRouting calculates the actual walking route via proxy using intermediates
- */
-export async function executeRouting(overrideOrigin = null) {
-    // Re-initialize active routing vectors and metadata text bubbles
-    if (store.directionsRenderer) {
-        store.directionsRenderer.setPath([]);
-    }
-    store.routeLabelWindows.forEach(function(w) {
-        w.close();
-    });
-    store.routeLabelWindows = [];
-
-    if (store.destinations.length === 0) {
-        return;
-    }
-
-    // Track if this is a Point-to-Point route to prevent future standard prompts
-    store.isLastRouteP2P = !!overrideOrigin;
-
-    const finalTarget = store.destinations[store.destinations.length - 1];
-    store.currentDestination = finalTarget;
-
-    const startPos = overrideOrigin || store.startMarker.position;
-    store.lastRouteOrigin = startPos;
-
-    // Convert intermediate waypoints into structured API objects
-    const intermediates = store.destinations.slice(0, -1).map(function(d) {
-        return {
-            location: {
-                latLng: {
-                    latitude: d.lat,
-                    longitude: d.lng
-                }
-            }
-        };
-    });
-
-    // Build request payload for the Google Routes v2 endpoint proxy
-    const requestBody = {
-        origin: {
-            location: {
-                latLng: {
-                    latitude: startPos.lat,
-                    longitude: startPos.lng
-                }
-            }
-        },
-        destination: {
-            location: {
-                latLng: {
-                    latitude: finalTarget.lat,
-                    longitude: finalTarget.lng
-                }
-            }
-        },
-        travelMode: "WALK",
-        computeAlternativeRoutes: false,
-        routeModifiers: {
-            avoidTolls: false,
-            avoidHighways: false,
-            avoidFerries: false
-        }
-    };
-
-    if (intermediates.length > 0) {
-        requestBody.intermediates = intermediates;
-    }
-
-    try {
-        const response = await fetch('/api/routes-proxy', {
-            method: 'POST',
-            body: JSON.stringify(requestBody)
-        });
-
-        const data = await response.json();
-
-        if (data.routes && data.routes.length > 0) {
-            const route = data.routes[0];
-            store.lastRoute = route;
-
-            // Build fullPath leg-by-leg to ensure no gaps between snapped roads and markers
-            let fullPath = [startPos];
-
-            route.legs.forEach(function(leg, index) {
-                const snappedLegPath = google.maps.geometry.encoding.decodePath(leg.polyline.encodedPolyline);
-                fullPath.push(...snappedLegPath);
-
-                // Anchors the end of this leg to the exact waypoint coordinate
-                if (index < store.destinations.length) {
-                    fullPath.push(store.destinations[index]);
-                }
-            });
-
-            store.directionsRenderer.setPath(fullPath);
-
-            displayLegBubbles(route.legs);
-
-            // Center camera bounds around the computed path viewport limits
-            const viewport = route.viewport;
-            const bounds = new google.maps.LatLngBounds(
-                { lat: viewport.low.latitude, lng: viewport.low.longitude },
-                { lat: viewport.high.latitude, lng: viewport.high.longitude }
-            );
-
-            smartFitBounds(bounds);
-
-            // Auto-collapse sidebar on smaller screens once routes render
-            if (window.innerWidth < 768) {
-                document.getElementById("sidebar").classList.add("closed");
-            }
-        } else {
-            showToast("Could not find a walking route to these locations.", "error");
-        }
-    } catch (err) {
-        console.error("Routes API Error:", err);
-        showToast("Error connecting to the routing service.", "error");
-    }
-}
-
-/**
- * updateStartMarker handles the blue user location pin
- */
-export function updateStartMarker(position, title) {
-    if (store.activeInfoWindow) {
-        store.activeInfoWindow.close();
-    }
-
-    // Set or update coordinates of physical pin dropped on the map
-    if (store.startMarker) {
-        store.startMarker.position = position;
-        store.startMarker.map = store.map;
-    } else {
-        const youAreHereDiv = document.createElement('div');
-        youAreHereDiv.style.transform = 'translateY(50%)';
-        youAreHereDiv.innerHTML = utils.getIcon('location', 28, '#4285F4');
-        store.startMarker = new store.AdvancedMarkerElement({
-            map: store.map,
-            position: position,
-            content: youAreHereDiv,
-            title: title
-        });
-    }
-
-    // Feature implementation: If a standard route exists, automatically recalculate from new position
-    if (store.lastRoute && !store.isLastRouteP2P && store.destinations.length > 0) {
-        executeRouting();
-    }
-
-    store.map.panTo(position);
-    store.map.setZoom(18);
-}
-
-/**
- * getDirections determines whether to calculate a new route or show extension options
- */
-export async function getDirections(lat, lng) {
-    const targetPos = { lat: parseFloat(lat), lng: parseFloat(lng) };
-
-    // Mode Intercept: Point-to-Point routing
-    if (store.isP2PMode) {
-        if (!store.p2pOrigin) {
-            // Clear existing routes now that the starting P2P class marker is clicked
-            clearRoute();
-
-            // Set the origin to the clicked marker
-            store.p2pOrigin = targetPos;
-            showToast("Origin set. Now select your destination class marker.", "success");
-        } else {
-            if (utils.coordsMatch(store.p2pOrigin, targetPos)) {
-                showToast("Origin and destination cannot be the same building.", "error");
-                return;
-            }
-            const destination = targetPos;
-            store.destinations = [destination];
-            executeRouting(store.p2pOrigin);
-
-            // Exit P2P mode after successful setup
-            store.isP2PMode = false;
-            store.p2pOrigin = null;
-            document.getElementById("p2p-route-btn").classList.remove("active");
-        }
-        return;
-    }
-
-    // Enforce registration of a starting pin location before beginning routing sequences
-    if (!store.startMarker) {
-        showToast("Please set your starting location first using the GPS or Pin buttons.", "error");
-        return;
-    }
-
-    // Bypass check: If the existing route is a Point-to-Point lookup,
-    // we clear it first to avoid coordinate duplicate conflicts.
-    if (store.isLastRouteP2P && store.lastRoute) {
-        store.destinations = [targetPos];
-        executeRouting();
-        return;
-    }
-
-    // Strict duplicate check: ensure building isn't already part of the path
-    const isDuplicate = store.destinations.some(function(d) {
-        return utils.coordsMatch(d, targetPos);
-    });
-    if (isDuplicate) {
-        showToast("This building is already part of your route.", "success");
-        return;
-    }
-
-    // Standard Modal check: Only show if a standard route already exists and the click is on a different marker
-    const isNewTarget = !store.currentDestination || (store.currentDestination.lat !== targetPos.lat || store.currentDestination.lng !== targetPos.lng);
-
-    if (store.lastRoute && isNewTarget) {
-        store.pendingRoutingTarget = targetPos;
-        // Conditionally show/hide 'Replace Destination' button depending on route stops count
-        const replaceBtn = document.getElementById("replace-route-btn");
-        if (replaceBtn) {
-            replaceBtn.style.display = store.destinations.length > 1 ? "" : "none";
-        }
-        document.getElementById('routing-modal').style.display = 'block';
-    } else {
-        store.destinations = [targetPos];
-        executeRouting();
-    }
-}
-
-// Attach getDirections to window for inline onclick handlers in info windows
-window.getDirections = getDirections;
 
 /**
  * buildInfoWindowHtml creates the content for Google Maps info windows
@@ -465,56 +58,21 @@ export function buildInfoWindowHtml(locationGroup, activeFilters) {
     let offeringsHtml = "";
     let visibleCount = 0;
 
-    // Loop through individual course lists registered inside this coordinates key
     Object.entries(locationGroup.offerings).forEach(function([classNum, off]) {
-        // Filter elements based on legend filter categories
         const visibleMeetings = off.meetings.filter(function(m) {
             return activeFilters.includes(utils.getFilterCategory(m.type));
         });
 
         if (visibleMeetings.length > 0) {
             visibleCount++;
-            offeringsHtml += `<div class="iw-offering" style="--accent-color: ${off.color}" data-class="${classNum}">
-                <div class="course-code iw-course-code" title="${off.courseCode}">
-                    ${off.courseCode} <i class="iw-term-label">(${utils.getTermName(off.term)})</i>
-                </div>
-                <div class="meetings-list">`;
-
-            // Append each matching course section inside the info window popup
-            visibleMeetings.forEach(function(m) {
-                const type = m.type.toUpperCase();
-                const cat = utils.getFilterCategory(type);
-                const iconPath = utils.getIconPath(cat);
-                const roomStr = m.room_number ? `${m.room_number}` : "TBA";
-                const timeStr = m.time || "TBA";
-
-                offeringsHtml += `<div class="meeting-card iw-meeting-card" data-class="${classNum}" data-index="${m.originalIndex}">
-                    <div class="meeting-row-top">
-                        <div class="meeting-identity">
-                            <span class="type-badge">
-                                <svg width="10" height="10" viewBox="0 0 24 24" class="iw-badge-icon">
-                                    <path d="${iconPath}" fill="white"/>
-                                </svg>${type}
-                            </span>
-                            <span class="instructor-name" title="${m.instructor || 'Staff'}">${m.instructor || "Staff"}</span>
-                        </div>
-                        <div class="room-number-badge">Rm ${roomStr}</div>
-                    </div>
-                    <div class="meeting-row-bottom">
-                        <span class="meeting-time-text">${utils.getIcon('clock', 12)} ${timeStr}</span>
-                    </div>
-                </div>`;
-            });
-            offeringsHtml += `</div></div>`;
+            offeringsHtml += buildInfoWindowOfferingHtml(classNum, off, visibleMeetings);
         }
     });
 
-    // Return empty string if no segments are visible under current active filtering
     if (visibleCount === 0) {
         return "";
     }
 
-    // Build the final complete HTML structure of the Google Maps InfoWindow wrapper
     return `<div class="iw-container">
         <div class="iw-header">
             <div class="iw-title-row">
@@ -532,232 +90,33 @@ export function buildInfoWindowHtml(locationGroup, activeFilters) {
 }
 
 /**
- * updateMarkers toggles marker visibility based on sidebar filters
+ * setupInfoWindowHighlighting binds bidirectional highlights to popups
  */
-export function updateMarkers() {
-    const activeFilters = utils.getActiveFilters();
-
-    // Iterate through map elements to show/hide based on checked checkboxes
-    store.markers.forEach(function(m) {
-        const isVisible = m.categories.some(function(cat) {
-            return activeFilters.includes(cat);
-        });
-        m.map = isVisible ? store.map : null;
-    });
-
-    // If the current route destination is now hidden by filters, remove the route
-    if (store.currentDestination) {
-        const destMarker = store.markers.find(function(m) {
-            return m.position.lat === store.currentDestination.lat && m.position.lng === store.currentDestination.lng;
+function setupInfoWindowHighlighting() {
+    store.activeInfoWindow.addListener('domready', function() {
+        const iwOfferings = document.querySelectorAll('.iw-offering');
+        iwOfferings.forEach(function(el) {
+            el.onmouseenter = function() { highlightSidebarCard(this.dataset.class, true); };
+            el.onmouseleave = function() { highlightSidebarCard(this.dataset.class, false); };
+            el.onclick = function() { focusClass(this.dataset.class); };
         });
 
-        if (destMarker && !destMarker.map) {
-            clearRoute();
-        }
-    }
-
-    // Refresh existing InfoWindow content if it's open
-    if (store.activeInfoWindow && store.activeInfoWindow.getMap()) {
-        const anchor = store.activeInfoWindow.getAnchor();
-        if (anchor) {
-            // If the anchor marker was hidden by filters, close the window
-            if (!anchor.map) {
-                store.activeInfoWindow.close();
-            } else {
-                const content = buildInfoWindowHtml(anchor.locationGroup, activeFilters);
-                if (!content) {
-                    store.activeInfoWindow.close();
-                } else {
-                    store.activeInfoWindow.setContent(content);
-                }
-            }
-        }
-    }
-}
-
-/**
- * refreshMapAndUI triggers a complete redraw of map pins and sidebars
- */
-export function refreshMapAndUI(shouldFitBounds = true) {
-    // Drop all markers from the map layout
-    store.markers.forEach(function(m) {
-        m.map = null;
-    });
-    store.markers = [];
-
-    if (store.activeInfoWindow) {
-        store.activeInfoWindow.close();
-    }
-
-    // Repaint sidebar elements
-    renderSearchList();
-    renderSavedList();
-
-    if (store.currentOfferings.length === 0) {
-        clearRoute();
-        return;
-    }
-
-    // Re-cluster coordinates elements
-    const locationGroups = groupDataByLocation(store.currentOfferings);
-
-    // If a route is drawn to a destination that is removed, remove the route
-    if (store.currentDestination) {
-        const destKey = `${store.currentDestination.lat},${store.currentDestination.lng}`;
-        if (!locationGroups[destKey]) {
-            clearRoute();
-        }
-    }
-
-    const bounds = new google.maps.LatLngBounds();
-
-    // Iterate through computed groups to instantiate AdvancedMarkerElements
-    for (const key in locationGroups) {
-        const group = locationGroups[key];
-        const uniqueCourseIDs = Object.keys(group.offerings);
-        const markerColor = uniqueCourseIDs.length > 1 ? "#232323" : group.offerings[uniqueCourseIDs[0]].color;
-
-        const marker = new store.AdvancedMarkerElement({
-            map: store.map,
-            position: { lat: group.lat, lng: group.lng },
-            content: createMarkerElement(group.highestPriorityType, markerColor, group.totalMeetings)
+        const iwMeetingCards = document.querySelectorAll('.iw-meeting-card');
+        iwMeetingCards.forEach(function(el) {
+            el.onmouseenter = function(e) {
+                e.stopPropagation();
+                highlightSidebarCard(this.dataset.class, true, parseInt(this.dataset.index));
+            };
+            el.onmouseleave = function(e) {
+                e.stopPropagation();
+                highlightSidebarCard(this.dataset.class, false, parseInt(this.dataset.index));
+            };
+            el.onclick = function(e) {
+                e.stopPropagation();
+                focusClass(this.dataset.class, parseInt(this.dataset.index));
+            };
         });
-
-        marker.categories = group.filterCategories;
-        marker.locationGroup = group;
-
-        // Fix console warnings and implement intuitive P2P selection
-        marker.addListener("gmp-click", function() {
-            if (store.isP2PMode) {
-                // Clicking the marker selects it directly for routing without an info window
-                getDirections(group.lat, group.lng);
-            } else {
-                const activeFilters = utils.getActiveFilters();
-                const content = buildInfoWindowHtml(group, activeFilters);
-                if (!content) {
-                    return;
-                }
-
-                store.activeInfoWindow.setContent(content);
-                store.activeInfoWindow.open({ map: store.map, anchor: marker });
-            }
-        });
-
-        store.markers.push(marker);
-    }
-
-    updateMarkers();
-
-    // Re-compute fit boundaries encompassing only visible coordinates
-    store.markers.forEach(function(m) {
-        if (m.map) {
-            bounds.extend(m.position);
-        }
     });
-
-    if (shouldFitBounds && !bounds.isEmpty()) {
-        smartFitBounds(bounds);
-    }
-}
-
-/**
- * focusClass centers the map on a specific course or meeting
- */
-export function focusClass(classNumber, meetingIndex = null) {
-    const offering = store.currentOfferings.find(function(o) {
-        return o.class_number === classNumber;
-    });
-
-    if (!offering) {
-        return;
-    }
-
-    // Force map reveal if previously toggled hidden
-    if (offering.visible === false) {
-        offering.visible = true;
-        refreshMapAndUI();
-    }
-
-    const bounds = new google.maps.LatLngBounds();
-    let validMeetings = offering.meetings.filter(function(m) {
-        return m.lat && m.lat !== 0;
-    });
-
-    if (validMeetings.length === 0) {
-        return;
-    }
-
-    // Zoom in on one particular section if specified
-    if (meetingIndex !== null && offering.meetings[meetingIndex]) {
-        const m = offering.meetings[meetingIndex];
-        if (m.lat && m.lat !== 0) {
-            bounds.extend({ lat: m.lat, lng: m.lng });
-        } else {
-            // Fallback to all sections if that specific one is online/TBA
-            validMeetings.forEach(function(m) {
-                bounds.extend({ lat: m.lat, lng: m.lng });
-            });
-        }
-    } else {
-        // Default: fit all sections for the card
-        validMeetings.forEach(function(m) {
-            bounds.extend({ lat: m.lat, lng: m.lng });
-        });
-    }
-
-    smartFitBounds(bounds);
-
-    // Coordinate automated sliding scrolls to make cards visible in sidebars
-    const sidebarElement = document.getElementById(`card-${classNumber}`);
-    if (sidebarElement) {
-        sidebarElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        highlightSidebarCard(classNumber, true, meetingIndex);
-        setTimeout(function() {
-            highlightSidebarCard(classNumber, false, meetingIndex);
-        }, 2000);
-    }
-
-    // Close the sidebar menu panel on mobile screens after focusing on selection
-    if (window.innerWidth < 768) {
-        document.getElementById("sidebar").classList.add("closed");
-    }
-}
-
-/**
- * clearRoute wipes computed route polylines and state
- */
-export function clearRoute() {
-    if (store.directionsRenderer) {
-        store.directionsRenderer.setPath([]);
-    }
-    store.routeLabelWindows.forEach(function(w) {
-        w.close();
-    });
-    store.routeLabelWindows = [];
-    store.lastRoute = null;
-    store.currentDestination = null;
-    store.destinations = [];
-    store.isLastRouteP2P = false;
-    store.lastRouteOrigin = null;
-}
-
-/**
- * clearResults empties current results and map
- */
-export function clearResults() {
-    if (store.activeInfoWindow) {
-        store.activeInfoWindow.close();
-    }
-    clearRoute();
-    store.currentOfferings.forEach(function(c) {
-        ColorManager.releaseColor(c.class_number);
-    });
-    store.currentOfferings = [];
-
-    // State Hardening write-back
-    saveState();
-
-    refreshMapAndUI();
 }
 
 /**
@@ -767,7 +126,6 @@ export async function initializeGoogleServices() {
     const { Map } = await google.maps.importLibrary("maps");
     const markerLib = await google.maps.importLibrary("marker");
     const { ColorScheme } = await google.maps.importLibrary("core");
-    // Import geometry library for polyline decoding
     await google.maps.importLibrary("geometry");
 
     store.AdvancedMarkerElement = markerLib.AdvancedMarkerElement;
@@ -789,7 +147,6 @@ export async function initializeGoogleServices() {
         fullscreenControl: false
     });
 
-    // directionsRenderer is now a Polyline instance to render Routes API v2 paths
     store.directionsRenderer = new google.maps.Polyline({
         map: store.map,
         strokeColor: "#4285F4",
@@ -801,46 +158,11 @@ export async function initializeGoogleServices() {
         }]
     });
 
-    // Setup Singleton InfoWindow
     if (!store.activeInfoWindow) {
-        store.activeInfoWindow = new google.maps.InfoWindow({
-            zIndex: 200 // Higher zIndex ensures InfoWindow is always on top of time bubbles
-        });
-
-        // Re-attach highlighting listeners whenever content is injected
-        store.activeInfoWindow.addListener('domready', function() {
-            const iwOfferings = document.querySelectorAll('.iw-offering');
-            iwOfferings.forEach(function(el) {
-                el.onmouseenter = function() {
-                    highlightSidebarCard(this.dataset.class, true);
-                };
-                el.onmouseleave = function() {
-                    highlightSidebarCard(this.dataset.class, false);
-                };
-                el.onclick = function() {
-                    focusClass(this.dataset.class);
-                };
-            });
-
-            const iwMeetingCards = document.querySelectorAll('.iw-meeting-card');
-            iwMeetingCards.forEach(function(el) {
-                el.onmouseenter = function(e) {
-                    e.stopPropagation();
-                    highlightSidebarCard(this.dataset.class, true, parseInt(this.dataset.index));
-                };
-                el.onmouseleave = function(e) {
-                    e.stopPropagation();
-                    highlightSidebarCard(this.dataset.class, false, parseInt(this.dataset.index));
-                };
-                el.onclick = function(e) {
-                    e.stopPropagation();
-                    focusClass(this.dataset.class, parseInt(this.dataset.index));
-                };
-            });
-        });
+        store.activeInfoWindow = new google.maps.InfoWindow({ zIndex: 200 });
+        setupInfoWindowHighlighting();
     }
 
-    // Attach map clicks to location pin drop listeners
     store.map.addListener("click", function(e) {
         if (store.isChoosingLocation) {
             updateStartMarker(e.latLng, "Custom Starting Point");

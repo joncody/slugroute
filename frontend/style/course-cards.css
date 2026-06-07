@@ -1,0 +1,327 @@
+/**
+ * SlugRoute | Course Cards & Meeting Tags
+ */
+
+/* ==========================================================================
+   1. COURSE CARD SHELLS & CONTAINERS
+   ========================================================================== */
+.course-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.course-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+    display: flex;
+    flex-direction: column;
+    border-left: 4px solid var(--accent-color);
+    position: relative;
+}
+
+.course-card:hover {
+    background-color: var(--bg-card-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px var(--card-shadow-hover);
+}
+
+.course-card.highlight {
+    background-color: var(--bg-card-hover);
+}
+
+.course-card.hidden-offering {
+    opacity: 0.55;
+    filter: grayscale(0.4);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.card-info-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.card-title-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: baseline;
+    width: 100%;
+}
+
+.card-info-group h4 {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    white-space: nowrap;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.card-actions {
+    display: flex;
+    flex-direction: row;
+    margin-top: -10px;
+    margin-right: -12px;
+    margin-bottom: -8px;
+    gap: 0;
+}
+
+.card-actions .save-btn, .card-actions .remove-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    height: 44px;
+    width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0;
+    transition: all 0.15s;
+}
+
+.result-remove {
+    border-top-right-radius: 9px !important;
+}
+
+.card-actions .remove-btn {
+    color: var(--text-muted);
+}
+
+.card-body {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.course-meta-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+.course-instructor {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+}
+
+.course-id-tag {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 8px;
+    flex: 1;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.course-term-tag {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.course-card-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ==========================================================================
+   2. SECTIONS & MEETING LABELS
+   ========================================================================== */
+.sidebar-tags-container {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.sidebar-meeting-tag {
+    font-size: 11px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 40px 6px 8px;
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.sidebar-meeting-tag:hover, .sidebar-meeting-tag.highlight {
+    border-color: var(--border-color);
+}
+
+.tag-top {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 1px;
+}
+
+.tag-label {
+    font-weight: 800;
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    background: var(--bg-light);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.loc-text {
+    font-weight: 700;
+    color: var(--text-main);
+    font-size: 11px;
+    display: inline-block;
+    vertical-align: bottom;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+}
+
+.tag-time {
+    color: var(--text-muted);
+    font-size: 10.5px;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tag-remove-btn {
+    position: absolute;
+    right: -1px;
+    top: -1px;
+    bottom: -1px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    width: 44px;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.sidebar-meeting-tag:hover .tag-remove-btn, .sidebar-meeting-tag.highlight .tag-remove-btn {
+    opacity: 1;
+}
+
+.tag-remove-btn:hover {
+    color: var(--error-red);
+    background: #fee2e2;
+}
+
+/* ==========================================================================
+   3. CARD ACTION INTERFACES & HOVER ANIMATIONS
+   ========================================================================== */
+.result-remove {
+    opacity: 1 !important;
+}
+
+.save-btn:hover {
+    background-color: var(--bg-light);
+}
+
+.remove-btn {
+    opacity: 0.3;
+}
+
+.remove-btn:hover {
+    opacity: 1 !important;
+    background: #fee2e2;
+    color: var(--error-red);
+}
+
+.action-svg {
+    transition: transform 0.2s ease;
+}
+
+.action-svg.dimmed {
+    opacity: 0.3;
+}
+
+.save-btn:hover .action-svg {
+    transform: scale(1.1);
+}
+
+.empty-msg {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 30px 10px;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+}
+
+/* ==========================================================================
+   4. DARK THEME SPECIFIC OVERRIDES
+   ========================================================================== */
+[data-theme='dark'] .remove-btn {
+    opacity: 0.8;
+    color: var(--text-main) !important;
+}
+
+[data-theme='dark'] .remove-btn:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444 !important;
+    opacity: 1;
+}
+
+[data-theme='dark'] .tag-remove-btn {
+    color: var(--text-main) !important;
+    opacity: 0;
+}
+
+[data-theme='dark'] .tag-remove-btn:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444 !important;
+    opacity: 1;
+}
+
+[data-theme='dark'] .save-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}

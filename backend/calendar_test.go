@@ -27,7 +27,7 @@ func TestSplitTime(t *testing.T) {
 	}
 }
 
-// TestFormatTime verifies that 12-hour AM/PM schedules are formatted 
+// TestFormatTime verifies that 12-hour AM/PM schedules are formatted
 // correctly into the 24-hour HHMMSS string layout required by the iCalendar RFC 5545 specification.
 func TestFormatTime(t *testing.T) {
 	// Validate standard AM string format conversions
@@ -65,7 +65,7 @@ func TestParseICalTimes(t *testing.T) {
 	}
 }
 
-// TestParseICalDays verifies conversion of short UCSC day codes into standard 
+// TestParseICalDays verifies conversion of short UCSC day codes into standard
 // RFC 5545 iCalendar weekday arrays.
 func TestParseICalDays(t *testing.T) {
 	// Single day conversion
@@ -87,7 +87,7 @@ func TestParseICalDays(t *testing.T) {
 	}
 }
 
-// TestGetTermDates verifies that term boundaries yield accurate starting dates 
+// TestGetTermDates verifies that term boundaries yield accurate starting dates
 // and trailing Z timezone flags for Winter, Spring, Summer, and Fall quarters.
 func TestGetTermDates(t *testing.T) {
 	// Winter Quarter

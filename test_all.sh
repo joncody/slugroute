@@ -7,6 +7,8 @@ echo "--- Running Go Tests ---"
 cd backend && go test ./... && cd ..
 
 echo -e "\n--- Running Python Scraper Tests ---"
+python3 scraper/test_parser.py
+python3 scraper/test_db.py
 python3 scraper/test_scraper.py
 
 echo -e "\n--- Running Python Database Tests ---"
