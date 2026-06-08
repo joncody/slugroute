@@ -95,7 +95,7 @@
 }
 
 .iw-directions-btn {
-    background: #4285F4;
+    background: #357ae8;
     color: white;
     border: none;
     width: 31px;
@@ -118,7 +118,7 @@
 }
 
 .iw-directions-btn:hover {
-    background: #357ae8;
+    background: #4285F4;
     transform: rotate(45deg) scale(1.08);
 }
 
