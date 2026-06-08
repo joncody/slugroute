@@ -53,7 +53,8 @@
          */
         import './js/app.js'; 
         import { utils, ColorManager } from './js/utils.js';
-        import { groupDataByLocation } from './js/map.js';
+        import { groupDataByLocation } from './js/markers.js';
+        import { store } from './js/state.js';
 
         const resultsContainer = document.getElementById('results');
         const summaryContainer = document.getElementById('summary');
@@ -75,11 +76,22 @@
             try {
                 // --- Global Export Tests ---
                 assert("app.js attached initMap to window", typeof window.initMap === 'function');
+                assert("navigation.js attached smartFitBounds to window", typeof window.smartFitBounds === 'function');
+                assert("navigation.js attached getDirections to window", typeof window.getDirections === 'function');
+
+                // --- State Tests ---
+                assert("store is defined", typeof store === 'object');
+                assert("store has empty markers array initially", Array.isArray(store.markers) && store.markers.length === 0);
 
                 // --- Utils Tests ---
                 assert("formatCourseCode trims and uppercases", utils.formatCourseCode(" cse101 ") === "CSE 101");
                 assert("getFilterCategory LBS -> LAB", utils.getFilterCategory("LBS") === "LAB");
+                assert("getFilterCategory DIS -> DIS", utils.getFilterCategory("DIS") === "DIS");
+                assert("getFilterCategory other -> LEC", utils.getFilterCategory("SEM") === "LEC");
                 assert("getClassStatus detects Online", utils.getClassStatus({building: "Online Instruction"}) === "ONLINE");
+                assert("getClassStatus detects Cancelled", utils.getClassStatus({time: "CANCELLED"}) === "CANCELLED");
+                assert("getClassStatus detects TBD/TBA", utils.getClassStatus({building: "TBA"}) === "TBD");
+                assert("getClassStatus detects Physical", utils.getClassStatus({building: "Classroom Unit 1"}) === "PHYSICAL");
                 assert("getTermName Winter 2026", utils.getTermName("2260") === "Winter 2026");
 
                 // --- Additional Utils Coverage Tests ---
@@ -89,6 +101,11 @@
                 assert("parseMeetingTime with invalid schedule string returns null", utils.parseMeetingTime("TBA") === null);
                 assert("getEarliestMeetingSortVal returns correct early sort code", utils.getEarliestMeetingSortVal([{time: "MWF 10:40AM-11:45AM"}, {time: "TuTh 12:00PM-01:00PM"}]) === (0 * 1440) + (10 * 60 + 40));
 
+                const meetingA = { time: "TuTh 10:40AM-11:45AM" };
+                const meetingB = { time: "MWF 10:40AM-11:45AM" };
+                const sorted = utils.sortMeetings([meetingA, meetingB]);
+                assert("sortMeetings chronologically sorts meetings", sorted[0].time === "MWF 10:40AM-11:45AM");
+
                 // --- ColorManager Tests ---
                 const c1 = ColorManager.getColor("10001");
                 const c2 = ColorManager.getColor("10001");
@@ -96,6 +113,9 @@
                 
                 const c3 = ColorManager.getColor("20002");
                 assert("ColorManager returns different color for different ID", c1 !== c3);
+
+                ColorManager.releaseColor("10001");
+                assert("ColorManager.releaseColor releases the color mapping", ColorManager.assignments["10001"] === undefined);
 
                 // --- groupDataByLocation Tests (Clustering logic) ---
                 const mockOfferings = [
