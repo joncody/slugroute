@@ -142,6 +142,15 @@ export function updateMarkers() {
         }
     }
 
+    if (store.isLastRouteP2P && store.lastRouteOrigin) {
+        const originMarker = store.markers.find(function(m) {
+            return m.position.lat === store.lastRouteOrigin.lat && m.position.lng === store.lastRouteOrigin.lng;
+        });
+        if (originMarker && !originMarker.map) {
+            clearRoute();
+        }
+    }
+
     if (store.activeInfoWindow && store.activeInfoWindow.getMap()) {
         const anchor = store.activeInfoWindow.getAnchor();
         if (anchor) {
